@@ -1,0 +1,65 @@
+# ── Unity ──────────────────────────────────────────────
+# 생성물 폴더. Library/는 수백MB까지 커지고 재생성 가능하므로 절대 커밋하지 않는다.
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]serSettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# IDE가 자동 생성하는 솔루션/프로젝트 파일 (Unity가 다시 만든다)
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.vs/
+.idea/
+.vscode/
+
+# 빌드 산출물·패키지
+*.apk
+*.aab
+*.app
+*.unitypackage
+*.unitypackage.meta
+crashlytics-build.properties
+sysinfo.txt
+
+# Asset Store 도구
+/[Aa]ssets/AssetStoreTools*
+
+# 주의: Unity의 `*.meta` 파일은 반드시 커밋한다 — 무시하면 에셋 참조(GUID)가
+# 다른 머신에서 전부 끊긴다. 위 패턴에 *.meta 전역 무시가 없는 이유다.
+
+# ── 하네스 ─────────────────────────────────────────────
+# 하네스 원본 저장소. 그 자체가 별개 git 저장소라서 추적하면 깨진 gitlink가 생긴다
+# (하네스 RUN_LOG.md 2026-09-14에 실제로 발생한 사고로 기록돼 있음).
+borry-claude-harness/
+
+# 구현 에이전트별 스크래치 디렉터리 (ORCHESTRATION.md "스크래치 디렉터리 격리").
+# 통합 전 임시 작업 공간이라 버전 관리 대상이 아니다.
+.scratch/
+
+# ── 시크릿 ─────────────────────────────────────────────
+# CODING_GUIDE.md §6 — .env는 절대 커밋하지 않고, .env.example만 커밋한다.
+.env
+.env.local
+!.env.example
+
+# ── OS ─────────────────────────────────────────────────
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
