@@ -1,8 +1,8 @@
-# TECH_SPEC: 뱀서라이크 1차 MVP (3회차)
+# TECH_SPEC: 뱀서라이크 1차 MVP (4회차)
 
 > 입력: `SPEC.md`(4회차, F1~F19, 수용 기준 327개), `CODING_GUIDE.md`, `RUN_LOG.md` 2026-10-12·2026-10-16 항목(Q40·Q41·D17·D3·Q24 수정 확정, 피해 세 갈래, 세대 ID, 교차 검토 결과와 PM 방향). RUN_LOG의 확정 결정은 SPEC.md보다 우선한다.
 > 이 문서는 `SPEC.md`를 수정하지 않는다. 기능 범위는 SPEC.md 그대로이며, 범위에 영향을 줄 수 있는 판단은 6절에 적었다.
-> 표기: **[기본값]** = PM이 정한 구현 단계 기본값이며 구현·밸런싱 때 바꿀 수 있다. **[실측]** = Unity 동작 전제이며 실행해 보기 전에는 확정할 수 없다(6.2절 번호). **(2회차)** = 2회차 개정에서 바뀌었거나 새로 생긴 곳. **(3회차)** = 3회차 개정에서 바뀐 곳.
+> 표기: **[기본값]** = PM이 정한 구현 단계 기본값이며 구현·밸런싱 때 바꿀 수 있다. **[실측]** = Unity 동작 전제이며 실행해 보기 전에는 확정할 수 없다(6.2절 번호). **(2회차)** = 2회차 개정에서 바뀌었거나 새로 생긴 곳. **(3회차)** = 3회차 개정에서 바뀐 곳. **(4회차)** = 4회차 개정에서 바뀐 곳.
 
 ---
 
@@ -62,6 +62,8 @@
 | 6 | D26 해소(PM 승인) | D26, 6.3 |
 | 7 | End 단계의 `EndStep`은 드라이버 직접 호출로 표기, `StopAtStep` 판정을 `>=`로 통일 | 5c.3 #9 표, TAC-F19-3 |
 
+**4회차 변경 요약 (4회차)**: doc-writer가 보고한 내부 불일치 3건만 고쳤다 — ① 충돌 이벤트 비교 키·정렬·로그 열 순서를 `CollisionEvent.CompareTo`의 `(Step, Channel, A, B, Kind)`로 통일(SPEC 5회차 F18 "(채널, ID) 순 정렬", 2.1·5.9·TAC-F18-8·5.15 충돌 로그·5c.5 E1·D8) ② `TargetProviderSlot`은 5.7 정의대로 `ITargetProvider`만 구현하며 단계 핸들러가 아니다 — BuildIndex 끝에 `SimulationDriverMid`가 직접 호출하도록 5c.3 #9를 고쳤다(5.7 메모) ③ 부팅 시 최초 JSON 로드 경로와 검증 호출 순서를 5.11.0에 추가했다(호출 주체 `GameBootstrap`은 IMP-FLOW, 로더는 IMP-DATA, `GameDataRegistry.Initialize` 추가, 5c.2 표기).
+
 ---
 
 ## 1. 개요 (Overview)
@@ -87,7 +89,7 @@ Unity 6000.3.26f1(Universal 2D(URP) 템플릿, C#)로 만드는 뱀서라이크 
 | 피해 세 갈래 (2회차) | 3.0 I, F3·F4·F6 | 일회성 접촉 / 공격자 측 쌍별 쿨다운 / 플레이어 공통 무적. 스텝 번호로 센다. 몸통 접촉 다수 = 최대 피해 1회, 같으면 작은 ID | 구성요소, 같은 스텝 내 적용 순서 |
 | `ITargetProvider` | F2, F16 | 전수 / 공간 해시 / `Physics2D` 쿼리. 제곱거리 비교, ID 타이브레이크, 반지름 큰 객체는 별도 리스트. 무기 전용(몬스터는 플레이어 위치 직접 참조). 즉시 전환 | 질의 시점, 반환 형식, 공간 해시 공유 방식 |
 | `IUpdatable` + 중앙 틱 | F17 | 몬스터·투사체만 등록. A는 객체별 `FixedUpdate`, B는 중앙 순회. 다음 판 적용 | 순회 순서 독립성 보장 방법 |
-| `ICollisionStrategy` (폴링) | F18, 3.0 I | Enter·Exit 두 종류, ID 순 정렬, 엔진판은 콜백을 큐에 모은다. 비교 키 (스텝, 종류, 채널, ID 쌍). 다음 판 적용 | 이벤트 구조체, 채널, 등록 해제 시 Exit 처리 |
+| `ICollisionStrategy` (폴링) | F18, 3.0 I | Enter·Exit 두 종류, (채널, ID) 순 정렬, 엔진판은 콜백을 큐에 모은다. 비교 키 (스텝, 채널, 객체 ID 쌍, 종류)(4회차: SPEC 5회차 F18 정렬 순서와 `CollisionEvent.CompareTo`에 통일). 다음 판 적용 | 이벤트 구조체, 채널, 등록 해제 시 Exit 처리 |
 | 고정 스텝 | 3.0 F | 1/60초, catch-up 상한 3(`Time.maximumDeltaTime = 0.05`), 게임 시간 = 스텝 수 × 1/60, 일시정지·레벨업 중 스텝 없음 | 스텝 내부 단계 순서, 게이트 소유자 |
 | 결정론 RNG | 3.0 F, F16 | 고정 시드 가능 | 생성기 종류, 스트림 분리 |
 | JSON 7종 + 로더·레지스트리·검증 | F11, F18 터널링 | 필수 4/선택 3, 플레이 불가 4기준, 정의 단위 건너뛰기, Newtonsoft 파서, UTF-8(U+FFFD 경고), 틱 간격·무적 시간은 초 입력 → 스텝 환산 | 필드명·타입·단위 |
@@ -406,7 +408,7 @@ SPEC.md 3절의 수용 기준 327개는 그대로 유효하며 여기서 반복�
 - TAC-F18-5: 등록 해제(회수) 시 두 전략 모두 Exit을 내지 않는다. 자체판은 그 바디의 쌍을 조용히 지우고, 엔진판은 `Physics2D.callbacksOnDisable = false`에 더해 "등록되지 않은 바디의 콜백은 버림" 필터를 둔다 [실측 U8]. 이 때문에 겹침 기록 소비자는 TAC-0-10대로 `Despawned`에서 기록을 지운다.
 - TAC-F18-6 (2회차 수정, A7): 생성은 Lifecycle에서만 일어나므로 스텝 s에 생성된 객체는 s+1의 `Collision`부터 판정에 들어간다. 두 전략 모두 `Register` 직후의 첫 `CollectEvents`에서 이미 겹쳐 있으면 Enter를 낸다 (EM + PM).
 - TAC-F18-7: E1·E2·E3의 실행 방법은 5c.5에 있다. (2회차) E1·E2는 타깃 공급자를 `Physics2DQuery`가 아닌 것으로 둔다(D30).
-- TAC-F18-8 (2회차 신규): 이벤트 비교 키는 `(Step, Kind, Channel, A, B)`이고 `CollisionEvent.ToString()`과 충돌 로그 CSV 열이 이 순서다. A·B는 `EntityId.ToString()`(`"인덱스:세대"`)이다.
+- TAC-F18-8 (2회차 신규, 4회차 수정): 이벤트 정렬·비교 키는 `(Step, Channel, A, B, Kind)` 하나다(`CollisionEvent.CompareTo`, SPEC 5회차 F18 "(채널, ID) 순 정렬"). `CollisionEvent.ToString()`과 충돌 로그 CSV 열(`step,channel,a,b,kind`)도 이 순서다. A·B는 `EntityId.ToString()`(`"인덱스:세대"`)이다.
 
 ### F19. 개발자 모드
 
@@ -800,6 +802,7 @@ namespace Survivor.Strategies
 
 - 구현 클래스: `BruteForceTargetProvider`, `SpatialHashTargetProvider(MonsterSpatialIndex)`, `Physics2DTargetProvider(PhysicsBodySynchronizer bodies, int monsterLayerMask)`(TAC-F16-3).
 - `TargetProviderSlot : ITargetProvider`(Simulation/Loop, IMP-LOOP)가 현재 공급자를 감싸고 `StepContext.Targets`로 나간다. 교체는 `Begin`의 `SwitchTargetProvider` 대기 명령에서만 한다(TAC-F16-5).
+- (4회차) `TargetProviderSlot`은 `ITargetProvider`만 구현하며 `IStepPhaseHandler`가 아니다. BuildIndex 단계의 핸들러(order 0·5·10)가 모두 끝난 직후 `SimulationDriverMid`가 `TargetProviderSlot.OnSnapshotBuilt(snapshot)`을 **직접 호출**한다(5c.3 #9 BuildIndex 행). 그래서 공급자는 항상 확정된 스냅샷·재구축된 공간 해시를 받는다.
 - 큰 몬스터는 해시에 들어가지 않고, `QueryCircle`·고리 탐색 뒤에 항상 별도로 전수 검사한다(SPEC F16, R25).
 
 ### 5.8 중앙 틱 (Core 계약, IMP-LOOP 구현) (2회차 수정, A8)
@@ -859,8 +862,8 @@ namespace Survivor.Core
         public readonly EntityId A;
         public readonly EntityId B;
         public CollisionEvent(long step, CollisionEventKind kind, CollisionChannel channel, EntityId a, EntityId b);
-        public int CompareTo(CollisionEvent other);   // Step, Channel, A, B, Kind (dispatch order)
-        public override string ToString();            // CSV row: "step,kind,channel,a,b" (comparison key order, TAC-F18-8)
+        public int CompareTo(CollisionEvent other);   // (rev 4) Step, Channel, A, B, Kind — the single sort/dispatch/comparison key (TAC-F18-8)
+        public override string ToString();            // (rev 4) CSV row: "step,channel,a,b,kind" (same order as CompareTo)
     }
 
     /// Mutable circle owned by an entity; strategies read Position/Radius during CollectEvents.
@@ -1065,8 +1068,9 @@ namespace Survivor.Data
     /// Holds the current GameData; hot reload swaps it atomically at a step boundary (Begin).
     public sealed class GameDataRegistry
     {
-        public GameData Current { get; }
+        public GameData Current { get; }                 // null until the first playable load
         public DataValidationReport LastReport { get; }
+        public void Initialize(GameData data, DataValidationReport report); // (rev 4) boot only, once; stores report always, sets Current only when report.IsPlayable; throws if called twice
         public bool TrySwap(GameData data, DataValidationReport report); // refuses when !report.IsPlayable
         public event Action<GameData> Swapped;
     }
@@ -1104,6 +1108,11 @@ namespace Survivor.Data
 - 파일 단위 정책: 필수 4종(weapons, monsters, spawnTable, playerStats)이 없거나 전체 파싱에 실패하면 Blocking이다. 선택 3종은 Warning이고 폴백한다. 정의 단위 오류는 그 정의만 건너뛰고 Warning이다. 플레이어 기본 스탯은 정의 단위 오류도 Blocking이다(SPEC F11).
 - 플레이 불가 4기준: 사용 가능한 무기 0개, 스폰 가능한 몬스터 0종(스폰 테이블이 참조하는 유효 몬스터 기준), 플레이어 기본 스탯 없음, 스폰 테이블 없음. `startingWeaponId`가 유효하지 않으면 플레이어 기본 스탯 오류(Blocking)로 본다 [기본값, D7].
 - 에셋 키 해석은 로드 시점에 키를 검증(경고)할 때와 생성 시점에 `SpriteRenderer`에 적용할 때 쓰인다. 기본 도형은 `DefaultShapeFactory.Circle`(런타임에 64×64 `Texture2D`로 만든 원, 마젠타 틴트)이다 [실측 U20].
+
+#### 5.11.0 최초 로드 (4회차 신규)
+
+- **호출 주체**: 부팅 시 최초 로드는 `GameBootstrap.Awake`(App, **IMP-FLOW 소유**, 5c.2)가 한 번 한다. 순서는 `SimulationSettingsApplier.Apply()` → `PhysicsSettingsApplier.Apply()` → `DisplaySetup.Apply()` → `GameDataLoader.LoadAll(Application.streamingAssetsPath)`(**IMP-DATA 소유**) → `GameDataRegistry.Initialize(data, report)` → `report.IsPlayable`이면 `FlowState.Title`, 아니면 `FlowState.DataError`로 F11 시작 차단 화면(TAC-F8-4, `LastReport.BlockingIssues` 표시)이다. `DataError` 상태에서는 `Current`가 null이고 판을 시작할 수 없다. 개발자 모드의 `DevModeEntry`(AfterSceneLoad)는 이 뒤에 붙는다(U40).
+- **검증 묶음 호출 순서 (고정)**: `LoadAll`/`LoadFromTexts` 내부에서 항상 ① 파일별 읽기(UTF-8, U+FFFD 경고) → ② `JsonTreeReader`(Newtonsoft 파싱, 파일 단위 실패 판정) → ③ `Binders/*`(필드 바인딩·정의 단위 검증·ID 중복·초→스텝 환산, 7종 고정 순서: PlayerStats, Weapons, Passives, Monsters, SpawnTable, Combinations, LevelUpPool — 참조되는 쪽 먼저) → ④ 파일 간 참조 검증(조합·스폰 테이블·`startingWeaponId`·보스 소환 `monsterId`) → ⑤ `PlayabilityChecker`(플레이 불가 4기준) → ⑥ `TunnelingInvariantValidator.Validate`(경고만) 순이다. 핫 리로드도 같은 `LoadAll`을 쓰므로 같은 순서를 탄다.
 
 #### 5.11.1 핫 리로드 적용 시점 (2회차 신규, Q43 확장)
 
@@ -1555,7 +1564,7 @@ namespace Survivor.App
 | `DevSpawnPolicy : ISpawnPolicy` | 스폰 중단 / 특정 종만 / N 유지(죽거나 디스폰되면 같은 스텝 Lifecycle에 보충) / 즉시 N기. 보스 자동 등장 없음 |
 | `AutoPathInputSource : IInputSource` | 5.5 |
 | `LoggingCollisionStrategy : ICollisionStrategy` | 실제 전략을 감싸 `CollectEvents` 결과를 `CollisionEventLog`에 복사(데코레이터). 다음 판 시작 때만 설치된다 |
-| `CollisionEventLog` | 메모리 버퍼 → `collision_<seed>_<strategy>_<mode>.csv`(R28). 헤더: `step,kind,channel,a,b` |
+| `CollisionEventLog` | 메모리 버퍼 → `collision_<seed>_<strategy>_<mode>.csv`(R28). 헤더: `step,channel,a,b,kind` ((4회차) `CollisionEvent.CompareTo`·`ToString` 순서) |
 | `StatsCollector` | `ProfilerRecorder`: 마커 전부, `"GC Allocated In Frame"`, `"Total Used Memory"`, `"Total Reserved Memory"`. 프레임 시간은 `Time.unscaledDeltaTime`. 워밍업(TAC-F19-7) [실측 U14·U15·U38] |
 | `MeasurementSession` | 5.15.2 |
 | `MeasurementGuard` (2회차) | 시작 거부 조건 판정과 원인 문자열 |
@@ -1826,7 +1835,7 @@ Survivor/
 | **IMP-COLLISION** | `Scripts/Strategies/Collision/`: `SelfCollisionStrategy.cs`, `EngineCollisionStrategy.cs`, `CollisionBodyLink.cs`, `PhysicsBodySynchronizer.cs`(2회차), `PhysicsSettingsApplier.cs`(2회차, 1회차 `PhysicsLayerSetup` 대체), `CollisionTemplateDecorator.cs`(2회차), `PairSet.cs`; `Tests/EditMode/Collision/*`, `Tests/PlayMode/Collision/*`(E1·E2 하네스) |
 | **IMP-PLAYER** | `Scripts/Simulation/Player/`: `PlayerEntity.cs`, `PlayerMovement.cs`, `PlayerHealth.cs`, `PlayerDamageReceiver.cs`, `PassiveInventory.cs`, `PlayerProgressionApplier.cs`(2회차); `Scripts/Simulation/Weapons/`: `WeaponInventory.cs`, `WeaponInstance.cs`, `WeaponFactory.cs`, `ProjectileWeapon.cs`, `OrbitWeapon.cs`, `ZoneWeapon.cs`, `PlayerProjectile.cs`, `OrbitOrb.cs`, `DamageZone.cs`, `ContactDamageTracker.cs`, `WeaponDamageResolver.cs`(2회차), `PlayerHitHandler.cs`(2회차), `PlayerSpawnCommandHandler.cs`(2회차), `EvolutionService.cs`, `ChestEffectResolver.cs`, `ChestEffect.cs`, `WeaponLoadoutEntry.cs`(2회차); `Tests/EditMode/Player/*` |
 | **IMP-MONSTER** | `Scripts/Simulation/Monsters/`: `Monster.cs`, `MonsterBehaviorState.cs`, `EnemyProjectile.cs`, `EnemyHazardZone.cs`, `MonsterSpawner.cs`, `SpawnScheduler.cs`, `TableSpawnPolicy.cs`, `DespawnSystem.cs`, `KillPipeline.cs`, `MonsterCommandHandler.cs`; `Scripts/Simulation/Pickups/`: `ExperienceGem.cs`, `Chest.cs`, `PickupSystem.cs`, `PickupRegistry.cs`(2회차, 활성 젬 수), `DropCommandHandler.cs`(2회차, 1회차 `DropService` 대체); `Tests/EditMode/Monsters/*` |
-| **IMP-FLOW** | `Scripts/Simulation/Progression/`: `ExperienceSystem.cs`, `UpgradeOption.cs`, `LevelUpCandidateBuilder.cs`, `LevelUpSelector.cs`, `LevelUpSession.cs`(2회차), `StepOutcomeGate.cs`(2회차), `RunSession.cs`, `BestRecordStore.cs`; `Scripts/UI/` 전부(`Survivor.UI.asmdef`, `UiFactory.cs`(2회차), `TitleView.cs`, `HudView.cs`, `LevelUpView.cs`, `PauseMenuView.cs`, `ResultView.cs`, `DataErrorView.cs`, `UiInputHandler.cs`); `Scripts/App/`: `Survivor.App.asmdef`, `GameBootstrap.cs`(+`IDevModeHost` 구현, Global Light 2D 생성), `IDevModeHost.cs`(2회차), `GameFlowController.cs`, `FlowState.cs`, `RunOutcome.cs`(2회차), `StrategyFactory.cs`, `DisplaySetup.cs`(2회차), `WindowSizeSelector.cs`(2회차), `CameraFollow.cs`, `BackgroundTiler.cs`; `Scenes/Main.unity`; `Tests/EditMode/Progression/*`, `Tests/EditMode/Architecture/AsmdefReferenceTests.cs`(2회차), `Tests/PlayMode/Flow/*` |
+| **IMP-FLOW** | `Scripts/Simulation/Progression/`: `ExperienceSystem.cs`, `UpgradeOption.cs`, `LevelUpCandidateBuilder.cs`, `LevelUpSelector.cs`, `LevelUpSession.cs`(2회차), `StepOutcomeGate.cs`(2회차), `RunSession.cs`, `BestRecordStore.cs`; `Scripts/UI/` 전부(`Survivor.UI.asmdef`, `UiFactory.cs`(2회차), `TitleView.cs`, `HudView.cs`, `LevelUpView.cs`, `PauseMenuView.cs`, `ResultView.cs`, `DataErrorView.cs`, `UiInputHandler.cs`); `Scripts/App/`: `Survivor.App.asmdef`, `GameBootstrap.cs`(+`IDevModeHost` 구현, Global Light 2D 생성, (4회차) 부팅 시 최초 데이터 로드 호출 — 5.11.0), `IDevModeHost.cs`(2회차), `GameFlowController.cs`, `FlowState.cs`, `RunOutcome.cs`(2회차), `StrategyFactory.cs`, `DisplaySetup.cs`(2회차), `WindowSizeSelector.cs`(2회차), `CameraFollow.cs`, `BackgroundTiler.cs`; `Scenes/Main.unity`; `Tests/EditMode/Progression/*`, `Tests/EditMode/Architecture/AsmdefReferenceTests.cs`(2회차), `Tests/PlayMode/Flow/*` |
 | **IMP-DEV** | `Scripts/Dev/` 전부(5.15 표의 클래스 + `Survivor.Dev.asmdef`); `Editor/DevModeMenu.cs`, `Editor/Survivor.Editor.asmdef`; `Tests/Dev/*`(+`Survivor.Tests.Dev.asmdef`) |
 | **사용자** | `ProjectSettings/*`, `Packages/manifest.json`(패키지 추가), `Resources/AssetKeyRegistry.asset`, `UI/Fonts/*`(TTF·TMP Font Asset), TMP Essential Resources |
 | **doc-writer** | `docs/devlog.md`(틀), `README.md`(3회차: 기능 브랜치 머지마다 갱신, 5c.2a) |
@@ -1866,7 +1875,7 @@ SPEC F14는 "기능별 필수 기록이 없으면 그 기능은 미완료"라고
 | Begin | 0 `PendingCommandQueue`(LOOP: 개발자 명령, `SwapData`, `SwitchTargetProvider`), 10 입력 소비 `PlayerMovement`(PLAYER, `ReadMove` 캐시) |
 | PlayerMove | 0 `PlayerMovement`(PLAYER) → 드라이버가 `StepContext` 확정 |
 | MonsterTick | (전략) |
-| BuildIndex | 0 `MonsterRegistry` 스냅샷(LOOP), 5 `PhysicsBodySynchronizer`(COLLISION, R19가 요구할 때만), 10 `MonsterSpatialIndex`(SPATIAL, `Required`일 때만), 20 `TargetProviderSlot.OnSnapshotBuilt`(LOOP → SPATIAL 구현) |
+| BuildIndex | 0 `MonsterRegistry` 스냅샷(LOOP), 5 `PhysicsBodySynchronizer`(COLLISION, R19가 요구할 때만), 10 `MonsterSpatialIndex`(SPATIAL, `Required`일 때만). (4회차) 핸들러가 모두 끝난 직후 `SimulationDriverMid`가 `TargetProviderSlot.OnSnapshotBuilt(snapshot)`을 **직접 호출**한다(LOOP → SPATIAL 구현). `TargetProviderSlot`은 단계 핸들러가 아니다(5.7) |
 | WeaponTick | 0 `WeaponInventory`(PLAYER, 슬롯 순서: 발사 명령·궤도 원 위치·자식 보정), 10 젬 끌림 `PickupSystem`(MONSTER) |
 | ProjectileTick | (전략) |
 | Collision | 0 `CollisionEventRouter` 수집(LOOP) |
@@ -1910,8 +1919,8 @@ SPEC F14는 "기능별 필수 기록이 없으면 그 기능은 미완료"라고
 | 게이트 (2회차) | PM | 레벨업·사망·클리어가 스텝 s에서 일어나는 시나리오 × 3 FPS: 닫힌 뒤 `Step == s+1`, 해시 일치. 연속 3레벨: 회차 1·2·3이 스텝 없이 열림. 같은 프레임 키+클릭: 수락 1회. 단계 중 예외: `AbortStep` 후 `Step` 불변·오류 표시 |
 | 생성 시점 (2회차) | PM | W3 첫 피해 스텝 = 발사 스텝 + 1을 충돌 2 × 틱 2 조합에서 확인 |
 | 전략 조합 결정론 | PM | 시드 고정, 레벨업 비활성, 자동 경로, 무적, 무기 W1~W4 5단계, N=200 유지, 1,800스텝. 조합 3×3×2×2 = 36개 전부의 상태 해시 일치(시간이 오래 걸리면 기준선 대비 단일 변경 7개 + 전부 켬 1개로 줄인다) |
-| **E1** | PM | 위 시나리오(타깃은 공간 해시, D30)를 `Collision = Self`와 `Engine/Discrete`로 각각 3,600스텝 실행하고 `LoggingCollisionStrategy` 로그를 (스텝, 종류, 채널, A, B) 집합으로 비교. 다르면 첫 불일치 스텝과 두 바디의 거리·반지름 합을 출력 |
-| **E2** | PM | 같은 시나리오를 `Engine/Discrete`와 `Engine/Continuous`로 실행해 같은 방식으로 비교. U6 실측 결과에 따라 "트리거에는 CCD가 적용되지 않아 자명하게 같음"이 확인되면 그 사실을 devlog에 기록한다 |
+| **E1** | PM | 위 시나리오(타깃은 공간 해시, D30)를 `Collision = Self`와 `Engine/Discrete`로 각각 3,600스텝 실행하고 `LoggingCollisionStrategy` 로그를 (스텝, 채널, A, B, 종류) 집합으로 비교((4회차) `CollisionEvent.CompareTo` 순서). 다르면 첫 불일치 스텝과 두 바디의 거리·반지름 합을 출력 |
+| **E2** | PM | 같은 시나리오를 `Engine/Discrete`와 `Engine/Continuous`로 실행해 같은 방식((4회차) 같은 (스텝, 채널, A, B, 종류) 키)으로 비교. U6 실측 결과에 따라 "트리거에는 CCD가 적용되지 않아 자명하게 같음"이 확인되면 그 사실을 devlog에 기록한다 |
 | 흐름 | PM | 타이틀 → 시작 → 사망 → 결과 → 재시작 → 상태 초기화(ID 1:1부터, 스텝 0, 풀 활성 0). (2회차) ESC 중 레벨업 선택지 유지, 타이틀로 나가기 기록 미갱신, 포커스 상실 일시정지 |
 | 화면 (2회차) | EM / PM | `WindowSizeSelector.Choose` 표(1920x1040 → 1600x900, 1280x680 → 1280x720 등) / 세 해상도 UI 스크린샷 |
 | asmdef 참조 (2회차) | EM | 5c.1 참조 방향 표와 `.asmdef` 비교 |
@@ -1936,7 +1945,7 @@ SPEC F14는 "기능별 필수 기록이 없으면 그 기능은 미완료"라고
 - **D5.** 진화로 소모된 원본 무기를 레벨업에서 다시 "새 무기"로 얻을 수 있는지 SPEC에 없다. [기본값] 다시 얻을 수 없다(후보에서 제외). 비차단.
 - **D6.** 보스(M4) 정의가 무효면 10분 뒤 클리어가 불가능하지만, SPEC의 "플레이 불가 4기준"에는 들어 있지 않다. [기본값] Warning만 남기고 시작은 허용한다. (2회차) 결과는 **소프트락**이다: 36000 스텝 이후 일반 스폰이 끝나고 보스도 나오지 않아 사망·타이틀로 나가기 외에 판이 끝나지 않는다(TAC-F8-10). 5번째 기준으로 추가하려면 PM이 결정한다. 비차단.
 - **D7.** `startingWeaponId`가 무효일 때의 처리가 없다. [기본값] 플레이어 기본 스탯 오류(Blocking)로 본다. 비차단.
-- **D8.** 해소(2회차, SPEC F18 4회차): 비교 키에 채널이 들어갔다(`(스텝, 종류, 채널, 객체 ID 쌍)`). 자석 별도 ID는 로그 가독성 때문에 유지한다.
+- **D8.** 해소(2회차, SPEC F18 4회차): 비교 키에 채널이 들어갔다. (4회차) 키 순서는 SPEC 5회차 F18 "(채널, ID) 순 정렬"에 맞춰 `(스텝, 채널, 객체 ID 쌍, 종류)` = `CollisionEvent.CompareTo`로 통일했다(TAC-F18-8). 자석 별도 ID는 로그 가독성 때문에 유지한다.
 - **D9.** 해소(2회차, SPEC F19 4회차 + PM 방향): 배속 상한을 3x로 낮췄다. catch-up 상한 3은 유지하고 오버레이에 실제 배속을 표시한다(5.15.1). U23은 실측 항목으로 남는다.
 - **D10.** 해소(2회차, SPEC 3.0 B 4회차): 타깃 탐색만 즉시, 풀링·틱·충돌은 다음 판 시작 시 적용.
 - **D11.** 해소(2회차, SPEC 3.0 I·F3 4회차): 몸통 접촉 다수 = 최대 피해 1회, 같으면 작은 ID.
@@ -2012,5 +2021,5 @@ SPEC F14는 "기능별 필수 기록이 없으면 그 기능은 미완료"라고
 
 ### 6.3 집계 (3회차 갱신)
 
-- 문서 간 불일치/SPEC 미규정: 번호 **33개**(D1~D33). **해소 13건**(D3·D8·D9·D10·D11·D12·D13·D17·D18·D20·D22·D24, (3회차) D26), **미해소 20건**. **blocking 0건** — 모두 [기본값]이 있다. PM 확인 권장: D25(UI 프레임워크, 웨이브 4 전), D29(측정 시작 버튼), D31(개발자 모드 의존 방향).
+- 문서 간 불일치/SPEC 미규정: 번호 **33개**(D1~D33). **해소 13건**(D3·D8·D9·D10·D11·D12·D13·D17·D18·D20·D22·D24, (3회차) D26), **미해소 20건**. **blocking 0건** — 모두 [기본값]이 있다. PM 확인 권장: D25(UI 프레임워크, 웨이브 4 전), D29(측정 시작 버튼), D31(개발자 모드 의존 방향). (4회차 변화 없음)
 - 실측/실행 필요: 번호 **42개**(U1~U42) 중 U19는 대체되어 **미확정 41건**(3회차 변화 없음). 형식상 blocking은 없지만 **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31, IMP-COLLISION 전 U5·U7·U8·U30·U32, IMP-DEV 전 U40(웨이브 0 스파이크 (a)~(j)로 한 번에 확인). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
