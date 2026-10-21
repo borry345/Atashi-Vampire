@@ -1,8 +1,8 @@
-# TECH_SPEC: 뱀서라이크 1차 MVP (4회차)
+# TECH_SPEC: 뱀서라이크 1차 MVP (5회차)
 
-> 입력: `SPEC.md`(4회차, F1~F19, 수용 기준 327개), `CODING_GUIDE.md`, `RUN_LOG.md` 2026-10-12·2026-10-16 항목(Q40·Q41·D17·D3·Q24 수정 확정, 피해 세 갈래, 세대 ID, 교차 검토 결과와 PM 방향). RUN_LOG의 확정 결정은 SPEC.md보다 우선한다.
+> 입력: `SPEC.md`(6회차, F1~F19, 수용 기준 329개), `CODING_GUIDE.md`, `RUN_LOG.md` 2026-10-12·2026-10-16 항목(Q40·Q41·D17·D3·Q24 수정 확정, 피해 세 갈래, 세대 ID, 교차 검토 결과와 PM 방향). RUN_LOG의 확정 결정은 SPEC.md보다 우선한다.
 > 이 문서는 `SPEC.md`를 수정하지 않는다. 기능 범위는 SPEC.md 그대로이며, 범위에 영향을 줄 수 있는 판단은 6절에 적었다.
-> 표기: **[기본값]** = PM이 정한 구현 단계 기본값이며 구현·밸런싱 때 바꿀 수 있다. **[실측]** = Unity 동작 전제이며 실행해 보기 전에는 확정할 수 없다(6.2절 번호). **(2회차)** = 2회차 개정에서 바뀌었거나 새로 생긴 곳. **(3회차)** = 3회차 개정에서 바뀐 곳. **(4회차)** = 4회차 개정에서 바뀐 곳.
+> 표기: **[기본값]** = PM이 정한 구현 단계 기본값이며 구현·밸런싱 때 바꿀 수 있다. **[실측]** = Unity 동작 전제이며 실행해 보기 전에는 확정할 수 없다(6.2절 번호). **(2회차)** = 2회차 개정에서 바뀌었거나 새로 생긴 곳. **(3회차)** = 3회차 개정에서 바뀐 곳. **(4회차)** = 4회차 개정에서 바뀐 곳. **(5회차)** = 5회차 개정에서 바뀐 곳.
 
 ---
 
@@ -63,6 +63,8 @@
 | 7 | End 단계의 `EndStep`은 드라이버 직접 호출로 표기, `StopAtStep` 판정을 `>=`로 통일 | 5c.3 #9 표, TAC-F19-3 |
 
 **4회차 변경 요약 (4회차)**: doc-writer가 보고한 내부 불일치 3건만 고쳤다 — ① 충돌 이벤트 비교 키·정렬·로그 열 순서를 `CollisionEvent.CompareTo`의 `(Step, Channel, A, B, Kind)`로 통일(SPEC 5회차 F18 "(채널, ID) 순 정렬", 2.1·5.9·TAC-F18-8·5.15 충돌 로그·5c.5 E1·D8) ② `TargetProviderSlot`은 5.7 정의대로 `ITargetProvider`만 구현하며 단계 핸들러가 아니다 — BuildIndex 끝에 `SimulationDriverMid`가 직접 호출하도록 5c.3 #9를 고쳤다(5.7 메모) ③ 부팅 시 최초 JSON 로드 경로와 검증 호출 순서를 5.11.0에 추가했다(호출 주체 `GameBootstrap`은 IMP-FLOW, 로더는 IMP-DATA, `GameDataRegistry.Initialize` 추가, 5c.2 표기).
+
+**5회차 변경 요약 (5회차)**: SPEC 6회차(W2 궤도 원 생애) 반영, TAC-F6-4 보강 — 궤도 원은 수명 없음(`lifetimeSteps = 0` → `ExpireStep = long.MaxValue` 규약을 5.10 `Spawn<T>` 주석에 확정), 회수 경로 셋(TAC-F6-8·TAC-F7-2·RunReset), `LifetimeSystem`은 수명 없는 엔티티를 건너뜀(5.4 메모·5c.3 표).
 
 ---
 
@@ -235,7 +237,7 @@ SPEC.md의 ID를 그대로 쓴다. 추가·삭제는 없다.
 
 ## 4. 기능별 요구사항 및 수용 기준 (Functional Requirements & Acceptance Criteria)
 
-SPEC.md 3절의 수용 기준 327개는 그대로 유효하며 여기서 반복하지 않는다. 아래는 그 기준을 이 설계로 구현할 때 추가로 지켜야 하는 **기술 수용 기준(TAC)** 이다. 각 항목은 5절의 계약과 5a의 공유 규칙을 근거로 하며, 테스트 위치를 함께 적었다(EM = EditMode, PM = PlayMode).
+SPEC.md 3절의 수용 기준 329개는 그대로 유효하며 여기서 반복하지 않는다. 아래는 그 기준을 이 설계로 구현할 때 추가로 지켜야 하는 **기술 수용 기준(TAC)** 이다. 각 항목은 5절의 계약과 5a의 공유 규칙을 근거로 하며, 테스트 위치를 함께 적었다(EM = EditMode, PM = PlayMode).
 
 ### 3.0 F·H·I (공통) 고정 스텝·결정론·ID·피해
 
@@ -316,7 +318,7 @@ SPEC.md 3절의 수용 기준 327개는 그대로 유효하며 여기서 반복�
 - TAC-F6-1 (2회차 수정): 무기 인스턴스는 `behavior` 값으로 `WeaponFactory`가 만든다. `projectile`(W1, E1)·`homing`(W4) → `ProjectileWeapon`(homing이면 투사체가 재조준 모드), `orbit`(W2, E2) → `OrbitWeapon`, `zone`(W3) → `ZoneWeapon`. W4를 나타내는 방법은 `behavior: "homing"` 하나뿐이다(불리언 플래그 없음).
 - TAC-F6-2: W1 방향 = `MoveMath.DirectionOrDefault(target − playerPos)`(영벡터면 `Vector2.right`). 발사 후 방향은 바뀌지 않는다. `projectileCount > 1`이면 `spreadDegrees`를 균등 분할해 같은 스텝에 명령을 여러 개 넣는다 (EM).
 - TAC-F6-3: W4 투사체는 `ProjectileTick`에서 매 스텝 `Targets.TryFindNearest(자기 위치)`로 방향을 다시 잡는다. 대상이 없으면 마지막 방향으로 직진하고 수명이 끝나면 소멸한다 [Q9]. W1·W4 모두 사거리 없이 `lifetimeSteps`로 소멸한다 [Q9].
-- TAC-F6-4: W2 궤도 원 위치 = `playerPos + R·(cos θ_i, sin θ_i)`, `θ_i = θ0 + ω·step + 2π·i/orbCount`. `OrbitWeapon`이 WeaponTick에서 자기 궤도 원들의 위치를 스텝 번호로 바로 계산해 쓴다(누적 오차 없음) (EM).
+- TAC-F6-4: W2 궤도 원 위치 = `playerPos + R·(cos θ_i, sin θ_i)`, `θ_i = θ0 + ω·step + 2π·i/orbCount`. `OrbitWeapon`이 WeaponTick에서 자기 궤도 원들의 위치를 스텝 번호로 바로 계산해 쓴다(누적 오차 없음) (EM). (5회차) 궤도 원은 무기를 보유하는 동안 상시 존재하며 수명·지속시간·재생성 쿨다운이 없다: `SpawnPlayerOrb` 명령을 처리하는 `PlayerSpawnCommandHandler`는 `EntityLifecycle.Spawn<T>`에 `lifetimeSteps = 0`(수명 없음)을 넘겨 `ExpireStep = long.MaxValue`가 되고(5.10), `LifetimeSystem`은 이를 회수하지 않는다. 회수 경로는 `orbCount` 감소 초과분(TAC-F6-8), 진화 교체(TAC-F7-2), 런 종료·재시작(`DespawnAll(RunReset)`) 셋뿐이다. 핫 리로드는 보유 인스턴스에 적용되지 않아(5.11.1) 해당하지 않는다 (SPEC F6 6회차 신규) (EM).
 - TAC-F6-5 (2회차 수정, Q46②): W3는 쿨다운이 됐을 때 `Targets.TryFindNearest(playerPos)`가 있으면 그 위치로 `SpawnPlayerZone` 명령을 넣고 쿨다운을 소비한다. 없으면 명령도 쿨다운 소비도 없고 다음 스텝에 다시 시도한다. 장판은 생성 스텝부터 `durationSteps` 뒤 Lifecycle의 수명 만료(order 10)에서 회수한다.
 - TAC-F6-6: W2·W3 지속 피해는 무기 인스턴스가 소유한 `ContactDamageTracker`(5.12)가 처리한다. Enter 시 허용 스텝이면 즉시 1회, 겹침이 이어지면 `hitIntervalSteps`마다 1회, Exit 뒤에도 허용 스텝까지 기록을 유지한다. 키는 대상 `EntityId`(세대 포함)다. 같은 무기의 장판 여러 개가 같은 적에 겹쳐도 그 무기의 기록 하나로 센다 (EM).
 - TAC-F6-7: 강화 값은 `levels[level-1]` 전체 파라미터 집합을 그대로 쓴다(절대값). 최대 단계 = `levels.Count`(기본 무기 5, 진화 무기 1).
@@ -669,7 +671,7 @@ namespace Survivor.Simulation
 ```
 
 - **생성 경로는 Lifecycle 하나다.** 엔티티를 만들거나 지우는 모든 요청은 명령으로 들어와 `SimulationCommandBuffer`(Lifecycle order 0)가 정렬 후 종류별 핸들러로 넘긴다. 핸들러: `Despawn` → `EntityDespawnCommandHandler`(LOOP), `SpawnPlayer*` → `PlayerSpawnCommandHandler`(PLAYER), `SpawnEnemy*`·`SpawnMonsters` → `MonsterCommandHandler`(MONSTER), `SpawnGem`·`SpawnChest` → `DropCommandHandler`(MONSTER). 같은 대상의 `Despawn`이 두 번 들어오면 두 번째는 무시한다.
-- Lifecycle 안에서 직접 `EntityLifecycle`을 부르는 핸들러는 셋뿐이다: 수명 만료 `LifetimeSystem`(order 10), `DespawnSystem`(order 20), `MonsterSpawner`(order 30, 일반 스폰·보스 등장).
+- Lifecycle 안에서 직접 `EntityLifecycle`을 부르는 핸들러는 셋뿐이다: 수명 만료 `LifetimeSystem`(order 10, (5회차) 수명 없는 엔티티(궤도 원 등, `ExpireStep = long.MaxValue`)는 건너뛴다), `DespawnSystem`(order 20), `MonsterSpawner`(order 30, 일반 스폰·보스 등장).
 - 명령을 넣는 곳: 무기(WeaponTick, Source = 플레이어 ID, 무기는 슬롯 순서로 돌므로 Sequence가 결정적), M3·M4(MonsterTick, Source = 몬스터 ID), 투사체·젬·상자 소모와 처치(Resolve, Source = 소모된 엔티티 또는 처치된 몬스터 ID), `PlayerProgressionApplier`의 진화·구성 변경(Resolve 또는 Begin), 개발자 "즉시 N기/보스/상자"(Begin에서 대기 명령이 Source = None으로 넣음 → 같은 스텝 Lifecycle에서 생성).
 - **판정 참여 (한 문장)**: **스텝 s의 Lifecycle에서 생성된 엔티티는 스텝 s의 Collision에 참여하지 않으며, 스텝 s+1의 Collision부터 참여하고 첫 `Tick`도 s+1이다.** 5.10·TAC-0-8·TAC-F6-8·TAC-F18-6이 모두 이 문장을 따른다.
 - 1회차의 "WeaponTick에서 즉시 생성 + 생성 스텝 Tick 건너뜀" 규칙은 없앴다. 생성이 Tick보다 뒤라 건너뛸 일이 생기지 않는다. 엔티티의 `Tick`에는 방어용 단언 `Debug.Assert(ctx.Step > SpawnStep)`만 둔다.
@@ -1000,6 +1002,7 @@ namespace Survivor.Simulation
                                PrefabCatalog prefabs, SimulationClock clock);
         public T Spawn<T>(EntityCategory category, Vector2 position, long lifetimeSteps, Action<T> initialize) where T : SimEntity;
         //   throws InvalidOperationException unless clock.CurrentPhase == Lifecycle or a run reset is in progress (TAC-0-8)
+        //   (rev 5) lifetimeSteps == 0 -> no lifetime, ExpireStep = long.MaxValue (W2/E2 orbs); > 0 -> ExpireStep = SpawnStep + lifetimeSteps; < 0 -> ArgumentOutOfRangeException
         //   order: pool.Acquire -> ids.Allocate -> Bind -> initialize(entity) -> ticks.Register (if IUpdatable)
         //          -> physicsBodies.Register(Body) -> collisions.Register(Body) -> registry add (MonsterRegistry / PickupRegistry ...)
         public bool Despawn(EntityId id, DespawnReason reason);
@@ -1880,7 +1883,7 @@ SPEC F14는 "기능별 필수 기록이 없으면 그 기능은 미완료"라고
 | ProjectileTick | (전략) |
 | Collision | 0 `CollisionEventRouter` 수집(LOOP) |
 | Resolve | 0 라우터 디스패치(LOOP: 채널 0 투사체 명중·소모, 1·2 트래커 Enter/Exit, 3·5 겹침 기록, 4 M3 투사체 후보·소모, 6 젬 끌림 시작, 7 젬 획득(경험치), 8 상자 효과(진화·강화·**회복**)), 10 `WeaponDamageResolver` 지속 피해(PLAYER), 20 `PlayerDamageReceiver`(PLAYER: 회복 뒤 피해), 30 `KillPipeline`(MONSTER: ID 순 처치 확정 → 처치 수 → 드랍 판정 → 명령) |
-| Lifecycle | 0 `SimulationCommandBuffer`(LOOP: 정렬 → 생성·회수 핸들러), 10 `LifetimeSystem`(LOOP), 20 `DespawnSystem`(MONSTER), 30 `MonsterSpawner`(MONSTER: 일반 스폰·보스), 90 `StepOutcomeGate`(FLOW: 사망 > 클리어 > 레벨업, 게이트 닫기) |
+| Lifecycle | 0 `SimulationCommandBuffer`(LOOP: 정렬 → 생성·회수 핸들러), 10 `LifetimeSystem`(LOOP; (5회차) `ExpireStep = long.MaxValue`인 수명 없는 엔티티는 건너뜀), 20 `DespawnSystem`(MONSTER), 30 `MonsterSpawner`(MONSTER: 일반 스폰·보스), 90 `StepOutcomeGate`(FLOW: 사망 > 클리어 > 레벨업, 게이트 닫기) |
 | End | (3회차) 단계 핸들러 없음 — `SimulationDriverLate`가 Lifecycle 뒤에 `SimulationClock.EndStep`을 **직접 호출**한다(LOOP) |
 
 10. (2회차 수정) 데이터 접근: 보유·활성 객체(무기 인스턴스, 몬스터, 보유 패시브)는 생성 시점의 정의 참조를 보관한다. 스폰 테이블·플레이어 기본 스탯(체력·최대 체력 제외)·레벨업 풀·조합 규칙은 참조할 때마다 `GameDataRegistry.Current`를 읽는다(5.11.1).
