@@ -482,7 +482,7 @@ flowchart LR
     HR -->|"플레이 가능하면"| PCQ
     PCQ --> SWAP
     SWAP -->|"교체 성공: Swapped 이벤트"| REG
-    SWAP -.->|"플레이 불가이면 TrySwap 거부"| HOTERR
+    SWAP -.->|"플레이 불가면 기존 데이터 유지, 오류만 표시"| ERR
 ```
 
 ---
@@ -531,4 +531,7 @@ flowchart LR
 | 항목 | 이유 |
 |---|---|
 | `Survivor.Editor` 어셈블리 | 5c.1 표에서 참조가 없어 화살표가 0개라 그림 1에 넣지 않았다 |
+| `TargetProviderSlot`의 BuildIndex 핸들러 관계 | 5c.3 #9는 BuildIndex order 20에 `TargetProviderSlot.OnSnapshotBuilt`를 적었지만 5.0.1은 `TargetProviderSlot`을 `IStepPhaseHandler` 구현으로 올리지 않았다. 그림 3의 노드 라벨에만 적고 그림 2b에는 `IStepPhaseHandler` 관계를 그리지 않았다 |
+| 검증 단계 내부의 호출 순서 | Binders, `PlayabilityChecker`, `TunnelingInvariantValidator`의 호출 순서와 `PlayabilityChecker`를 누가 부르는지 5.11에 적혀 있지 않아 그림 5는 검증 묶음 하나로만 그렸다 |
+| 시작 시 최초 로드의 `GameDataRegistry` 설정 경로 | 부팅 때 누가 `LoadAll` 결과를 레지스트리에 넣는지 5.11에 없다 (`TrySwap`과 핫 리로드만 명시) |
 | 스텝 밖 게이트 닫힘(`Close`)·`AbortStep`·`Open` | 단계가 아니라 스텝 밖/예외 경로라 그림 3의 노드 수(10)를 지키려고 본문 설명으로만 적었다 |
