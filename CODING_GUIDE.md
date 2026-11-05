@@ -45,6 +45,19 @@
   Unity는 MonoBehaviour의 파일명과 클래스명이 다르면 그 스크립트를 컴포넌트로 붙일 수 없다 —
   이건 스타일 관례가 아니라 **엔진 제약**이다.
 
+### 2.3 Python (2026-10-30 신설)
+
+- **PEP 8을 따른다**: 모듈·패키지·함수·변수 `snake_case`, 클래스 `CapWords`, 상수 `UPPER_SNAKE_CASE`, 내부용 이름 `_` 접두사.
+- 파일명(모듈명)은 `snake_case.py`. 패키지 디렉터리도 소문자.
+- **외부 라이브러리의 camelCase API(예: Waveshare `TTLServo.servoAngleCtrl`)는 호출할 때 그 이름 그대로 쓴다** — 감싸는 래퍼
+  함수는 우리 규칙(snake_case)으로 짓되, 원본 이름을 바꾸거나 재정의하지 않는다(§1 최소 수정).
+- 대상 런타임의 Python 버전을 프로젝트 문서(TECH_SPEC)가 정하면 그 버전의 문법·표준 라이브러리만 쓴다(예: 3.6이면
+  `dataclasses`·`from __future__ import annotations` 금지). 버전은 추정하지 않고 실측·문서 근거로 적는다.
+- 하드웨어·GUI 등 개발 PC에 없는 라이브러리는 모듈 최상위에서 import하지 않고 사용 지점에서 지연 import한다 — 그래야
+  하드웨어 없는 환경에서 모듈을 import해 단위 테스트할 수 있다.
+
+(계기: PJT06 JETANK 프로젝트에서 tech-spec-writer가 Python 절 부재를 보고함 — 이 절이 없던 동안은 PEP 8을 암묵 기준으로 썼다.)
+
 **왜 언어별로 나눴나**: 원래 이 절은 JS를 전제한 단일 규칙("파일명 camelCase")이었다. 2026-10-10
 Unity/C# 프로젝트에 착수하면서, 그 규칙이 C# 생태계 관례와 정면으로 어긋나고 위의 Unity 엔진
 제약과도 부딪히는 것이 드러나 언어별로 분리했다. 새 언어로 작업할 일이 생기면 같은 방식으로

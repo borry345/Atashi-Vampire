@@ -10,13 +10,20 @@ description: 원격에 푸시하기 전에 시크릿 유출, 빌드 산출물 �
 ## 1. 원격 상태 먼저 (강제 푸시 금지)
 
 ```bash
-git fetch origin
-git rev-parse --verify origin/main 2>/dev/null || echo "origin/main 없음 — 최초 푸시"
+git remote -v                          # 주소가 지금 프로젝트의 원격인지 눈으로 확인
+git ls-remote --heads --tags origin    # 원격의 실제 브랜치·태그 — 로컬 캐시가 아니다
+git fetch --prune origin               # 원격에서 사라진 추적 참조를 지운다
 git status -sb | head -2
 ```
 
 원격이 앞서 있으면 **강제 푸시하지 않고** 히스토리를 보존하는 방식(머지)을 쓴다.
 원격 `main`이 이미 팀원 머지로 앞서 있던 적이 있다.
+
+**`git branch -a`·`origin/<브랜치>`는 로컬에 캐시된 추적 참조라 원격의 현재 상태가 아니다**(2026-11-02 추가).
+다른 프로젝트에서 `.git`째 복사해 온 저장소에는 옛 원격의 참조가 그대로 남는다 — PJT06에서 PM이 그 참조를
+보고 "원격에 다른 프로젝트 내용이 있다"고 오보했다(실제 원격은 웹 업로드 커밋 2개). 원격 상태는 **반드시
+`git ls-remote`로** 본다. 기본 브랜치 이름도 `main`으로 가정하지 않는다 — `ls-remote`의 `HEAD`와 브랜치 목록으로
+확인한다(PJT06은 `master`). 추적 브랜치가 없으면 사용자에게 `git push -u origin <브랜치>`를 안내한다.
 
 ## 1-b. 스크래치가 디스크에 남아 있는지 (커밋 여부와 다른 질문)
 
@@ -70,7 +77,8 @@ git check-ignore -v dist/env.js                           # 무시되는지
 ## 6. 푸시 후
 
 ```bash
-git ls-tree -r origin/main --name-only | grep -E "(^|/)env\.js$|^dist/|^\.scratch/|/node_modules/"
+git fetch origin && git ls-tree -r origin/<기본 브랜치> --name-only | grep -E "(^|/)env\.js$|^dist/|^\.scratch/|/node_modules/"
 ```
 
-비어 있어야 한다. 여기서도 **끝 고정**을 잊지 말 것.
+비어 있어야 한다. 여기서도 **끝 고정**을 잊지 말 것. `<기본 브랜치>`는 1번에서 확인한 이름이다 — 푸시 직후의
+`fetch`가 없으면 이 명령도 옛 캐시를 본다.

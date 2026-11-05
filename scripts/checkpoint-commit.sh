@@ -13,5 +13,12 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+# 첫 커밋이 없는 저장소에서는 실행하지 않는다 — `git add -A`가 사용자 영상·제출 zip 같은
+# 미추적 파일을 전부 쓸어 넣는다. 첫 커밋의 범위는 PM이 사용자와 정한다 (2026-11-02, PJT06).
+if ! git rev-parse --verify HEAD >/dev/null 2>&1; then
+  echo "checkpoint 생략: 첫 커밋이 없는 저장소 — 첫 커밋 범위는 PM이 사용자와 정한다" >&2
+  exit 2
+fi
+
 git add -A
 git commit -m "checkpoint: $1" --no-verify
