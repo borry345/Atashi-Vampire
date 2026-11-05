@@ -2,7 +2,7 @@
 
 ## 1. 개요 (Overview)
 
-Unity 6000.3.26f1(Universal 2D(URP) 템플릿, C#)로 만드는 뱀서라이크 1차 MVP의 기술 설계다. 이 프로젝트의 핵심은 기능의 양이 아니라 **측정 가능한 구조**다. 풀링·타깃 탐색·Update 집중화·충돌 판정 네 가지를 전략 인터페이스 뒤로 분리하고, 1/60초 고정 스텝 위에서 **어느 전략 조합을 골라도 스텝 단위 게임 결과가 똑같이** 나오게 만든 다음, 개발자 모드에서 비용 차이만 잰다. 따라서 이 문서의 대부분은 기능 로직보다 **결정론 계약**에 할애한다. 스텝 안의 단계 순서, 게이트를 닫는 주체와 시점, 객체 ID 형식, 정렬·타이브레이크 규칙, 난수 스트림 분리, 생성·회수 경로가 그 내용이다. 하나라도 계층마다 다르게 구현되면 E1·E2 동등성 테스트와 F10 측정이 무의미해진다. 저장소에는 아직 코드도 Unity 프로젝트도 없다. 그래서 "기존 구조"를 읽는 대신 SPEC이 요구하는 구조의 의존 관계와, 설계가 기대는 Unity 동작 전제를 2절에 정리했다. 병렬 구현자가 바로 착수할 수 있도록 C# 시그니처 수준의 계약, JSON 스키마 7종, 공유 규칙 표, 파일 소유권 맵, 디스패치 순서는 5절에 확정했다.
+Unity 6000.3.28f1(Universal 2D(URP) 템플릿, C#)로 만드는 뱀서라이크 1차 MVP의 기술 설계다. 이 프로젝트의 핵심은 기능의 양이 아니라 **측정 가능한 구조**다. 풀링·타깃 탐색·Update 집중화·충돌 판정 네 가지를 전략 인터페이스 뒤로 분리하고, 1/60초 고정 스텝 위에서 **어느 전략 조합을 골라도 스텝 단위 게임 결과가 똑같이** 나오게 만든 다음, 개발자 모드에서 비용 차이만 잰다. 따라서 이 문서의 대부분은 기능 로직보다 **결정론 계약**에 할애한다. 스텝 안의 단계 순서, 게이트를 닫는 주체와 시점, 객체 ID 형식, 정렬·타이브레이크 규칙, 난수 스트림 분리, 생성·회수 경로가 그 내용이다. 하나라도 계층마다 다르게 구현되면 E1·E2 동등성 테스트와 F10 측정이 무의미해진다. 저장소에는 아직 코드도 Unity 프로젝트도 없다. 그래서 "기존 구조"를 읽는 대신 SPEC이 요구하는 구조의 의존 관계와, 설계가 기대는 Unity 동작 전제를 2절에 정리했다. 병렬 구현자가 바로 착수할 수 있도록 C# 시그니처 수준의 계약, JSON 스키마 7종, 공유 규칙 표, 파일 소유권 맵, 디스패치 순서는 5절에 확정했다.
 
 ---
 
@@ -24,7 +24,7 @@ Unity 6000.3.26f1(Universal 2D(URP) 템플릿, C#)로 만드는 뱀서라이크 
 | `ITargetProvider` | F2, F16 | 전수 / 공간 해시 / `Physics2D` 쿼리. 제곱거리 비교, ID 타이브레이크, 반지름 큰 객체는 별도 리스트. 무기 전용(몬스터는 플레이어 위치 직접 참조). 즉시 전환 | 질의 시점, 반환 형식, 공간 해시 공유 방식 |
 | `IUpdatable` + 중앙 틱 | F17 | 몬스터·투사체만 등록. A는 객체별 `FixedUpdate`, B는 중앙 순회. 다음 판 적용 | 순회 순서 독립성 보장 방법 |
 | `ICollisionStrategy` (폴링) | F18, 3.0 I | Enter·Exit 두 종류, (채널, ID) 순 정렬, 엔진판은 콜백을 큐에 모은다. 비교 키 (스텝, 채널, 객체 ID 쌍, 종류)(4회차: SPEC 5회차 F18 정렬 순서와 `CollisionEvent.CompareTo`에 통일). 다음 판 적용 | 이벤트 구조체, 채널, 등록 해제 시 Exit 처리 |
-| 고정 스텝 | 3.0 F | 1/60초, catch-up 상한 3(`Time.maximumDeltaTime = 0.05`), 게임 시간 = 스텝 수 × 1/60, 일시정지·레벨업 중 스텝 없음 | 스텝 내부 단계 순서, 게이트 소유자 |
+| 고정 스텝 | 3.0 F | 1/60초, catch-up 상한 3(`Time.maximumDeltaTime = 0.05 / timeScale`, (10회차) D9), 게임 시간 = 스텝 수 × 1/60, 일시정지·레벨업 중 스텝 없음 | 스텝 내부 단계 순서, 게이트 소유자 |
 | 결정론 RNG | 3.0 F, F16 | 고정 시드 가능 | 생성기 종류, 스트림 분리 |
 | JSON 7종 + 로더·레지스트리·검증 | F11, F18 터널링 | 필수 4/선택 3, 플레이 불가 4기준, 정의 단위 건너뛰기, Newtonsoft 파서, UTF-8(U+FFFD 경고), 틱 간격·무적 시간은 초 입력 → 스텝 환산 | 필드명·타입·단위 |
 | 화면·흐름 (2회차) | F8 | 창 모드 16:9 자동 선택, Alt+Enter 끔, Canvas Scaler, 사망 > 클리어 > 레벨업, 포커스 상실 자동 일시정지, 개발자 모드 판 기록 미저장 | 소유자, 선택 알고리즘 |
@@ -80,21 +80,21 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 
 ### 2.3 설계가 기대는 Unity 6 API·동작 전제 (전부 실측 필요)
 
-아래는 이 설계가 **사실이라고 가정하고** 기대는 Unity 동작이다. 코드를 실행해 확인한 것이 아니며 하나도 확정되지 않았다. 번호는 6.2절과 같다.
+아래는 이 설계가 **사실이라고 가정하고** 기대는 Unity 동작이다. 코드를 실행해 확인한 것이 아니며 하나도 확정되지 않았다. 번호는 6.2절과 같다. (10회차) 웨이브 0 실측(2026-11-05, Unity 6000.3.28f1 에디터 PlayMode)으로 아래 표의 일부가 **확인됨**·**틀림**·**부분 확인**으로 바뀌었다. 결과 요약은 6.2에 있고, 표시가 없는 행은 여전히 미확정이다.
 
 | # | 전제 | 이 전제에 기대는 설계 |
 |---|---|---|
-| U1 | `[DefaultExecutionOrder]`가 `FixedUpdate`에도 적용되고, 같은 클래스 인스턴스 간 호출 순서는 보장되지 않는다 | 드라이버 3개 + 셀프 티커 2개의 인터리브(2.2 c) |
-| U2 | `Time.fixedDeltaTime = 1/60`, `Time.maximumDeltaTime = 0.05`이면 한 프레임의 `FixedUpdate`가 최대 3회다 | catch-up 상한 3 |
-| U3 | `Time.captureDeltaTime = 1/30, 1/60, 1/144`로 프레임레이트를 흉내 내면 `FixedUpdate` 누적이 그에 맞게 동작한다 | 프레임레이트 독립 PlayMode 테스트 |
+| U1 | **확인됨(10회차 실측)** — `[DefaultExecutionOrder]`가 `FixedUpdate`에도 적용되고, 같은 클래스 인스턴스 간 호출 순서는 보장되지 않는다 | 드라이버 3개 + 셀프 티커 2개의 인터리브(2.2 c) |
+| U2 | **확인됨(10회차 실측, 실제 정지 프레임 기준. `captureDeltaTime`은 클램프를 우회함)** — `Time.fixedDeltaTime = 1/60`, `Time.maximumDeltaTime = 0.05`이면 한 프레임의 `FixedUpdate`가 최대 3회다 | catch-up 상한 3 |
+| U3 | **부분 확인(10회차 실측, 결정론 테스트용으로만, 상한 검증 불가)** — `Time.captureDeltaTime = 1/30, 1/60, 1/144`로 프레임레이트를 흉내 내면 `FixedUpdate` 누적이 그에 맞게 동작한다 | 프레임레이트 독립 PlayMode 테스트 |
 | U4 | `Rigidbody2D.collisionDetectionMode` 기본값은 `Discrete`다 (SPEC Q39) | E1 조건 |
-| U5 | 키네마틱 ↔ 키네마틱 트리거 콜백이 발생한다(필요하면 `useFullKinematicContacts`로) | 엔진 충돌 전략의 바디 구성 |
+| U5 | **확인됨(10회차 실측, sleepMode 변경 불필요)** — 키네마틱 ↔ 키네마틱 트리거 콜백이 발생한다(필요하면 `useFullKinematicContacts`로) | 엔진 충돌 전략의 바디 구성 |
 | U6 | `Continuous` 모드가 트리거·키네마틱 바디의 판정 결과를 바꿀 수 있다 | E2가 의미 있는 검증인지 여부 |
-| U7 | `simulationMode = Script`에서 `Physics2D.Simulate()` 호출 중(또는 직후)에 `OnTriggerEnter2D/Exit2D`가 동기적으로 호출된다 | 엔진판 이벤트가 같은 스텝 번호에 나온다 |
-| U8 | `Physics2D.callbacksOnDisable = false`이면 콜라이더 비활성화 시 Exit 콜백이 나오지 않는다 | "등록 해제 시 Exit 없음" 규칙의 엔진판 일치 |
-| U9 | Box2D 원-원 겹침의 경계(거리 = 반지름 합)가 자체 판정 `≤`와 같은 쪽으로 판정된다 | E1 경계 사례 |
+| U7 | **확인됨(10회차 실측, Simulate 안 동기)** — `simulationMode = Script`에서 `Physics2D.Simulate()` 호출 중(또는 직후)에 `OnTriggerEnter2D/Exit2D`가 동기적으로 호출된다 | 엔진판 이벤트가 같은 스텝 번호에 나온다 |
+| U8 | **확인됨(10회차 실측)** — `Physics2D.callbacksOnDisable = false`이면 콜라이더 비활성화 시 Exit 콜백이 나오지 않는다 | "등록 해제 시 Exit 없음" 규칙의 엔진판 일치 |
+| U9 | **확인됨(10회차 실측, 거리 = 반지름 합에서 Enter → 접촉 포함 `≤`)** — Box2D 원-원 겹침의 경계(거리 = 반지름 합)가 자체 판정 `≤`와 같은 쪽으로 판정된다 | E1 경계 사례 |
 | U10 | `Rigidbody2D.MovePosition`은 스윕 이동이고, `transform.position`을 직접 쓰면 다음 시뮬레이션에서 텔레포트로 처리된다 | 엔진 모드에서 표시 동기화를 생략한다 |
-| U11 | `Rigidbody2D.position`을 바꾸거나 콜라이더를 켠 직후 `Physics2D.OverlapCircle`에 반영된다(`autoSyncTransforms`·`SyncTransforms` 영향) | `Physics2D` 타깃 공급자 |
+| U11 | **확인됨(10회차 실측: `MovePosition`은 `autoSyncTransforms`와 무관하게 `Simulate` 뒤에만 반영, `rb.position` 직접 대입은 U32)** — `Rigidbody2D.position`을 바꾸거나 콜라이더를 켠 직후 `Physics2D.OverlapCircle`에 반영된다(`autoSyncTransforms`·`SyncTransforms` 영향) | `Physics2D` 타깃 공급자 |
 | U12 | 이름 없는 레이어 인덱스(8~17)에 `Physics2D.IgnoreLayerCollision`을 코드로 설정할 수 있다 | 레이어 충돌 매트릭스를 코드로 설정 |
 | U13 | Windows 플레이어에서 `Application.streamingAssetsPath` + `File.ReadAllText`가 동기로 동작하고, 빌드 폴더 `<Name>_Data/StreamingAssets/`를 편집할 수 있다 | F11 로더, F13 |
 | U14 | `ProfilerMarker`는 비개발 빌드에서 호출째 제거되고, `ProfilerRecorder`는 Development Build에서 마커의 프레임 합계를 읽으며, `Begin`/`End`를 다른 스크립트에서 짝지어도 된다 | 시스템 ms 수집 |
@@ -106,20 +106,20 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U20 | 런타임에 만든 `Texture2D` 원 스프라이트의 월드 크기를 `sprite.bounds`로 알 수 있다 | 반지름 → 표시 배율 |
 | U21 | `ObjectPool<T>`의 `maxSize`를 넘겨 반환하면 객체가 파괴되고, `collectionCheck`가 중복 반환을 잡는다 | 풀 구현 C |
 | U22 | `Destroy`는 프레임 끝까지 지연되므로 `SetActive(false)`를 먼저 해야 같은 프레임의 다음 스텝에 끼어들지 않는다 | 풀 구현 B |
-| U23 | `Time.maximumDeltaTime`은 스케일된 `deltaTime`을 제한한다(그러면 60FPS에서 `timeScale = 3`이 프레임당 정확히 3스텝) | 개발자 모드 배속 3x |
+| U23 | **틀림(10회차 실측) → D9 변경으로 반영** — `maximumDeltaTime`은 스케일 전 시간에만 걸린다(timeScale 3에서 프레임당 최대 7스텝 관찰). 원래 전제: `Time.maximumDeltaTime`은 스케일된 `deltaTime`을 제한한다(그러면 60FPS에서 `timeScale = 3`이 프레임당 정확히 3스텝) | 개발자 모드 배속 3x → (10회차) 배속 시 `maximumDeltaTime = 0.05 / timeScale` 동기 갱신(5.3·5.15.1) |
 | U24 | (2회차 수정) 자동 선택한 16:9 창 크기가 작업 표시줄·DPI 배율 때문에 강제로 줄어들지 않고 그대로 유지된다(1280x720 미만 작업 영역에서는 잘린 채 유지) | Q44 화면 밖 계산(16:9 전제) |
 | U25 | `com.unity.nuget.newtonsoft-json` 패키지를 6000.3에서 쓸 수 있고 Mono 백엔드에서 동작한다 | JSON 파서(D17 확정) |
 | U26 | 같은 빌드·같은 PC에서 float 연산은 실행마다 비트 단위로 같다(Mono JIT) | 프레임레이트 간 결정론 |
 | U27 | `Unity.exe -batchmode -runTests -testPlatform PlayMode`로 물리를 포함한 PlayMode 테스트가 돈다 | E1·E2 자동 실행 |
 | U28 | 6.3의 새 저수준 2D 물리 API와 무관하게 기존 `Physics2D`·`Rigidbody2D` API가 그대로 동작한다 | F18 A, F16 C |
 | U29 | `SpriteRenderer.drawMode = Tiled`로 반복 배경을 그릴 수 있다(URP 2D 포함) | F8 반복 배경 |
-| U30 | (2회차) `Physics2D.defaultContactOffset`을 코드로 최솟값 근처(0.0001)까지 낮출 수 있고, 이 값이 트리거 겹침 경계를 반지름 합 바깥으로 넓히는 효과를 없앤다 | E1 경계 일치 |
-| U31 | (2회차) `FixedUpdate` 도중(Late 드라이버 안에서) `enabled = true`가 된 셀프 티커는 **같은 프레임의 다음 `FixedUpdate` 호출부터** 호출된다(다음 프레임까지 밀리지 않는다) | F17 A 모드의 프레임레이트 결정론 |
-| U32 | (2회차) `simulationMode = Script`에서도 `Rigidbody2D.position` 직접 대입이 `Simulate` 없이 즉시 쿼리에 반영되고, `Physics2D.queriesHitTriggers = true`이면 `OverlapCircle`이 트리거 콜라이더를 찾는다 | "`Physics2D` 타깃 + 자체 충돌" 조합 |
+| U30 | **확인됨(10회차 실측)** — (2회차) `Physics2D.defaultContactOffset`을 코드로 최솟값 근처(0.0001)까지 낮출 수 있고, 이 값이 트리거 겹침 경계를 반지름 합 바깥으로 넓히는 효과를 없앤다 | E1 경계 일치 |
+| U31 | **확인됨(10회차 실측)** — (2회차) `FixedUpdate` 도중(Late 드라이버 안에서) `enabled = true`가 된 셀프 티커는 **같은 프레임의 다음 `FixedUpdate` 호출부터** 호출된다(다음 프레임까지 밀리지 않는다) | F17 A 모드의 프레임레이트 결정론 |
+| U32 | **확인됨(10회차 실측, `transform.position` 대입은 `SyncTransforms` 필요)** — (2회차) `simulationMode = Script`에서도 `Rigidbody2D.position` 직접 대입이 `Simulate` 없이 즉시 쿼리에 반영되고, `Physics2D.queriesHitTriggers = true`이면 `OverlapCircle`이 트리거 콜라이더를 찾는다 | "`Physics2D` 타깃 + 자체 충돌" 조합 |
 | U33 | (2회차) URP 2D 렌더러에서 `RenderPipelineManager.endCameraRendering` 콜백 안의 `GL` 즉시 그리기가 화면에 나온다(Built-in의 `OnRenderObject` 대체) | 개발자 시각화 |
 | U34 | (2회차) URP 2D에서 기본 스프라이트 머티리얼(Sprite-Lit-Default)은 Global Light 2D가 있어야 정상 밝기로 보이며, `Light2D`를 코드로 만들어 Global로 둘 수 있다 | 모든 도형 표시 |
-| U35 | (2회차) `Screen.mainWindowDisplayInfo.workArea`가 Windows 플레이어에서 작업 영역(작업 표시줄 제외)을 물리 픽셀로 돌려주고, `Screen.SetResolution(w, h, Windowed)`의 w·h는 창 테두리를 뺀 클라이언트 크기다 | 창 크기 자동 선택 |
-| U36 | (2회차) Player Settings "Allow Fullscreen Switch" 끔이 Windows 플레이어의 Alt+Enter 전환을 막는다 | F8 Alt+Enter 끔 |
+| U35 | (2회차) `Screen.mainWindowDisplayInfo.workArea`가 Windows 플레이어에서 작업 영역(작업 표시줄 제외)을 물리 픽셀로 돌려주고, `Screen.SetResolution(w, h, Windowed)`의 w·h는 창 테두리를 뺀 클라이언트 크기다. (10회차: 빌드 측정 대기) | 창 크기 자동 선택 |
+| U36 | (2회차) Player Settings "Allow Fullscreen Switch" 끔이 Windows 플레이어의 Alt+Enter 전환을 막는다. (10회차: 빌드 측정 대기) | F8 Alt+Enter 끔 |
 | U37 | (2회차) 창 모드 플레이어에서 포커스를 잃으면 `OnApplicationFocus(false)`가 오고, `Application.runInBackground`를 런타임에 켜면 포커스가 없어도 프레임이 계속 돈다 | 포커스 상실 자동 일시정지, 측정 중 백그라운드 실행 |
 | U38 | (2회차) `ProfilerRecorder`로 Memory 카테고리의 "Total Used Memory"·"Total Reserved Memory"를 Development Build에서 읽을 수 있다(릴리스 빌드에서의 가용성 포함) | F10 항목 6 |
 | U39 | (2회차) `QualitySettings.vSyncCount = 0`, `Application.targetFrameRate = -1`을 런타임에 설정하면 창 모드 플레이어가 그대로 따르고, `UnityEngine.Scripting.GarbageCollector.isIncremental`로 점진적 GC 여부를 읽을 수 있다 | 측정 환경 고정·기록 |

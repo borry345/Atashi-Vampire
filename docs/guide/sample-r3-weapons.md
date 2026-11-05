@@ -143,7 +143,7 @@ flowchart TD
 
 ### 3) 개발언어 및 툴
 
-- Unity 6000.3 (URP 2D), C# (TECH 5b: Unity 6000.3.26f1, Universal 2D 템플릿)
+- Unity 6000.3 (URP 2D), C# (TECH 5b: Unity 6000.3.28f1, Universal 2D 템플릿)
 
 ### 4) 필수 라이브러리
 

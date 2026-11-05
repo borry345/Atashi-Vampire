@@ -159,17 +159,17 @@ SPEC F14는 "기능별 필수 기록이 없으면 그 기능은 미완료"라고
 
 | 웨이브 | 구현자 (병렬) | 선행 조건 | 산출물 검증 |
 |---|---|---|---|
-| 0 | 사용자: Unity 프로젝트 생성(URP 2D)·설정(5b 앞 5줄), **Unity 동작 실측 스파이크**(아래 (a)~(j)) | 없음 | 실측 결과를 RUN_LOG에 기록 |
+| 0 | 사용자: Unity 프로젝트 생성(URP 2D)·설정(5b 앞 5줄), **Unity 동작 실측 스파이크**(아래 (a)~(j)) | 없음 | 실측 결과를 RUN_LOG에 기록. (10회차) 실측 완료 2026-11-05(U35·U36 빌드 대기), 결과 RUN_LOG·`docs/spike/results/` |
 | 1 | **IMP-CORE** (단독) | 웨이브 0의 프로젝트 폴더 | EditMode Core 테스트 통과 |
-| 2 | **IMP-DATA**, **IMP-LOOP**, **IMP-POOL**, **IMP-SPATIAL** | Core 확정. LOOP는 U1·U2·U31 결과 필요. (7회차) SPATIAL은 C 구현(`Physics2DTargetProvider`) 착수 전 U32 결과 권장(6.2 U32와 같음) | 각자 EM 테스트 |
-| 3 | **IMP-COLLISION**, **IMP-PLAYER**, **IMP-MONSTER** | 웨이브 2 조립 완료(공간 인덱스, 생명주기·명령 버퍼, 정의 객체). COLLISION은 U5·U7·U8·U30·U32 결과 필요 | EM + PM(E1·E2 하네스 골격) |
-| 4 | **IMP-FLOW** (조립 루트·UI·흐름·화면 설정) | 웨이브 3(특히 `PlayerProgressionApplier`). U35·U36·U42 결과 권장 | 타이틀 → 플레이 → 레벨업 → 결과 PM 테스트, 게이트 결정론, 전략 조합 결정론, asmdef 참조 테스트 |
+| 2 | **IMP-DATA**, **IMP-LOOP**, **IMP-POOL**, **IMP-SPATIAL** | Core 확정. LOOP는 U1·U2·U31 결과 필요((10회차) 확인됨). (7회차) SPATIAL은 C 구현(`Physics2DTargetProvider`) 착수 전 U32 결과 권장(6.2 U32와 같음)((10회차) 확인됨) | 각자 EM 테스트 |
+| 3 | **IMP-COLLISION**, **IMP-PLAYER**, **IMP-MONSTER** | 웨이브 2 조립 완료(공간 인덱스, 생명주기·명령 버퍼, 정의 객체). COLLISION은 U5·U7·U8·U30·U32 결과 필요((10회차) 확인됨) | EM + PM(E1·E2 하네스 골격) |
+| 4 | **IMP-FLOW** (조립 루트·UI·흐름·화면 설정) | 웨이브 3(특히 `PlayerProgressionApplier`). U35·U36·U42 결과 권장((10회차) U35·U36 빌드 측정 대기, U42 미확인) | 타이틀 → 플레이 → 레벨업 → 결과 PM 테스트, 게이트 결정론, 전략 조합 결정론, asmdef 참조 테스트 |
 | 5 | **IMP-DEV** | 웨이브 4(`IDevModeHost`). U33·U38·U40 결과 권장 | N스텝 자동 종료, 측정 가드·CSV 열, 충돌 로그, E1·E2 실행, `SURVIVOR_NO_DEV` 빌드 컴파일 |
 | 6 | (3회차) doc-writer(README·devlog **최종 정리와 다이어그램 검증**(5.0.1·2.2(c) 기준)만. 기능별 기록은 웨이브 1~5의 각 기능 브랜치 머지 때 이미 반영됨, 5c.2a), 사용자(F10 측정·F13·F14) | 웨이브 5 | 다이어그램과 5.0.1 인터페이스 목록 일치 |
 
 **1회차 대비 변경**: 웨이브 구성과 순서는 같다. 바뀐 것은 ① 웨이브 0 스파이크 항목이 5개에서 10개로 늘었고(U30·U31·U32·U35·U36 추가), ② 웨이브별 선행 실측이 구체화됐으며(LOOP는 U31, COLLISION은 U30·U32), ③ IMP-DEV가 IMP-FLOW의 `IDevModeHost`에 의존하게 됐다(Dev → App, 원래도 웨이브 4 뒤였으므로 순서 영향 없음), ④ 웨이브 4 검증에 asmdef 참조 테스트와 게이트 결정론이 추가됐다. (3회차) ⑤ 기능별 기록 반영은 각 웨이브의 기능 브랜치 머지에 묶이고, 웨이브 6은 최종 정리·다이어그램 검증으로 줄었다.
 
-웨이브 0 실측 스파이크 메모: 빈 URP 2D 프로젝트에 스크립트 1개를 넣어 (a) 서로 다른 `DefaultExecutionOrder`의 `FixedUpdate` 순서(U1), (b) `Time.captureDeltaTime = 0.1`에서 프레임당 `FixedUpdate` 횟수(3이어야 함, U2), (c) `simulationMode = Script` + `Simulate()` 호출 중 키네마틱-키네마틱 트리거 Enter/Exit 발생 여부와 시점(U5·U7), (d) `callbacksOnDisable = false`에서 비활성화 시 Exit 유무(U8), (e) `MovePosition` 뒤 `OverlapCircle` 반영 시점(U11), (f) Late 순서 `FixedUpdate` 안에서 켠 컴포넌트가 같은 프레임 다음 `FixedUpdate`에 호출되는지(U31), (g) `rb.position` 직접 대입 + `SyncTransforms` 뒤 `OverlapCircle`이 트리거를 찾는지(U32, (7회차) 착수 전 확인 담당은 IMP-COLLISION·IMP-SPATIAL(C 구현) — 6.2와 같음), (h) `defaultContactOffset` 최솟값과 반지름 합 경계 겹침 판정(U30·U9), (i) `Screen.mainWindowDisplayInfo.workArea` 값과 `SetResolution` 뒤 클라이언트 크기(U35), (j) Allow Fullscreen Switch 끔에서 Alt+Enter(U36)를 로그로 확인한다. 구현 코드가 아니라 실측용이므로 결과만 RUN_LOG에 남기고 버린다. 이 결과에 따라 5.9 엔진판 바디 구성(Kinematic인지 Dynamic + gravityScale 0인지)이나 F17 A의 생성 시점이 바뀔 수 있다.
+웨이브 0 실측 스파이크 메모: 빈 URP 2D 프로젝트에 스크립트 1개를 넣어 (a) 서로 다른 `DefaultExecutionOrder`의 `FixedUpdate` 순서(U1), (b) `Time.captureDeltaTime = 0.1`에서 프레임당 `FixedUpdate` 횟수(3이어야 함, U2), (c) `simulationMode = Script` + `Simulate()` 호출 중 키네마틱-키네마틱 트리거 Enter/Exit 발생 여부와 시점(U5·U7), (d) `callbacksOnDisable = false`에서 비활성화 시 Exit 유무(U8), (e) `MovePosition` 뒤 `OverlapCircle` 반영 시점(U11), (f) Late 순서 `FixedUpdate` 안에서 켠 컴포넌트가 같은 프레임 다음 `FixedUpdate`에 호출되는지(U31), (g) `rb.position` 직접 대입 + `SyncTransforms` 뒤 `OverlapCircle`이 트리거를 찾는지(U32, (7회차) 착수 전 확인 담당은 IMP-COLLISION·IMP-SPATIAL(C 구현) — 6.2와 같음), (h) `defaultContactOffset` 최솟값과 반지름 합 경계 겹침 판정(U30·U9), (i) `Screen.mainWindowDisplayInfo.workArea` 값과 `SetResolution` 뒤 클라이언트 크기(U35), (j) Allow Fullscreen Switch 끔에서 Alt+Enter(U36)를 로그로 확인한다. 구현 코드가 아니라 실측용이므로 결과만 RUN_LOG에 남기고 버린다. 이 결과에 따라 5.9 엔진판 바디 구성(Kinematic인지 Dynamic + gravityScale 0인지)이나 F17 A의 생성 시점이 바뀔 수 있다. (10회차) 실측 완료 — 결과 요약은 06 6.2(Kinematic 유지, F17 A 생성 시점 유지, U23 틀림 → D9 변경).
 
 ### 5c.5 테스트 전략 (2회차 추가 항목 표시)
 
@@ -184,7 +184,7 @@ SPEC F14는 "기능별 필수 기록이 없으면 그 기능은 미완료"라고
 | 자체 충돌 Enter/Exit | EM | 스크립트 배치 시퀀스로 기대 이벤트 목록과 비교. 등록 해제 시 Exit 없음, 지속 겹침 스텝 이벤트 없음 |
 | 피해 틱 | EM | `ContactDamageTracker`: Enter 즉시 1회, 간격, Exit 후 재진입 악용 불가, 세대 다른 같은 인덱스에 기록 미적용. `PlayerDamageReceiver`: 400기 겹침에도 무적 스텝마다 1회, (2회차) 겹친 몬스터 디스폰 뒤 피해 없음 |
 | 상자 2개 순차 (8회차) | EM | 같은 스텝에 상자 2개 획득, 진화 자격 무기 1개: 채널 8 정렬 순서 앞 상자가 진화, 뒤 상자는 그 결과를 본 상태로 판정(자격 무기 없음 → 70:30 추첨)(TAC-F4-4) |
-| 고정 스텝 | PM | `Time.captureDeltaTime`을 1/30, 1/60, 1/144로 바꿔 각각 600스텝 → `SimulationStateHash` 일치. 1/10에서 프레임당 스텝 ≤ 3 [실측 U3] |
+| 고정 스텝 | PM | `Time.captureDeltaTime`을 1/30, 1/60, 1/144로 바꿔 각각 600스텝 → `SimulationStateHash` 일치. ~~1/10에서 프레임당 스텝 ≤ 3~~ (10회차 정정, 실측 U2: `captureDeltaTime`은 `maximumDeltaTime` 클램프를 우회해 0.1에서 6스텝이 돈다) 상한 검증은 실제 긴 프레임(`Thread.Sleep(100)` 뒤 다음 프레임 스텝 수 ≤ 3, 배속 3에서도 ≤ 3)으로 한다(TAC-0-3·TAC-F19-6) [실측 U3] |
 | 게이트 (2회차) | PM | 레벨업·사망·클리어가 스텝 s에서 일어나는 시나리오 × 3 FPS: 닫힌 뒤 `Step == s+1`, 해시 일치. 연속 3레벨: 회차 1·2·3이 스텝 없이 열림. 같은 프레임 키+클릭: 수락 1회. 단계 중 예외: `AbortStep` 후 `Step` 불변·오류 표시 |
 | 생성 시점 (2회차) | PM | W3 첫 피해 스텝 = 발사 스텝 + 1을 충돌 2 × 틱 2 조합에서 확인 |
 | 전략 조합 결정론 | PM | 시드 고정, 레벨업 비활성, 자동 경로, 무적, 무기 W1~W4 5단계, N=200 유지, 1,800스텝. 조합 3×3×2×2 = 36개 전부의 상태 해시 일치(시간이 오래 걸리면 기준선 대비 단일 변경 7개 + 전부 켬 1개로 줄인다) |

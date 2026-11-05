@@ -1,4 +1,4 @@
-# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (9회차)
+# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (10회차)
 
 > 2026-10-27 단일 `TECH_SPEC.md`를 제목 단위로 분할했다(RUN_LOG 2026-10-27 D1). 내용은 바이트 그대로 옮겼고 ID(TAC·R·D·U·A 번호, 5.x 절 번호)는 변하지 않았다. 소유자는 tech-spec-writer이며, 개정 회차와 변경 요약은 이 파일이 관리한다.
 
@@ -15,6 +15,7 @@
 | 7 | SPEC 7회차(2026-11-05, 수용 기준 288개) 반영 소폭 개정, 설계 변경 없음: 첫 보유 `_nextFireStep` 규약(TAC-F2-2·5.14), 진화 결과 무기 첫 동작·궤도 원 1스텝 공백(TAC-F7-2), `placement: player` 타깃 없음 재시도(TAC-F6-5), W4 첫 발사 방향(TAC-F6-3), 보유 항목 "새 획득" 제외(TAC-F5-3), D14·D25 사용자 확정 해소, D29·D31 PM 확인 완료, IMP-MONSTER 소유 클래스 설계 5.12.1 신설, 5.13 W2~W4 5단계·E2 예시값, U32 담당 통일(5c.4·5c.2b·6.3) | 이 README |
 | 8 | 2026-11-05 독립 검토 2차와 SPEC 8회차(수용 기준 정규식 295, 보정 포함 306) 반영: 참조 방향 위반 해소 — `UpgradeKind`·`UpgradeOption`을 Core로(5.14·5.00·R12·5c.2), `RunOutcome`·`RunOutcomeKind`를 Simulation으로(5.17·5.14·5.00·5c.2), `RunSession.Reset` 뒤 `MonsterSpatialIndex.Clear`·`ApplyRequirements`는 App이 조율(TAC-F8-2·5.07). 5c.2b 읽을 파일 보강(CORE·LOOP·PLAYER·MONSTER·FLOW). SPEC 8회차 규정: "타깃 있음"은 발사·생성형만(TAC-F6-5), 측정 무효(게이트 Paused·RunReset·Error)와 결과 파일 무효 사유(TAC-F19-5·5.15.2·5.15.3), 상한 400 = 보스 제외·소환 쿨다운 소비(TAC-F3-3·F3-9·R20·5.12.1), 보스 판당 1기·`>=`·조기 처치 클리어(TAC-F3-6·F8-8·5.12.1·5.14), 시간 점프 앞으로만(TAC-F19-3·5.03), 핫 리로드 인스턴스 정의 유지(TAC-F11-5·5.11.1·5.14), 공격 끔 범위(TAC-F2-5·5.12), P1 다음 산정부터(TAC-F2-3·5.12), 상자 2개 순차(TAC-F4-4·5.12.1·5c.5), 강제 종료·오류 미저장(TAC-F8-3·5.17). 정합: TAC-F4-1 보스 문구, 5.13 궤도 원 불변식 D2 식 재계산, 5c.5 측정 가드 6조건, 01 2.0 경로, D5·D27·D29 해소·D26 반영 확인(6.3: 해소 18·미해소 15) | 이 README |
 | 9 | 2026-11-05. SPEC 9회차 반영: `placement: player` 장판은 타깃 조건 없음(TAC-F2-2·F6-5, 사용자 결정 — 7회차 "타깃 없으면 재시도" 번복), 설계 변경 없음 | 이 README |
+| 10 | 2026-11-05. 웨이브 0 실측 반영(Unity 6000.3.28f1 에디터, `docs/spike/results/2026-11-05-editor-run2.txt`): U 11건 확인·U23 틀림 → D9 변경(`maximumDeltaTime = 0.05/timeScale`, 5.3·5.15.1·TAC-F19-6), 경계 판정 접촉 포함(U9, R5), 상한 테스트 방법(실제 긴 프레임, TAC-0-3·0-4·5c.5), Kinematic 구성 유지·sleepMode 불변(U5, 5.9), `SyncMonstersForQuery`의 `SyncTransforms` 불필요(U32, 5.9·TAC-F16-3), 6.2·2.3 표 상태 표기, 6.3 U 미확정 41 → 30, 5c.4 웨이브 0 완료(U35·U36 빌드 대기) | 이 README |
 
 분할 뒤 개정 규칙: 설계 개정은 해당 `5.xx`·`02`·`5a`·`5c`·`06` 파일에서 하고 `(N회차 …)` 표기는 지금처럼 둔다. 회차 번호와 변경 요약은 이 README에만 추가한다. `00-header.md`의 0절은 2회차 기록으로 동결한다.
 

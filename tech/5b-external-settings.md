@@ -6,7 +6,7 @@
 
 | 설정 (사용자 수행) | 없으면 생기는 일 | 증상 | 확인 상태 |
 |---|---|---|---|
-| Unity 6000.3.26f1 + Windows Build Support 모듈 (F15) | 빌드 불가 | Build Profiles에 Windows가 비활성 | 실측 필요 |
+| Unity 6000.3.28f1 + Windows Build Support 모듈 (F15) | 빌드 불가 | Build Profiles에 Windows가 비활성 | 실측 필요 |
 | **Universal 2D(URP) 템플릿**으로 `indiv/Survivor/` 생성 (F15 4회차, 5c.1) | 구현자가 파일을 둘 경로가 없다. Built-in이면 U33·U34 전제가 달라진다 | - | 사용자 결정 필요(폴더명) |
 | Player Settings > Resolution: Fullscreen Mode = **Windowed**, Default Screen 1280x720(스크립트 적용 전 초기값), **Resizable Window 끔**, **Allow Fullscreen Switch 끔**(Alt+Enter), Default Is Native Resolution 끔, **Run In Background 끔**(측정 중에만 코드로 켬) | 16:9가 깨지고 Q44 계산이 무효 / Alt+Enter로 전체화면 | 창 크기 변화, 모서리 스폰이 보임 | 실측 U24·U35·U36·U37 |
 | Active Input Handling = Input System Package | `Keyboard.current`가 null, uGUI 입력 모듈 오류 | NullReferenceException, 메뉴 키보드 탐색 불가 | 실측 U17·U42 |

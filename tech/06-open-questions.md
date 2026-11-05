@@ -16,7 +16,7 @@
 - **D6.** 보스(M4) 정의가 무효면 10분 뒤 클리어가 불가능하지만, SPEC의 "플레이 불가 4기준"에는 들어 있지 않다. [기본값] Warning만 남기고 시작은 허용한다. (2회차) 결과는 **소프트락**이다: 36000 스텝 이후 일반 스폰이 끝나고 보스도 나오지 않아 사망·타이틀로 나가기 외에 판이 끝나지 않는다(TAC-F8-10). 5번째 기준으로 추가하려면 PM이 결정한다. 비차단.
 - **D7.** `startingWeaponId`가 무효일 때의 처리가 없다. [기본값] 플레이어 기본 스탯 오류(Blocking)로 본다. 비차단.
 - **D8.** 해소(2회차, SPEC F18 4회차): 비교 키에 채널이 들어갔다. (4회차) 키 순서는 SPEC 5회차 F18 "(채널, ID) 순 정렬"에 맞춰 `(스텝, 채널, 객체 ID 쌍, 종류)` = `CollisionEvent.CompareTo`로 통일했다(TAC-F18-8). 자석 별도 ID는 로그 가독성 때문에 유지한다.
-- **D9.** 해소(2회차, SPEC F19 4회차 + PM 방향): 배속 상한을 3x로 낮췄다. catch-up 상한 3은 유지하고 오버레이에 실제 배속을 표시한다(5.15.1). U23은 실측 항목으로 남는다.
+- **D9.** 해소(2회차, SPEC F19 4회차 + PM 방향): 배속 상한을 3x로 낮췄다. catch-up 상한 3은 유지하고 오버레이에 실제 배속을 표시한다(5.15.1). U23은 실측 항목으로 남는다. (10회차 변경, 사용자 확정 2026-11-05) U23 실측(`maximumDeltaTime`은 스케일 전 시간에만 걸려 timeScale 3에서 프레임당 최대 7스텝)으로 전제를 고쳐, 배속을 바꿀 때 `Time.maximumDeltaTime = 0.05f / timeScale`로 동기 갱신한다(1x면 0.05). 스케일 후 프레임 시간 상한 0.05초 = 3스텝이 유지되고, 느린 프레임에서는 게임 시간이 덜 흐르며 기존 "실제 배속" 표시가 그 차이를 보여 준다(5.3, 5.15.1, TAC-F19-6). 버린 대안: `SimulationClock`이 프레임당 스텝 호출을 세어 3을 넘는 호출을 무시하는 방식(사용자 결정으로 채택하지 않음).
 - **D10.** 해소(2회차, SPEC 3.0 B 4회차): 타깃 탐색만 즉시, 풀링·틱·충돌은 다음 판 시작 시 적용.
 - **D11.** 해소(2회차, SPEC 3.0 I·F3 4회차): 몸통 접촉 다수 = 최대 피해 1회, 같으면 작은 ID.
 - **D12.** 해소(2회차, SPEC 3.0 I·F3 4회차): 무적 중 M3 투사체는 피해 없이 소모.
@@ -44,19 +44,19 @@
 
 ### 6.2 실측/실행 필요 — 미확정 (Needs measurement/execution — unconfirmed)
 
-아래는 모두 정적으로 읽어서는 확정할 수 없는 Unity 동작 전제다(2.3 표와 번호가 같다). **사실로 취급하지 않는다.** 웨이브 0 스파이크나 해당 구현자의 PlayMode 테스트로 확인한다.
+아래는 모두 정적으로 읽어서는 확정할 수 없는 Unity 동작 전제다(2.3 표와 번호가 같다). **사실로 취급하지 않는다.** 웨이브 0 스파이크나 해당 구현자의 PlayMode 테스트로 확인한다. (10회차) "확인됨"·"틀림"·"부분 확인" 표기 항목은 웨이브 0 실측(Unity 6000.3.28f1 에디터 PlayMode, 2026-11-05, `docs/spike/results/2026-11-05-editor-run2.txt`)의 결과다.
 
-- **U1** `DefaultExecutionOrder`가 `FixedUpdate`에 적용되는지, 인스턴스 간 순서가 보장되지 않는지. 틀리면 F17 A 모드의 단계 순서를 다시 설계해야 한다. **IMP-LOOP 착수 전 확인 권장.**
-- **U2** `maximumDeltaTime = 0.05`에서 프레임당 정확히 최대 3스텝인지. 틀리면 SPEC의 "0.05로 설정"을 고쳐야 하므로 PM에게 보고한다.
-- **U3** `Time.captureDeltaTime`으로 프레임레이트 결정론 테스트를 할 수 있는지.
+- **U1** 확인됨(10회차 실측 2026-11-05) — `DefaultExecutionOrder`가 `FixedUpdate`에 적용됨(-100 두 인스턴스 → +100 두 인스턴스, 매 스텝). 같은 클래스 인스턴스 간 순서는 생성 순으로 관찰됐을 뿐 보장 아님(설계대로 의존하지 않음). 원래 질문: `DefaultExecutionOrder`가 `FixedUpdate`에 적용되는지, 인스턴스 간 순서가 보장되지 않는지. 틀리면 F17 A 모드의 단계 순서를 다시 설계해야 한다. **IMP-LOOP 착수 전 확인 권장 → 확인 완료(10회차).**
+- **U2** 확인됨(10회차 실측 2026-11-05) — 실제 정지 프레임(`Thread.Sleep(100)` ×5) 뒤 프레임당 `FixedUpdate` 최대 3회, `Time.deltaTime`은 0.05로 클램프. **주의**: `Time.captureDeltaTime = 0.1`로 흉내 낸 긴 프레임은 `maximumDeltaTime` 클램프를 우회해 6스텝이 돌았다 → 상한 검증 테스트는 실제 정지 프레임으로 한다(TAC-0-3). 원래 질문: `maximumDeltaTime = 0.05`에서 프레임당 정확히 최대 3스텝인지. 틀리면 SPEC의 "0.05로 설정"을 고쳐야 하므로 PM에게 보고한다.
+- **U3** 부분 확인(10회차 실측 2026-11-05, 미확정에 남김) — `captureDeltaTime`으로 프레임 길이를 고정하면 `FixedUpdate` 누적이 그에 맞게 동작(1/60에서 1스텝, 0.1에서 6스텝 관찰). 프레임레이트 결정론 테스트(TAC-0-4)에는 쓸 수 있으나 catch-up 상한 검증에는 못 쓴다(U2 주의). 1/30·1/144는 아직 보지 않았다. 원래 질문: `Time.captureDeltaTime`으로 프레임레이트 결정론 테스트를 할 수 있는지.
 - **U4** `Rigidbody2D` Collision Detection 기본값이 `Discrete`인지(SPEC Q39).
-- **U5** 키네마틱-키네마틱 트리거 콜백 발생 조건. 안 되면 Dynamic + gravityScale 0 바디로 바꾼다. **IMP-COLLISION 착수 전 필요.**
+- **U5** 확인됨(10회차 실측 2026-11-05) — Kinematic–Kinematic(`useFullKinematicContacts`) 트리거 Enter·Exit 모두 수신. 기본 sleepMode(StartAwake)와 NeverSleep에서 같다 → sleepMode 변경 불필요, Dynamic 대안 불필요. 원래 질문: 키네마틱-키네마틱 트리거 콜백 발생 조건. 안 되면 Dynamic + gravityScale 0 바디로 바꾼다. **IMP-COLLISION 착수 전 필요 → 확인 완료(10회차).**
 - **U6** `Continuous`가 트리거·키네마틱 바디에 영향을 주는지. **E2가 "자명하게 동일"로 끝나 SPEC이 의도한 검증이 되지 않을 가능성이 있다.** 그렇다면 그 사실 자체를 devlog 소재로 기록하고, E2의 의미를 PM이 다시 정해야 한다.
-- **U7** `simulationMode = Script`에서 `Physics2D.Simulate()` 호출 중 트리거 콜백이 동기적으로 오는지. 틀리면 엔진판 이벤트가 한 스텝 늦어 E1이 스텝 번호에서 갈린다. **IMP-COLLISION 착수 전 필요.**
-- **U8** `callbacksOnDisable = false`이면 비활성화 시 Exit이 나오지 않는지.
-- **U9** Box2D 원-원 경계 판정과 float 차이 때문에 E1 경계 사례에서 불일치가 생길 수 있는지. 생기면 허용 정책(경계 ±ε 사례는 별도 집계)을 PM이 정한다. U30과 함께 본다.
+- **U7** 확인됨(10회차 실측 2026-11-05) — 트리거 콜백이 `Physics2D.Simulate()` 호출 안에서 같은 스텝에 동기 발생(callback_step == position_set_step). 원래 질문: `simulationMode = Script`에서 `Physics2D.Simulate()` 호출 중 트리거 콜백이 동기적으로 오는지. 틀리면 엔진판 이벤트가 한 스텝 늦어 E1이 스텝 번호에서 갈린다. **IMP-COLLISION 착수 전 필요 → 확인 완료(10회차).**
+- **U8** 확인됨(10회차 실측 2026-11-05) — `callbacksOnDisable = false`에서 겹친 콜라이더를 `enabled = false`로 끄면 Exit 없음. 원래 질문: `callbacksOnDisable = false`이면 비활성화 시 Exit이 나오지 않는지.
+- **U9** 확인됨(10회차 실측 2026-11-05, 규칙 확정) — r = 0.5 + 0.5에서 d = 0.9999 Enter, d = 1.0001 Enter 없음, **d = 1.0(정확히 접촉) Enter 발생**(이때 `Physics2D.Distance`는 distance = 0, isOverlapped = false). Box2D 트리거는 "거리 ≤ 반지름 합"(접촉 포함)으로 판정하므로 자체 판정 R5 `≤`와 같은 쪽이다(5.9). ±ε 별도 집계 정책은 불필요. 원래 질문: Box2D 원-원 경계 판정과 float 차이 때문에 E1 경계 사례에서 불일치가 생길 수 있는지. 생기면 허용 정책(경계 ±ε 사례는 별도 집계)을 PM이 정한다. U30과 함께 본다.
 - **U10** `MovePosition`이 스윕 이동인지, `transform` 직접 쓰기가 텔레포트로 처리되는지.
-- **U11** `Rigidbody2D.position`·콜라이더 활성화가 `OverlapCircle`에 언제 반영되는지(`autoSyncTransforms` 기본값 포함).
+- **U11** 확인됨(10회차 실측 2026-11-05) — `MovePosition`은 `autoSyncTransforms` 값과 무관하게 `Simulate` 뒤에만 `OverlapCircle`에 반영된다(Simulate 전 쿼리는 옛 위치). 원래 질문: `Rigidbody2D.position`·콜라이더 활성화가 `OverlapCircle`에 언제 반영되는지(`autoSyncTransforms` 기본값 포함).
 - **U12** 이름 없는 레이어 인덱스에 `IgnoreLayerCollision`을 코드로 설정할 수 있는지.
 - **U13** Windows 플레이어에서 `StreamingAssets` 동기 읽기와 빌드 후 편집이 되는지.
 - **U14** `ProfilerMarker`가 비개발 빌드에서 제거되는지, `ProfilerRecorder`가 Development Build에서 마커 프레임 합계를 주는지, 스크립트를 넘나드는 `Begin`/`End`가 허용되는지. 안 되면 틱 ms 수집을 Stopwatch 주입 방식으로 바꾼다(Q40의 "비활성 시 감시 없음"과 충돌하는지 PM 확인 필요).
@@ -68,20 +68,20 @@
 - **U20** 런타임 생성 원 스프라이트의 월드 크기 계산.
 - **U21** `ObjectPool<T>`의 `maxSize`·`collectionCheck` 동작.
 - **U22** `Destroy` 지연과 같은 프레임 다음 스텝 간섭 여부.
-- **U23** `maximumDeltaTime`이 스케일된 시간을 제한하는지(60FPS·3x = 프레임당 3스텝).
+- **U23** **틀림(10회차 실측 2026-11-05) → D9 변경으로 반영, 해소** — `maximumDeltaTime`은 **스케일 전** 시간에만 걸린다. timeScale = 3·targetFrameRate 60·vSync 0에서 60프레임 평균 3.02스텝이지만 최대 7스텝, 스케일된 deltaTime 최대 0.116(비스케일 0.039). → 배속 시 `maximumDeltaTime = 0.05 / timeScale` 동기 갱신(D9, 5.3·5.15.1·TAC-F19-6). 원래 질문: `maximumDeltaTime`이 스케일된 시간을 제한하는지(60FPS·3x = 프레임당 3스텝).
 - **U24** (2회차 수정) 자동 선택한 16:9 창이 작업 표시줄·DPI 배율로 강제 축소되지 않는지.
 - **U25** Newtonsoft 패키지의 6000.3 가용성과 Mono 동작.
 - **U26** 같은 빌드·같은 PC에서 float 결과가 실행마다 같은지(결정론 전제 전체).
 - **U27** batchmode에서 물리를 포함한 PlayMode 테스트가 도는지.
 - **U28** 6.3에서 기존 `Physics2D` API가 그대로 동작하는지.
 - **U29** `SpriteRenderer` Tiled 모드로 반복 배경을 그릴 수 있는지(URP 2D 포함).
-- **U30** (2회차 신규) `Physics2D.defaultContactOffset`을 0.0001 근처로 낮출 수 있는지, 그 값이 트리거 겹침 경계에 주는 영향. 낮출 수 없으면 E1 경계 사례 허용 정책(U9)이 필요하다. **IMP-COLLISION 착수 전 확인 권장.**
-- **U31** (2회차 신규) `FixedUpdate` 도중 켠 셀프 티커가 같은 프레임의 다음 `FixedUpdate`부터 호출되는지. **틀리면 F17 A 모드에서 catch-up 프레임마다 새 엔티티의 첫 Tick이 밀려 프레임레이트 결정론이 깨진다.** 그 경우 대안은 셀프 티커를 생성 시점과 무관하게 항상 켜 두고 `IUpdatable` 연결 여부로만 거르는 것이다(측정 비용 특성이 바뀌므로 PM 판단). **IMP-LOOP 착수 전 확인 권장.**
-- **U32** (2회차 신규) Script 모드에서 `rb.position` 직접 대입이 `Simulate` 없이 쿼리에 반영되는지, `queriesHitTriggers`로 트리거를 찾는지. **IMP-COLLISION·IMP-SPATIAL(C 구현) 착수 전 확인 권장.**
+- **U30** 확인됨(10회차 실측 2026-11-05) — `defaultContactOffset = 0.0001` 설정·읽기 일치. 경계 효과는 U9에서 함께 확인(접촉 포함 판정). 원래 질문: (2회차 신규) `Physics2D.defaultContactOffset`을 0.0001 근처로 낮출 수 있는지, 그 값이 트리거 겹침 경계에 주는 영향. 낮출 수 없으면 E1 경계 사례 허용 정책(U9)이 필요하다. **IMP-COLLISION 착수 전 확인 권장 → 확인 완료(10회차).**
+- **U31** 확인됨(10회차 실측 2026-11-05) — `FixedUpdate`(order 1000) 안에서 `AddComponent`한 컴포넌트와 `enabled = true`로 켠 기존 컴포넌트 모두 **같은 프레임의 다음 스텝**부터 `FixedUpdate`가 호출됨 → F17 A 셀프 티커 설계 유지, 대안(항상 켜 두기) 불필요. 원래 질문: (2회차 신규) `FixedUpdate` 도중 켠 셀프 티커가 같은 프레임의 다음 `FixedUpdate`부터 호출되는지. **틀리면 F17 A 모드에서 catch-up 프레임마다 새 엔티티의 첫 Tick이 밀려 프레임레이트 결정론이 깨진다.** 그 경우 대안은 셀프 티커를 생성 시점과 무관하게 항상 켜 두고 `IUpdatable` 연결 여부로만 거르는 것이다(측정 비용 특성이 바뀌므로 PM 판단). **IMP-LOOP 착수 전 확인 권장 → 확인 완료(10회차).**
+- **U32** 확인됨(10회차 실측 2026-11-05) — Script 모드에서 `rb.position` 직접 대입은 `Simulate`·`SyncTransforms` 없이 즉시 `OverlapCircle`에 반영(`queriesHitTriggers = true`로 트리거 검출). `transform.position` 대입은 `SyncTransforms`가 필요하다(설계는 `rb.position`을 쓴다). 원래 질문: (2회차 신규) Script 모드에서 `rb.position` 직접 대입이 `Simulate` 없이 쿼리에 반영되는지, `queriesHitTriggers`로 트리거를 찾는지. **IMP-COLLISION·IMP-SPATIAL(C 구현) 착수 전 확인 권장 → 확인 완료(10회차).**
 - **U33** (2회차 신규) URP 2D에서 `endCameraRendering` + GL 그리기가 보이는지. 안 되면 `LineRenderer` 풀 또는 `OnRenderObject` 재확인.
 - **U34** (2회차 신규) URP 2D 기본 스프라이트 머티리얼의 Global Light 2D 의존과 코드 생성 `Light2D`. 안 되면 레지스트리에 Unlit 머티리얼 참조를 두는 방식으로 바꾼다.
-- **U35** (2회차 신규) `Screen.mainWindowDisplayInfo.workArea`의 가용성·단위와 `SetResolution` 크기 의미.
-- **U36** (2회차 신규) "Allow Fullscreen Switch" 끔이 Alt+Enter를 막는지.
+- **U35** (2회차 신규) `Screen.mainWindowDisplayInfo.workArea`의 가용성·단위와 `SetResolution` 크기 의미. (10회차: 빌드 측정 대기 — 에디터 값은 Game 뷰 크기라 무의미)
+- **U36** (2회차 신규) "Allow Fullscreen Switch" 끔이 Alt+Enter를 막는지. (10회차: 빌드 측정 대기)
 - **U37** (2회차 신규) 창 모드 포커스 이벤트와 런타임 `runInBackground` 전환.
 - **U38** (2회차 신규) 메모리 카운터 이름·가용성(Development/릴리스).
 - **U39** (2회차 신규) vSync·targetFrameRate 런타임 설정이 창 모드에서 지켜지는지, `GarbageCollector.isIncremental` 읽기.
@@ -89,7 +89,7 @@
 - **U41** (2회차 신규) Mono의 UTF-8 디코딩이 잘못된 바이트를 U+FFFD로 바꾸는지(CP949 감지 전제).
 - **U42** (2회차 신규) `InputSystemUIInputModule` 메뉴 탐색과, UI 클릭 콜백·`Update` 사이 순서(보장 안 된다고 가정했으므로 틀려도 설계는 안전).
 
-### 6.3 집계 (8회차 갱신)
+### 6.3 집계 (8회차 갱신, 10회차 U 갱신)
 
 - 문서 간 불일치/SPEC 미규정: 번호 **33개**(D1~D33). **해소 18건**(D3·D8·D9·D10·D11·D12·D13·D17·D18·D20·D22·D24, (3회차) D26, (7회차) D14·D25, (8회차) D5·D27·D29), **미해소 15건**. **blocking 0건** — 모두 [기본값]이 있다. PM 확인 권장: (7회차) 없음 — D25는 사용자 확정으로 해소, D29·D31은 PM 확인 완료(2026-11-05, 기본값 유지). (4회차 변화 없음)
-- 실측/실행 필요: 번호 **42개**(U1~U42) 중 U19는 대체되어 **미확정 41건**(3회차·7회차·8회차 변화 없음). 형식상 blocking은 없지만 **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31, IMP-COLLISION 전 U5·U7·U8·U30·U32, (7회차) IMP-SPATIAL(C 구현) 전 U32, IMP-DEV 전 U40(웨이브 0 스파이크 (a)~(j)로 한 번에 확인). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
+- 실측/실행 필요 (10회차 갱신): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 11건**(확인됨 U1·U2·U5·U7·U8·U9·U11·U30·U31·U32, 틀림 → D9 변경으로 반영 U23), 남은 **미확정 30건**(U3 부분 확인과 U35·U36 빌드 측정 대기 포함). (3회차·7회차·8회차까지는 미확정 41건.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
