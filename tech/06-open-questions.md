@@ -44,7 +44,7 @@
 
 ### 6.2 실측/실행 필요 — 미확정 (Needs measurement/execution — unconfirmed)
 
-아래는 모두 정적으로 읽어서는 확정할 수 없는 Unity 동작 전제다(2.3 표와 번호가 같다). **사실로 취급하지 않는다.** 웨이브 0 스파이크나 해당 구현자의 PlayMode 테스트로 확인한다. (10회차) "확인됨"·"틀림"·"부분 확인" 표기 항목은 웨이브 0 실측(Unity 6000.3.28f1 에디터 PlayMode, 2026-11-05, `docs/spike/results/2026-11-05-editor-run2.txt`)의 결과다.
+아래는 모두 정적으로 읽어서는 확정할 수 없는 Unity 동작 전제다(2.3 표와 번호가 같다). **사실로 취급하지 않는다.** 웨이브 0 스파이크나 해당 구현자의 PlayMode 테스트로 확인한다. (10회차) "확인됨"·"틀림"·"부분 확인" 표기 항목은 웨이브 0 실측(Unity 6000.3.28f1 에디터 PlayMode, 2026-11-05, `docs/spike/results/2026-11-05-editor-run2.txt`)의 결과다. (12회차) U35·U36은 빌드 실측(Windows 플레이어, 2026-11-06, `docs/spike/results/2026-11-06-build-run1.txt`)의 결과다.
 
 - **U1** 확인됨(10회차 실측 2026-11-05) — `DefaultExecutionOrder`가 `FixedUpdate`에 적용됨(-100 두 인스턴스 → +100 두 인스턴스, 매 스텝). 같은 클래스 인스턴스 간 순서는 생성 순으로 관찰됐을 뿐 보장 아님(설계대로 의존하지 않음). 원래 질문: `DefaultExecutionOrder`가 `FixedUpdate`에 적용되는지, 인스턴스 간 순서가 보장되지 않는지. 틀리면 F17 A 모드의 단계 순서를 다시 설계해야 한다. **IMP-LOOP 착수 전 확인 권장 → 확인 완료(10회차).**
 - **U2** 확인됨(10회차 실측 2026-11-05) — 실제 정지 프레임(`Thread.Sleep(100)` ×5) 뒤 프레임당 `FixedUpdate` 최대 3회, `Time.deltaTime`은 0.05로 클램프. **주의**: `Time.captureDeltaTime = 0.1`로 흉내 낸 긴 프레임은 `maximumDeltaTime` 클램프를 우회해 6스텝이 돌았다 → 상한 검증 테스트는 실제 정지 프레임으로 한다(TAC-0-3). 원래 질문: `maximumDeltaTime = 0.05`에서 프레임당 정확히 최대 3스텝인지. 틀리면 SPEC의 "0.05로 설정"을 고쳐야 하므로 PM에게 보고한다.
@@ -80,8 +80,8 @@
 - **U32** 확인됨(10회차 실측 2026-11-05) — Script 모드에서 `rb.position` 직접 대입은 `Simulate`·`SyncTransforms` 없이 즉시 `OverlapCircle`에 반영(`queriesHitTriggers = true`로 트리거 검출). `transform.position` 대입은 `SyncTransforms`가 필요하다(설계는 `rb.position`을 쓴다). 원래 질문: (2회차 신규) Script 모드에서 `rb.position` 직접 대입이 `Simulate` 없이 쿼리에 반영되는지, `queriesHitTriggers`로 트리거를 찾는지. **IMP-COLLISION·IMP-SPATIAL(C 구현) 착수 전 확인 권장 → 확인 완료(10회차).**
 - **U33** (2회차 신규) URP 2D에서 `endCameraRendering` + GL 그리기가 보이는지. 안 되면 `LineRenderer` 풀 또는 `OnRenderObject` 재확인.
 - **U34** (2회차 신규) URP 2D 기본 스프라이트 머티리얼의 Global Light 2D 의존과 코드 생성 `Light2D`. 안 되면 레지스트리에 Unlit 머티리얼 참조를 두는 방식으로 바꾼다.
-- **U35** (2회차 신규) `Screen.mainWindowDisplayInfo.workArea`의 가용성·단위와 `SetResolution` 크기 의미. (10회차: 빌드 측정 대기 — 에디터 값은 Game 뷰 크기라 무의미)
-- **U36** (2회차 신규) "Allow Fullscreen Switch" 끔이 Alt+Enter를 막는지. (10회차: 빌드 측정 대기)
+- **U35** (2회차 신규) `Screen.mainWindowDisplayInfo.workArea`의 가용성·단위와 `SetResolution` 크기 의미. (10회차: 빌드 측정 대기 — 에디터 값은 Game 뷰 크기라 무의미) **(12회차) 확인됨** — `workArea`는 물리 픽셀(배율 100% 모니터에서 2560x1392 = 1440 − 작업 표시줄 48), `SetResolution(1280,720,Windowed)` 뒤 클라이언트 1280x720. 배율 125%·150% 환경은 미측정(5.18의 물리 픽셀 판정 전제는 유지).
+- **U36** (2회차 신규) "Allow Fullscreen Switch" 끔이 Alt+Enter를 막는지. (10회차: 빌드 측정 대기) **(12회차) 확인됨** — 빌드에서 Alt+Enter 뒤 창·`fullScreenMode` 변화 없음.
 - **U37** (2회차 신규) 창 모드 포커스 이벤트와 런타임 `runInBackground` 전환.
 - **U38** (2회차 신규) 메모리 카운터 이름·가용성(Development/릴리스).
 - **U39** (2회차 신규) vSync·targetFrameRate 런타임 설정이 창 모드에서 지켜지는지, `GarbageCollector.isIncremental` 읽기.
@@ -92,4 +92,4 @@
 ### 6.3 집계 (8회차 갱신, 10회차 U 갱신, 11회차 U 재조정)
 
 - 문서 간 불일치/SPEC 미규정: 번호 **33개**(D1~D33). **해소 18건**(D3·D8·D9·D10·D11·D12·D13·D17·D18·D20·D22·D24, (3회차) D26, (7회차) D14·D25, (8회차) D5·D27·D29), **미해소 15건**. **blocking 0건** — 모두 [기본값]이 있다. PM 확인 권장: (7회차) 없음 — D25는 사용자 확정으로 해소, D29·D31은 PM 확인 완료(2026-11-05, 기본값 유지). (4회차 변화 없음)
-- 실측/실행 필요 (10회차 갱신, 11회차 재조정): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 10건**(확인됨 9건 U1·U2·U5·U7·U8·U9·U30·U31·U32 + 틀림 → D9 변경으로 반영 U23), **부분 확인 2건**(U3, (11회차 정정) U11 — 미확정에 남김), 남은 **미확정 31건**(부분 확인 2건과 U35·U36 빌드 측정 대기 포함). (3회차·7회차·8회차까지는 미확정 41건, 10회차 표기는 30건이었으나 U11을 확인으로 잘못 셌다.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
+- 실측/실행 필요 (10회차 갱신, 11회차 재조정): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 10건**(확인됨 9건 U1·U2·U5·U7·U8·U9·U30·U31·U32 + 틀림 → D9 변경으로 반영 U23), **부분 확인 2건**(U3, (11회차 정정) U11 — 미확정에 남김), 남은 **미확정 31건**(부분 확인 2건과 U35·U36 빌드 측정 대기 포함). (12회차) 빌드 실측 2026-11-06으로 U35·U36 확인됨 → 확인됨 11건, 남은 **미확정 29건**(부분 확인 2건 포함). (3회차·7회차·8회차까지는 미확정 41건, 10회차 표기는 30건이었으나 U11을 확인으로 잘못 셌다.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기 → (12회차) 확인 완료, 웨이브 0 전부 종료). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.

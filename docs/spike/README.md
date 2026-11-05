@@ -96,10 +96,13 @@ Edit → Project Settings → Player → (Windows 탭) **Resolution and Presenta
 
 ### 6-2. 빌드
 
-1. File → Build Profiles(또는 Build Settings) → Windows 선택 → Scenes 목록에 현재 씬이
+1. **씬에 `Wave0Spike` 오브젝트가 있어야 합니다**(3절 1~2번). Test Runner로만 돌렸다면 씬에는
+   없으니 지금 붙이고 **Ctrl+S로 씬을 저장**합니다. 빠지면 빈 씬이 빌드되어 아무 로그도 안 나옵니다
+   (2026-11-06 실제로 그랬습니다).
+2. File → Build Profiles(또는 Build Settings) → Windows 선택 → Scenes 목록에 현재 씬이
    들어 있는지 확인(없으면 Add Open Scenes).
-2. Build → 폴더는 `indiv\Survivor\Build\Spike\` 같은 **프로젝트 밖이 아닌, Assets 밖** 위치.
-3. 빌드가 끝나면 그 폴더의 `Survivor.exe`를 실행합니다.
+3. Build → 폴더는 `Desktop\borry\SurvivorBuild\` 같은 **`Survivor` 프로젝트 폴더 밖** 위치.
+4. 빌드가 끝나면 그 폴더의 `Survivor.exe`를 실행합니다.
 
 ### 6-3. 실행 중 할 일
 

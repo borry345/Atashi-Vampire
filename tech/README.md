@@ -1,4 +1,4 @@
-# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (11회차)
+# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (12회차)
 
 > 2026-10-27 단일 `TECH_SPEC.md`를 제목 단위로 분할했다(RUN_LOG 2026-10-27 D1). 내용은 바이트 그대로 옮겼고 ID(TAC·R·D·U·A 번호, 5.x 절 번호)는 변하지 않았다. 소유자는 tech-spec-writer이며, 개정 회차와 변경 요약은 이 파일이 관리한다.
 
@@ -17,6 +17,7 @@
 | 9 | 2026-11-05. SPEC 9회차 반영: `placement: player` 장판은 타깃 조건 없음(TAC-F2-2·F6-5, 사용자 결정 — 7회차 "타깃 없으면 재시도" 번복), 설계 변경 없음 | 이 README |
 | 10 | 2026-11-05. 웨이브 0 실측 반영(Unity 6000.3.28f1 에디터, `docs/spike/results/2026-11-05-editor-run2.txt`): U 10건 확인 + U23 틀림(해소) = 11건((11회차 정정) 그중 U11은 부분 확인으로 재분류 → 확인 9 + U23 = 10건), U23 → D9 변경(`maximumDeltaTime = 0.05/timeScale`, 5.3·5.15.1·TAC-F19-6), 경계 판정 접촉 포함(U9, R5), 상한 테스트 방법(실제 긴 프레임, TAC-0-3·0-4·5c.5), Kinematic 구성 유지·sleepMode 불변(U5, 5.9), `SyncMonstersForQuery`의 `SyncTransforms` 불필요(U32, 5.9·TAC-F16-3), 6.2·2.3 표 상태 표기, 6.3 U 미확정 41 → 30, 5c.4 웨이브 0 완료(U35·U36 빌드 대기) | 이 README |
 | 11 | 2026-11-05. 2차 독립 검토 반영(PM 기본값, SPEC 10회차 295/306): 참조 방향 — 타깃 공급자 교체를 App이 만든 공급자 + 요구사항 콜백 명령 `SwitchTargetProviderCommand`로(5.7·5.15 `IDevModeHost.RequestTargetProviderSwitch`·TAC-F16-5·5c.3 Begin·5.9), `RunSession.Reset(in RunStrategies)`로 전략 전달 명시·판 시작 요구사항 콜백 통일(5.14·TAC-F8-2). `SpawnBossNow` 판당 1기 거부(5.15·5.12.1·TAC-F19-2), 상태 해시에 장판·궤도 원·`_nextFireStep`(5.16·TAC-0-4·5c.5), U11 부분 확인으로 재분류(6.3 미확정 30 → 31), 측정 무효 즉시 종료(5.15.2·TAC-F19-5), `summary.csv` 마지막 유효 행, 판 시작 배속 초기화(5.03·5.15.1·TAC-F19-6), 허용 오차 비교(TAC-0-3·F19-6), 결과 무기 삭제 시 진화 불가(5.14), `SyncTransforms` 비호출 정리(5.9·01 2.2), 스파이크 메모 주석(5c.4), 공격 끔 중 궤도 원 공백 예외(TAC-F2-5), 00-header 범례 (9회차)·(11회차)·★ | 이 README |
+| 12 | 2026-11-06. U35·U36 빌드 실측 상태 반영(Windows 플레이어, `docs/spike/results/2026-11-06-build-run1.txt`): 둘 다 확인됨(01 2.3 표·06 6.2·5.18·5c.2b FLOW 행·5c.4 웨이브 0·4 행·스파이크 메모), 6.3 U 미확정 31 → 29, 00-header 범례 (12회차). 설계 변경 없음. **PM이 직접 한 사실 수정**(tech-spec-writer 미디스패치, RUN_LOG 2026-11-06) | 이 README |
 
 분할 뒤 개정 규칙: 설계 개정은 해당 `5.xx`·`02`·`5a`·`5c`·`06` 파일에서 하고 `(N회차 …)` 표기는 지금처럼 둔다. 회차 번호와 변경 요약은 이 README에만 추가한다. `00-header.md`의 0절은 2회차 기록으로 동결한다.
 
