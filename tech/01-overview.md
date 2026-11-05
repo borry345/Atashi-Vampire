@@ -10,8 +10,8 @@ Unity 6000.3.26f1(Universal 2D(URP) 템플릿, C#)로 만드는 뱀서라이크 
 
 ### 2.0 읽을 코드가 없다는 사실
 
-- 프로젝트 루트(`C:\Users\SSAFY\Desktop\borry\indiv`)에는 하네스 문서(`CLAUDE.md`, `HANDOFF.md`, `ORCHESTRATION.md`, `CODING_GUIDE.md`, `RUN_LOG.md`, `DESIGN_NOTES.md`)와 기획 문서(`PRD.md`, `SPEC.md`, 계획 메모)만 있다. `.cs` 파일도, Unity 프로젝트 폴더(`Assets/`, `ProjectSettings/`, `Packages/`)도 없다(F15 사용자 수행 전).
-- 그래서 이 절의 "함수/인터페이스 참조 표"는 기존 코드가 아니라 **SPEC.md가 이름까지 지정한 계약**을 출처(SPEC 절)와 함께 나열한 것이다. 시그니처는 5절에서 새로 정한다.
+- 프로젝트 루트(`C:\Users\SSAFY\Desktop\borry\indiv`)에는 하네스 문서(`CLAUDE.md`, `HANDOFF.md`, `ORCHESTRATION.md`, `CODING_GUIDE.md`, `RUN_LOG.md`, (8회차) `DECISIONS.md`, `DESIGN_NOTES.md`)와 기획 문서(`PRD.md`, (8회차 정정) `spec/` 폴더(분할 SPEC), `tech/` 폴더, 계획 메모)만 있다. `.cs` 파일도, Unity 프로젝트 폴더(`Assets/`, `ProjectSettings/`, `Packages/`)도 없다(F15 사용자 수행 전).
+- 그래서 이 절의 "함수/인터페이스 참조 표"는 기존 코드가 아니라 **SPEC((8회차 정정) `spec/`)이 이름까지 지정한 계약**을 출처(SPEC 절)와 함께 나열한 것이다. 시그니처는 5절에서 새로 정한다.
 
 ### 2.1 SPEC이 이름을 지정한 계약 (출처 추적표)
 

@@ -1,4 +1,4 @@
-# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (6회차)
+# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (9회차)
 
 > 2026-10-27 단일 `TECH_SPEC.md`를 제목 단위로 분할했다(RUN_LOG 2026-10-27 D1). 내용은 바이트 그대로 옮겼고 ID(TAC·R·D·U·A 번호, 5.x 절 번호)는 변하지 않았다. 소유자는 tech-spec-writer이며, 개정 회차와 변경 요약은 이 파일이 관리한다.
 
@@ -12,6 +12,9 @@
 | 4 | doc-writer 보고 내부 불일치 3건: 충돌 이벤트 비교 키를 `CollisionEvent.CompareTo`로 통일, `TargetProviderSlot`은 단계 핸들러가 아님, 부팅 시 최초 JSON 로드 경로(5.11.0) 추가 | `00-header.md` "4회차 변경 요약" |
 | 5 | SPEC 6회차(W2 궤도 원 생애) 반영: 궤도 원 수명 없음 규약(`ExpireStep = long.MaxValue`), 회수 경로 셋, `LifetimeSystem`이 수명 없는 엔티티를 건너뜀 | `00-header.md` "5회차 변경 요약" |
 | 6 | 단일 파일을 제목 단위로 분할(내용 불변), 5c.2b 구현자별 읽을 파일 표 신설, 머리말의 SPEC 경로를 spec/로 수정, 옛 경로 정정, 수용 기준 개수 329 → 286 정정 | 이 README |
+| 7 | SPEC 7회차(2026-11-05, 수용 기준 288개) 반영 소폭 개정, 설계 변경 없음: 첫 보유 `_nextFireStep` 규약(TAC-F2-2·5.14), 진화 결과 무기 첫 동작·궤도 원 1스텝 공백(TAC-F7-2), `placement: player` 타깃 없음 재시도(TAC-F6-5), W4 첫 발사 방향(TAC-F6-3), 보유 항목 "새 획득" 제외(TAC-F5-3), D14·D25 사용자 확정 해소, D29·D31 PM 확인 완료, IMP-MONSTER 소유 클래스 설계 5.12.1 신설, 5.13 W2~W4 5단계·E2 예시값, U32 담당 통일(5c.4·5c.2b·6.3) | 이 README |
+| 8 | 2026-11-05 독립 검토 2차와 SPEC 8회차(수용 기준 정규식 295, 보정 포함 306) 반영: 참조 방향 위반 해소 — `UpgradeKind`·`UpgradeOption`을 Core로(5.14·5.00·R12·5c.2), `RunOutcome`·`RunOutcomeKind`를 Simulation으로(5.17·5.14·5.00·5c.2), `RunSession.Reset` 뒤 `MonsterSpatialIndex.Clear`·`ApplyRequirements`는 App이 조율(TAC-F8-2·5.07). 5c.2b 읽을 파일 보강(CORE·LOOP·PLAYER·MONSTER·FLOW). SPEC 8회차 규정: "타깃 있음"은 발사·생성형만(TAC-F6-5), 측정 무효(게이트 Paused·RunReset·Error)와 결과 파일 무효 사유(TAC-F19-5·5.15.2·5.15.3), 상한 400 = 보스 제외·소환 쿨다운 소비(TAC-F3-3·F3-9·R20·5.12.1), 보스 판당 1기·`>=`·조기 처치 클리어(TAC-F3-6·F8-8·5.12.1·5.14), 시간 점프 앞으로만(TAC-F19-3·5.03), 핫 리로드 인스턴스 정의 유지(TAC-F11-5·5.11.1·5.14), 공격 끔 범위(TAC-F2-5·5.12), P1 다음 산정부터(TAC-F2-3·5.12), 상자 2개 순차(TAC-F4-4·5.12.1·5c.5), 강제 종료·오류 미저장(TAC-F8-3·5.17). 정합: TAC-F4-1 보스 문구, 5.13 궤도 원 불변식 D2 식 재계산, 5c.5 측정 가드 6조건, 01 2.0 경로, D5·D27·D29 해소·D26 반영 확인(6.3: 해소 18·미해소 15) | 이 README |
+| 9 | 2026-11-05. SPEC 9회차 반영: `placement: player` 장판은 타깃 조건 없음(TAC-F2-2·F6-5, 사용자 결정 — 7회차 "타깃 없으면 재시도" 번복), 설계 변경 없음 | 이 README |
 
 분할 뒤 개정 규칙: 설계 개정은 해당 `5.xx`·`02`·`5a`·`5c`·`06` 파일에서 하고 `(N회차 …)` 표기는 지금처럼 둔다. 회차 번호와 변경 요약은 이 README에만 추가한다. `00-header.md`의 0절은 2회차 기록으로 동결한다.
 
@@ -25,7 +28,7 @@
 | [`5.00-assemblies-interfaces.md`](./5.00-assemblies-interfaces.md) | 5 머리말 · 5.0 네임스페이스와 어셈블리 · 5.0.1 인터페이스 전체 목록 | 36 |
 | [`5.01-entity-id.md`](./5.01-entity-id.md) | 5.1 객체 ID와 할당기 (Core) | 39 |
 | [`5.02-rng.md`](./5.02-rng.md) | 5.2 결정론 RNG (Core) | 31 |
-| [`5.03-step-clock.md`](./5.03-step-clock.md) | 5.3 고정 스텝 시계·게이트 (Core 계약, Simulation 구현, IMP-LOOP) (2회차 재작성) | 94 |
+| [`5.03-step-clock.md`](./5.03-step-clock.md) | 5.3 고정 스텝 시계·게이트 (Core 계약, Simulation 구현, IMP-LOOP) (2회차 재작성) | 95 |
 | [`5.04-commands-spawn.md`](./5.04-commands-spawn.md) | 5.4 지연 명령과 생성 경로 (Core 계약, Simulation 구현) (2회차 재작성, A7) | 49 |
 | [`5.05-input.md`](./5.05-input.md) | 5.5 입력 소스 (Core 계약, IMP-LOOP 키보드·IMP-DEV 자동 경로) | 21 |
 | [`5.06-pool.md`](./5.06-pool.md) | 5.6 풀 전략과 템플릿 데코레이터 (Core 계약, IMP-POOL·IMP-COLLISION·IMP-LOOP 구현) (2회차 수정, A8) | 34 |
@@ -34,16 +37,16 @@
 | [`5.09-collision.md`](./5.09-collision.md) | 5.9 충돌 전략 (Core 계약, IMP-COLLISION 구현) | 137 |
 | [`5.10-lifecycle.md`](./5.10-lifecycle.md) | 5.10 엔티티 생명주기 (Simulation, IMP-LOOP) — 생성·회수의 유일한 경로 | 46 |
 | [`5.11-data-loader.md`](./5.11-data-loader.md) | 5.11 데이터 로더·레지스트리·검증 (Data, IMP-DATA) | 111 |
-| [`5.12-damage-rules.md`](./5.12-damage-rules.md) | 5.12 피해·획득 규칙 구성요소 (Simulation, IMP-PLAYER/IMP-MONSTER) | 39 |
-| [`5.13-json-schemas.md`](./5.13-json-schemas.md) | 5.13 JSON 스키마 7종 | 237 |
-| [`5.14-progression.md`](./5.14-progression.md) | 5.14 레벨업·진화·상자·진행 적용 (Simulation) (2회차 재작성, A4·A5·A11) | 82 |
-| [`5.15-dev-mode.md`](./5.15-dev-mode.md) | 5.15 개발자 모드 주입 경계와 측정 (Dev, IMP-DEV) | 152 |
+| [`5.12-damage-rules.md`](./5.12-damage-rules.md) | 5.12 피해·획득 규칙 구성요소 (Simulation, IMP-PLAYER/IMP-MONSTER) · 5.12.1 IMP-MONSTER 소유 클래스 설계 (7회차 신설) | 89 |
+| [`5.13-json-schemas.md`](./5.13-json-schemas.md) | 5.13 JSON 스키마 7종 | 255 |
+| [`5.14-progression.md`](./5.14-progression.md) | 5.14 레벨업·진화·상자·진행 적용 (Simulation) (2회차 재작성, A4·A5·A11) | 93 |
+| [`5.15-dev-mode.md`](./5.15-dev-mode.md) | 5.15 개발자 모드 주입 경계와 측정 (Dev, IMP-DEV) | 153 |
 | [`5.16-state-hash.md`](./5.16-state-hash.md) | 5.16 상태 해시 (Simulation, IMP-LOOP) | 12 |
-| [`5.17-flow-state.md`](./5.17-flow-state.md) | 5.17 흐름 상태 (App, IMP-FLOW) (2회차 신규) | 20 |
+| [`5.17-flow-state.md`](./5.17-flow-state.md) | 5.17 흐름 상태 (App, IMP-FLOW) (2회차 신규) | 26 |
 | [`5.18-screen.md`](./5.18-screen.md) | 5.18 화면 설정 (App, IMP-FLOW) (2회차 신규, A13) | 23 |
 | [`5a-shared-rules.md`](./5a-shared-rules.md) | 5a 공유 규칙 표 R1~R30 (전원 읽음) | 39 |
 | [`5b-external-settings.md`](./5b-external-settings.md) | 5b 외부 서비스·프로젝트 설정 점검표 | 24 |
-| [`5c-ownership-contracts.md`](./5c-ownership-contracts.md) | 5c 폴더 구조·소유권 맵·계층 계약·디스패치 순서·테스트 전략·구현자별 읽을 파일 5c.2b (전원 읽음) | 198 |
+| [`5c-ownership-contracts.md`](./5c-ownership-contracts.md) | 5c 폴더 구조·소유권 맵·계층 계약·디스패치 순서·테스트 전략·구현자별 읽을 파일 5c.2b (전원 읽음) | 199 |
 | [`06-open-questions.md`](./06-open-questions.md) | 6 미확정 사항 D·U | 93 |
 
 ## ID → 파일
