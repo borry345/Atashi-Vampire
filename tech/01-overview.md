@@ -53,7 +53,7 @@ Dev(F19) ──▶ App(조립·흐름 F8) ──▶ UI(F5,F8 뷰)
 | 결합 | 원인 (SPEC 근거) | 설계 대응 |
 |---|---|---|
 | F16 공간 해시 ↔ F18 자체 판정 | F16 마지막 기준 "F18이 후보 추림에 재사용", F10 "두 전략은 독립이 아니다" | 공간 해시를 **하나의 공유 인스턴스**(`MonsterSpatialIndex`)로 둔다. 타깃=공간 해시 **또는** 충돌=자체 중 하나라도 켜져 있으면 스텝마다 한 번 재구축한다. "전부 켬"에서 유지 비용이 한 번만 드는 것이 측정할 상호작용이다 |
-| F16 C(`Physics2D` 쿼리) ↔ F18 A(`Collider2D`) ↔ 바디 동기화 (2회차) | F18 "몬스터 `Collider2D`는 구현 A와 F16 C일 때만 켠다" | 콜라이더 켜짐과 위치 동기화 필요 여부는 `ColliderActivationPolicy.Resolve(selection)`(5a R19) 한 곳에서 판정하고, 실제 `Rigidbody2D.position`·`MovePosition`·`Physics2D.SyncTransforms` 호출과 콜라이더 켜기/끄기는 **`PhysicsBodySynchronizer` 하나**(IMP-COLLISION)만 한다. `Physics2D.Simulate`는 `EngineCollisionStrategy`만 부른다. 1회차에는 "`Physics2D` 타깃 + 자체 충돌" 조합에서 아무도 몬스터 바디를 옮기지 않았다(5.9.1) |
+| F16 C(`Physics2D` 쿼리) ↔ F18 A(`Collider2D`) ↔ 바디 동기화 (2회차) | F18 "몬스터 `Collider2D`는 구현 A와 F16 C일 때만 켠다" | 콜라이더 켜짐과 위치 동기화 필요 여부는 `ColliderActivationPolicy.Resolve(selection)`(5a R19) 한 곳에서 판정하고, 실제 `Rigidbody2D.position`·`MovePosition` 호출과 콜라이더 켜기/끄기는 **`PhysicsBodySynchronizer` 하나**(IMP-COLLISION)만 한다. (11회차) 이 클래스는 `rb.position` 대입만 쓰고 `Physics2D.SyncTransforms`는 호출하지 않는다(실측 U32). 호출이 필요해지면 이 클래스만 한다. `Physics2D.Simulate`는 `EngineCollisionStrategy`만 부른다. 1회차에는 "`Physics2D` 타깃 + 자체 충돌" 조합에서 아무도 몬스터 바디를 옮기지 않았다(5.9.1) |
 | F9 풀 ↔ 객체 ID | 3.0 H "풀 구현과 무관하게 같은 규칙" | **ID 할당을 풀에서 분리한다.** 시뮬레이션 소유의 `EntityIdAllocator`가 ID를 발급하고, 디스폰(=반납) 시 세대를 올린다 |
 | F17 A(객체별 `FixedUpdate`) ↔ 결정론 | Unity는 같은 클래스 인스턴스끼리의 호출 순서를 보장하지 않는다 [실측 U1] | `Tick`은 **자기 상태만 쓰고**, 다른 객체에 영향을 주는 일(투사체 생성, 소환, 사망)은 지연 명령으로 미룬다. 명령은 Lifecycle에서 (Source, Sequence) 순으로 적용한다(5a R10) |
 | F17 A ↔ 측정 공정성 | 객체마다 `FixedUpdate` 메서드가 있으면 Unity는 B 모드에서도 그것을 호출한다 | 엔티티 클래스에는 `FixedUpdate`를 두지 않는다. A 모드일 때만 켜지는 별도 컴포넌트(`MonsterSelfTicker`/`ProjectileSelfTicker`)가 `FixedUpdate`를 가진다 |
@@ -80,7 +80,7 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 
 ### 2.3 설계가 기대는 Unity 6 API·동작 전제 (전부 실측 필요)
 
-아래는 이 설계가 **사실이라고 가정하고** 기대는 Unity 동작이다. 코드를 실행해 확인한 것이 아니며 하나도 확정되지 않았다. 번호는 6.2절과 같다. (10회차) 웨이브 0 실측(2026-11-05, Unity 6000.3.28f1 에디터 PlayMode)으로 아래 표의 일부가 **확인됨**·**틀림**·**부분 확인**으로 바뀌었다. 결과 요약은 6.2에 있고, 표시가 없는 행은 여전히 미확정이다.
+아래는 이 설계가 **사실이라고 가정하고** 기대는 Unity 동작이다. (11회차 정리) 작성 당시(1~9회차)에는 코드를 실행해 확인한 것이 하나도 없었다. 웨이브 0 실측(10회차, 2026-11-05, Unity 6000.3.28f1 에디터 PlayMode)으로 아래 표 중 9행이 **확인됨**, 1행(U23)이 **틀림**(D9 변경으로 반영), 2행(U3·U11)이 **부분 확인**이 되었다. 표시가 없는 행과 부분 확인 행은 여전히 미확정이다. 결과 요약은 6.2에 있고, 번호는 6.2절과 같다.
 
 | # | 전제 | 이 전제에 기대는 설계 |
 |---|---|---|
@@ -94,7 +94,7 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U8 | **확인됨(10회차 실측)** — `Physics2D.callbacksOnDisable = false`이면 콜라이더 비활성화 시 Exit 콜백이 나오지 않는다 | "등록 해제 시 Exit 없음" 규칙의 엔진판 일치 |
 | U9 | **확인됨(10회차 실측, 거리 = 반지름 합에서 Enter → 접촉 포함 `≤`)** — Box2D 원-원 겹침의 경계(거리 = 반지름 합)가 자체 판정 `≤`와 같은 쪽으로 판정된다 | E1 경계 사례 |
 | U10 | `Rigidbody2D.MovePosition`은 스윕 이동이고, `transform.position`을 직접 쓰면 다음 시뮬레이션에서 텔레포트로 처리된다 | 엔진 모드에서 표시 동기화를 생략한다 |
-| U11 | **확인됨(10회차 실측: `MovePosition`은 `autoSyncTransforms`와 무관하게 `Simulate` 뒤에만 반영, `rb.position` 직접 대입은 U32)** — `Rigidbody2D.position`을 바꾸거나 콜라이더를 켠 직후 `Physics2D.OverlapCircle`에 반영된다(`autoSyncTransforms`·`SyncTransforms` 영향) | `Physics2D` 타깃 공급자 |
+| U11 | **부분 확인(10회차 실측: `MovePosition` 반영 시점만 — `autoSyncTransforms`와 무관하게 `Simulate` 뒤에만 반영, `rb.position` 직접 대입은 U32. 콜라이더 활성화 직후 `OverlapCircle` 반영은 미확인 → 웨이브 3 IMP-COLLISION EM 테스트로 확인. 11회차 정정)** — `Rigidbody2D.position`을 바꾸거나 콜라이더를 켠 직후 `Physics2D.OverlapCircle`에 반영된다(`autoSyncTransforms`·`SyncTransforms` 영향) | `Physics2D` 타깃 공급자 |
 | U12 | 이름 없는 레이어 인덱스(8~17)에 `Physics2D.IgnoreLayerCollision`을 코드로 설정할 수 있다 | 레이어 충돌 매트릭스를 코드로 설정 |
 | U13 | Windows 플레이어에서 `Application.streamingAssetsPath` + `File.ReadAllText`가 동기로 동작하고, 빌드 폴더 `<Name>_Data/StreamingAssets/`를 편집할 수 있다 | F11 로더, F13 |
 | U14 | `ProfilerMarker`는 비개발 빌드에서 호출째 제거되고, `ProfilerRecorder`는 Development Build에서 마커의 프레임 합계를 읽으며, `Begin`/`End`를 다른 스크립트에서 짝지어도 된다 | 시스템 ms 수집 |

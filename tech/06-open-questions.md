@@ -56,7 +56,7 @@
 - **U8** 확인됨(10회차 실측 2026-11-05) — `callbacksOnDisable = false`에서 겹친 콜라이더를 `enabled = false`로 끄면 Exit 없음. 원래 질문: `callbacksOnDisable = false`이면 비활성화 시 Exit이 나오지 않는지.
 - **U9** 확인됨(10회차 실측 2026-11-05, 규칙 확정) — r = 0.5 + 0.5에서 d = 0.9999 Enter, d = 1.0001 Enter 없음, **d = 1.0(정확히 접촉) Enter 발생**(이때 `Physics2D.Distance`는 distance = 0, isOverlapped = false). Box2D 트리거는 "거리 ≤ 반지름 합"(접촉 포함)으로 판정하므로 자체 판정 R5 `≤`와 같은 쪽이다(5.9). ±ε 별도 집계 정책은 불필요. 원래 질문: Box2D 원-원 경계 판정과 float 차이 때문에 E1 경계 사례에서 불일치가 생길 수 있는지. 생기면 허용 정책(경계 ±ε 사례는 별도 집계)을 PM이 정한다. U30과 함께 본다.
 - **U10** `MovePosition`이 스윕 이동인지, `transform` 직접 쓰기가 텔레포트로 처리되는지.
-- **U11** 확인됨(10회차 실측 2026-11-05) — `MovePosition`은 `autoSyncTransforms` 값과 무관하게 `Simulate` 뒤에만 `OverlapCircle`에 반영된다(Simulate 전 쿼리는 옛 위치). 원래 질문: `Rigidbody2D.position`·콜라이더 활성화가 `OverlapCircle`에 언제 반영되는지(`autoSyncTransforms` 기본값 포함).
+- **U11** 부분 확인(10회차 실측 2026-11-05; 11회차 정정, 미확정에 남김 — 10회차에는 "확인됨"으로 적었다. `MovePosition` 반영 시점만 확인. 콜라이더 활성화 직후 `OverlapCircle` 반영은 미확인 → 웨이브 3 IMP-COLLISION EM 테스트로 확인) — `MovePosition`은 `autoSyncTransforms` 값과 무관하게 `Simulate` 뒤에만 `OverlapCircle`에 반영된다(Simulate 전 쿼리는 옛 위치). 원래 질문: `Rigidbody2D.position`·콜라이더 활성화가 `OverlapCircle`에 언제 반영되는지(`autoSyncTransforms` 기본값 포함).
 - **U12** 이름 없는 레이어 인덱스에 `IgnoreLayerCollision`을 코드로 설정할 수 있는지.
 - **U13** Windows 플레이어에서 `StreamingAssets` 동기 읽기와 빌드 후 편집이 되는지.
 - **U14** `ProfilerMarker`가 비개발 빌드에서 제거되는지, `ProfilerRecorder`가 Development Build에서 마커 프레임 합계를 주는지, 스크립트를 넘나드는 `Begin`/`End`가 허용되는지. 안 되면 틱 ms 수집을 Stopwatch 주입 방식으로 바꾼다(Q40의 "비활성 시 감시 없음"과 충돌하는지 PM 확인 필요).
@@ -89,7 +89,7 @@
 - **U41** (2회차 신규) Mono의 UTF-8 디코딩이 잘못된 바이트를 U+FFFD로 바꾸는지(CP949 감지 전제).
 - **U42** (2회차 신규) `InputSystemUIInputModule` 메뉴 탐색과, UI 클릭 콜백·`Update` 사이 순서(보장 안 된다고 가정했으므로 틀려도 설계는 안전).
 
-### 6.3 집계 (8회차 갱신, 10회차 U 갱신)
+### 6.3 집계 (8회차 갱신, 10회차 U 갱신, 11회차 U 재조정)
 
 - 문서 간 불일치/SPEC 미규정: 번호 **33개**(D1~D33). **해소 18건**(D3·D8·D9·D10·D11·D12·D13·D17·D18·D20·D22·D24, (3회차) D26, (7회차) D14·D25, (8회차) D5·D27·D29), **미해소 15건**. **blocking 0건** — 모두 [기본값]이 있다. PM 확인 권장: (7회차) 없음 — D25는 사용자 확정으로 해소, D29·D31은 PM 확인 완료(2026-11-05, 기본값 유지). (4회차 변화 없음)
-- 실측/실행 필요 (10회차 갱신): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 11건**(확인됨 U1·U2·U5·U7·U8·U9·U11·U30·U31·U32, 틀림 → D9 변경으로 반영 U23), 남은 **미확정 30건**(U3 부분 확인과 U35·U36 빌드 측정 대기 포함). (3회차·7회차·8회차까지는 미확정 41건.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
+- 실측/실행 필요 (10회차 갱신, 11회차 재조정): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 10건**(확인됨 9건 U1·U2·U5·U7·U8·U9·U30·U31·U32 + 틀림 → D9 변경으로 반영 U23), **부분 확인 2건**(U3, (11회차 정정) U11 — 미확정에 남김), 남은 **미확정 31건**(부분 확인 2건과 U35·U36 빌드 측정 대기 포함). (3회차·7회차·8회차까지는 미확정 41건, 10회차 표기는 30건이었으나 U11을 확인으로 잘못 셌다.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
