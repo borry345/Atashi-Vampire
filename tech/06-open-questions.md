@@ -42,9 +42,10 @@
 - **D32.** (2회차 신규) SPEC 3.0 I는 "몸통 접촉 적이 여럿이면 최대 피해 1회"만 정했다. 같은 스텝에 몸통 접촉·M3 투사체·M4 장판이 섞이면? [기본값] 세 종류 후보 전체에서 최대 피해 1회, 같으면 작은 ID(무적 시간이 0이어도 스텝당 최대 1회). 비차단.
 - **D33.** (2회차 신규) SPEC F8 "작업 영역에 들어가는 가장 큰 16:9 해상도"가 창 테두리·제목 표시줄을 포함한 바깥 크기 기준인지 정해져 있지 않다. [기본값] 바깥 크기 기준(클라이언트 크기 + 16×39 픽셀 여유). 1080p 모니터에서는 1600x900이 고르게 된다. 비차단.
 
-**(14회차) 미결 설계 항목 — PM 결정 대기 (D 번호 없음, 결정은 PM·사용자가 DECISIONS에서)**
+**(14회차) 미결 설계 항목 — PM 결정 대기 (D 번호 없음, 결정은 PM·사용자가 DECISIONS에서)** → (15회차) 해소(아래 마지막 항목)
 
 - **풀 전략 토글 시 옛 전략의 비활성 인스턴스 잔존.** 코드에서 확인됨(웨이브 2a, `Strategies/Pool/*`): 풀 전략 토글(TAC-F9-7, 다음 판 `Reset`에서 적용) 때 옛 A(`CustomPoolStrategy`, 템플릿별 `Stack`)·C(`UnityObjectPoolStrategy`, 템플릿별 `ObjectPool`) 객체가 보유한 비활성 인스턴스가 씬에 그대로 남는다. `ReleaseAll`은 활성 인스턴스만 반환하며, `IPoolStrategy`(5.6)에는 비활성 인스턴스를 정리하는 수단이 없다. 후보: (a) `IPoolStrategy`에 `Dispose`/`Clear` 추가(Core 인터페이스 변경), (b) App이 전략 교체 때 옛 전략의 비활성 인스턴스를 씬에서 파괴, (c) 판마다 누적 허용(측정 오염 가능). 14회차는 결정하지 않는다 — PM이 사용자와 결정한 뒤 15회차에 반영한다. 차단 여부: LOOP·FLOW의 `RunSession.Reset` 전략 교체 구현(웨이브 2b·4) 전에 정해지는 것이 바람직하다(5.6 각주).
+- **(15회차) 해소 — DECISIONS 2절 "풀 전략 토글 시 옛 풀의 비활성 인스턴스 정리"(2026-11-06, 사용자 확정, 후보 (a)).** `IPoolStrategy`에 `void Clear();`를 추가했다 = "이 전략이 보유한 비활성 인스턴스를 전부 파괴"(A: 템플릿별 스택, C: `ObjectPool.Clear()`, B: 할 일 없음), 활성 인스턴스가 남아 있으면 `InvalidOperationException`. 호출자는 `EntityLifecycle.ReplaceStrategies`이며 풀 객체가 바뀔 때만 옛 풀을 `Clear()`한 뒤 교체하고, 새 풀 `Prewarm`은 App이 한다. 반영 위치: 5.6(코드 블록)·5.6.1(`Clear` 구현)·5.10(`ReplaceStrategies`)·TAC-F8-2 ③·TAC-F9-7 각주·5c.2 IMP-CORE·IMP-POOL 행. 토글 전후 비활성 객체 수·메모리 실측은 App 조립 뒤 할 일로 남는다(TAC-F9-7).
 
 ### 6.2 실측/실행 필요 — 미확정 (Needs measurement/execution — unconfirmed)
 
@@ -52,7 +53,7 @@
 
 - **U1** 확인됨(10회차 실측 2026-11-05) — `DefaultExecutionOrder`가 `FixedUpdate`에 적용됨(-100 두 인스턴스 → +100 두 인스턴스, 매 스텝). 같은 클래스 인스턴스 간 순서는 생성 순으로 관찰됐을 뿐 보장 아님(설계대로 의존하지 않음). 원래 질문: `DefaultExecutionOrder`가 `FixedUpdate`에 적용되는지, 인스턴스 간 순서가 보장되지 않는지. 틀리면 F17 A 모드의 단계 순서를 다시 설계해야 한다. **IMP-LOOP 착수 전 확인 권장 → 확인 완료(10회차).**
 - **U2** 확인됨(10회차 실측 2026-11-05) — 실제 정지 프레임(`Thread.Sleep(100)` ×5) 뒤 프레임당 `FixedUpdate` 최대 3회, `Time.deltaTime`은 0.05로 클램프. **주의**: `Time.captureDeltaTime = 0.1`로 흉내 낸 긴 프레임은 `maximumDeltaTime` 클램프를 우회해 6스텝이 돌았다 → 상한 검증 테스트는 실제 정지 프레임으로 한다(TAC-0-3). 원래 질문: `maximumDeltaTime = 0.05`에서 프레임당 정확히 최대 3스텝인지. 틀리면 SPEC의 "0.05로 설정"을 고쳐야 하므로 PM에게 보고한다.
-- **U3** 부분 확인(10회차 실측 2026-11-05, 미확정에 남김) — `captureDeltaTime`으로 프레임 길이를 고정하면 `FixedUpdate` 누적이 그에 맞게 동작(1/60에서 1스텝, 0.1에서 6스텝 관찰). 프레임레이트 결정론 테스트(TAC-0-4)에는 쓸 수 있으나 catch-up 상한 검증에는 못 쓴다(U2 주의). 1/30·1/144는 아직 보지 않았다. 원래 질문: `Time.captureDeltaTime`으로 프레임레이트 결정론 테스트를 할 수 있는지.
+- **U3** **(15회차) 확인됨(IMP-LOOP PlayMode 배치 2026-11-06)** — `captureDeltaTime` 1/30·1/60·1/144 각 600스텝에서 상태 해시 일치(CentralTick·PerObject 7회 모두 `0x5928B7C20FEF59D6`, 5.16), 아래 "1/30·1/144는 아직 보지 않았다"가 해소됐다. catch-up 상한 검증에 못 쓴다는 주의(U2)는 그대로다. 이전 기록: 부분 확인(10회차 실측 2026-11-05, 미확정에 남김) — `captureDeltaTime`으로 프레임 길이를 고정하면 `FixedUpdate` 누적이 그에 맞게 동작(1/60에서 1스텝, 0.1에서 6스텝 관찰). 프레임레이트 결정론 테스트(TAC-0-4)에는 쓸 수 있으나 catch-up 상한 검증에는 못 쓴다(U2 주의). 1/30·1/144는 아직 보지 않았다. 원래 질문: `Time.captureDeltaTime`으로 프레임레이트 결정론 테스트를 할 수 있는지.
 - **U4** `Rigidbody2D` Collision Detection 기본값이 `Discrete`인지(SPEC Q39).
 - **U5** 확인됨(10회차 실측 2026-11-05) — Kinematic–Kinematic(`useFullKinematicContacts`) 트리거 Enter·Exit 모두 수신. 기본 sleepMode(StartAwake)와 NeverSleep에서 같다 → sleepMode 변경 불필요, Dynamic 대안 불필요. 원래 질문: 키네마틱-키네마틱 트리거 콜백 발생 조건. 안 되면 Dynamic + gravityScale 0 바디로 바꾼다. **IMP-COLLISION 착수 전 필요 → 확인 완료(10회차).**
 - **U6** `Continuous`가 트리거·키네마틱 바디에 영향을 주는지. **E2가 "자명하게 동일"로 끝나 SPEC이 의도한 검증이 되지 않을 가능성이 있다.** 그렇다면 그 사실 자체를 devlog 소재로 기록하고, E2의 의미를 PM이 다시 정해야 한다.
@@ -63,10 +64,10 @@
 - **U11** 부분 확인(10회차 실측 2026-11-05; 11회차 정정, 미확정에 남김 — 10회차에는 "확인됨"으로 적었다. `MovePosition` 반영 시점만 확인. 콜라이더 활성화 직후 `OverlapCircle` 반영은 미확인 → 웨이브 3 IMP-COLLISION EM 테스트로 확인) — `MovePosition`은 `autoSyncTransforms` 값과 무관하게 `Simulate` 뒤에만 `OverlapCircle`에 반영된다(Simulate 전 쿼리는 옛 위치). 원래 질문: `Rigidbody2D.position`·콜라이더 활성화가 `OverlapCircle`에 언제 반영되는지(`autoSyncTransforms` 기본값 포함).
 - **U12** 이름 없는 레이어 인덱스에 `IgnoreLayerCollision`을 코드로 설정할 수 있는지.
 - **U13** Windows 플레이어에서 `StreamingAssets` 동기 읽기와 빌드 후 편집이 되는지.
-- **U14** `ProfilerMarker`가 비개발 빌드에서 제거되는지, `ProfilerRecorder`가 Development Build에서 마커 프레임 합계를 주는지, 스크립트를 넘나드는 `Begin`/`End`가 허용되는지. 안 되면 틱 ms 수집을 Stopwatch 주입 방식으로 바꾼다(Q40의 "비활성 시 감시 없음"과 충돌하는지 PM 확인 필요).
+- **U14** `ProfilerMarker`가 비개발 빌드에서 제거되는지, `ProfilerRecorder`가 Development Build에서 마커 프레임 합계를 주는지, 스크립트를 넘나드는 `Begin`/`End`가 허용되는지. 안 되면 틱 ms 수집을 Stopwatch 주입 방식으로 바꾼다(Q40의 "비활성 시 감시 없음"과 충돌하는지 PM 확인 필요). (15회차) 부분 — 구현은 콜백을 가로지르는 `Begin`/`End`를 쓰며(`Survivor.Step` Early → Late, `Survivor.Tick.Monsters` Early → Mid, `Survivor.Tick.Projectiles` Mid → Late, 5.3) batchmode 배치 테스트에서 오류가 없었다. 프로파일러·`ProfilerRecorder`를 붙였을 때 "Non matching Begin/EndSample" 경고 여부와 계층 표시는 측정 전 Dev·사용자가 확인한다(미확정 유지).
 - **U15** "GC Allocated In Frame" 카운터 이름과 가용성.
 - **U16** `Environment.GetCommandLineArgs()`에 `--dev`가 들어오는지.
-- **U17** Input System 활성 여부, 업데이트 모드, `wasPressedThisFrame` 동작.
+- **U17** Input System 활성 여부, 업데이트 모드, `wasPressedThisFrame` 동작. (15회차) 부분 — `KeyboardInputSource`의 방향 계산·반환 규칙은 EM 테스트로 확인했고, 래치(`wasPressedThisFrame`)·실제 키 입력·게임패드 무반응은 App 조립 뒤 수동 확인(미확정 유지).
 - **U18** (2회차 수정) TMP Dynamic Font Asset(uGUI)과 IMGUI `Font`의 한글 렌더링.
 - **U19** 대체됨(2회차) — UI Toolkit 미사용(D25). U42로 대체. 집계에서 뺀다.
 - **U20** 확인됨(14회차, IMP-DATA EditMode 배치 2026-11-06) — `DefaultShapeFactory.Circle`이 EditMode 배치에서 생성된다. 64×64 `Texture2D`, 스프라이트 `bounds` 1×1 유닛(픽셀/유닛 64), 중심 불투명·모서리 투명. 반지름 → 표시 배율은 `bounds.size`(1×1) 기준으로 계산할 수 있다. 원래 질문: 런타임 생성 원 스프라이트의 월드 크기 계산.
@@ -93,7 +94,7 @@
 - **U41** (2회차 신규) Mono의 UTF-8 디코딩이 잘못된 바이트를 U+FFFD로 바꾸는지(CP949 감지 전제).
 - **U42** (2회차 신규) `InputSystemUIInputModule` 메뉴 탐색과, UI 클릭 콜백·`Update` 사이 순서(보장 안 된다고 가정했으므로 틀려도 설계는 안전).
 
-### 6.3 집계 (8회차 갱신, 10회차 U 갱신, 11회차 U 재조정, 14회차 U 갱신)
+### 6.3 집계 (8회차 갱신, 10회차 U 갱신, 11회차 U 재조정, 14회차 U 갱신, 15회차 U 갱신)
 
 - 문서 간 불일치/SPEC 미규정: 번호 **33개**(D1~D33). **해소 18건**(D3·D8·D9·D10·D11·D12·D13·D17·D18·D20·D22·D24, (3회차) D26, (7회차) D14·D25, (8회차) D5·D27·D29), **미해소 15건**. **blocking 0건** — 모두 [기본값]이 있다. PM 확인 권장: (7회차) 없음 — D25는 사용자 확정으로 해소, D29·D31은 PM 확인 완료(2026-11-05, 기본값 유지). (4회차 변화 없음)
-- 실측/실행 필요 (10회차 갱신, 11회차 재조정): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 10건**(확인됨 9건 U1·U2·U5·U7·U8·U9·U30·U31·U32 + 틀림 → D9 변경으로 반영 U23), **부분 확인 2건**(U3, (11회차 정정) U11 — 미확정에 남김), 남은 **미확정 31건**(부분 확인 2건과 U35·U36 빌드 측정 대기 포함). (12회차) 빌드 실측 2026-11-06으로 U35·U36 확인됨 → 확인됨 11건, 남은 **미확정 29건**(부분 확인 2건 포함). (14회차) 웨이브 2a 구현자 테스트 2026-11-06으로 U20·U21·U22·U25 확인됨 → **확인됨 15건**, 남은 **미확정 25건**(부분 확인 2건 포함). 6.1 끝의 (14회차) 미결 설계 항목(풀 전략 토글 잔존)은 U·D 집계에 넣지 않는다. (3회차·7회차·8회차까지는 미확정 41건, 10회차 표기는 30건이었으나 U11을 확인으로 잘못 셌다.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기 → (12회차) 확인 완료, 웨이브 0 전부 종료). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
+- 실측/실행 필요 (10회차 갱신, 11회차 재조정): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 10건**(확인됨 9건 U1·U2·U5·U7·U8·U9·U30·U31·U32 + 틀림 → D9 변경으로 반영 U23), **부분 확인 2건**(U3, (11회차 정정) U11 — 미확정에 남김), 남은 **미확정 31건**(부분 확인 2건과 U35·U36 빌드 측정 대기 포함). (12회차) 빌드 실측 2026-11-06으로 U35·U36 확인됨 → 확인됨 11건, 남은 **미확정 29건**(부분 확인 2건 포함). (14회차) 웨이브 2a 구현자 테스트 2026-11-06으로 U20·U21·U22·U25 확인됨 → **확인됨 15건**, 남은 **미확정 25건**(부분 확인 2건 포함). (15회차) IMP-LOOP PlayMode 배치 2026-11-06으로 U3 확인됨(부분 확인 → 확인) → **확인됨 16건**, 남은 **미확정 24건**(부분 확인은 U11 1건만 남음. U14·U17은 (15회차) 부분 괄호를 달았으나 미확정 유지). 6.1 끝의 (14회차) 미결 설계 항목(풀 전략 토글 잔존)은 U·D 집계에 넣지 않는다 — (15회차) 해소됨. (3회차·7회차·8회차까지는 미확정 41건, 10회차 표기는 30건이었으나 U11을 확인으로 잘못 셌다.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기 → (12회차) 확인 완료, 웨이브 0 전부 종료). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.

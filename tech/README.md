@@ -1,4 +1,4 @@
-# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (14회차)
+# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (16회차)
 
 > 2026-10-27 단일 `TECH_SPEC.md`를 제목 단위로 분할했다(RUN_LOG 2026-10-27 D1). 내용은 바이트 그대로 옮겼고 ID(TAC·R·D·U·A 번호, 5.x 절 번호)는 변하지 않았다. 소유자는 tech-spec-writer이며, 개정 회차와 변경 요약은 이 파일이 관리한다.
 
@@ -20,39 +20,43 @@
 | 12 | 2026-11-06. U35·U36 빌드 실측 상태 반영(Windows 플레이어, `docs/spike/results/2026-11-06-build-run1.txt`): 둘 다 확인됨(01 2.3 표·06 6.2·5.18·5c.2b FLOW 행·5c.4 웨이브 0·4 행·스파이크 메모), 6.3 U 미확정 31 → 29, 00-header 범례 (12회차). 설계 변경 없음. **PM이 직접 한 사실 수정**(tech-spec-writer 미디스패치, RUN_LOG 2026-11-06) | 이 README |
 | 13 | 2026-11-06. 웨이브 1(IMP-CORE, main 524b32c, EditMode 205건) 구현 확정 사실 반영, 설계 변경 없음: 객체 ID 타입·할당기 이름을 `EntityHandle`·`EntityHandleAllocator`로 전면 치환(Unity 6 이름 충돌, 사용자 결정 DECISIONS 1절, 옛 이름은 5.01 각주에만), readonly struct 5개 생성자(`SimulationCommand`+`WithSequence` 5.4, `TargetHit` 5.7, `PhysicsBodyRequirements` 5.9.1, `StrategySelection` 5.15, `UpgradeOption` 5.14), 공개 멤버 추가(`CollisionChannelTable.GetLayers`·`ChannelCount`·`CollisionLayerMapping.FirstUnityLayer` 5.9·R5·R30, `StepMath.StepsPerSecond` R1, `MoveMath.Diagonal` R17), 셀 크기 2.0 단일 소유 `StrategySelection.DefaultSpatialHashCellSize`(5.7·5.15·TAC-F16-4, public 공개는 웨이브 2 전 IMP-CORE), 구현이 정한 의미 명문화(5.2 PCG stream id·SplitMix64, 5.9·5.15·TAC-F18-8 충돌 이벤트 열거형 이름 표기, R1·R4·R5 A측 = 채널 이름 앞 레이어·R7·R9·R13·R17·R26·R30), 5c.2 IMP-CORE 파일 3개(`RngStream.cs`·`SimulationCommandKind.cs`·`TickGroup.cs`)·`Survivor.Tests.EditMode.asmdef` 소유, 5c.4 웨이브 1 완료, 00-header 범례 (13회차) | 이 README |
 | 14 | 2026-11-06. 웨이브 2a(IMP-DATA·IMP-POOL·IMP-SPATIAL A·B, main d06b0bb) 구현 확정 사실 반영, 설계 변경 없음: 구현자 테스트로 U20(기본 원 bounds 1×1)·U21(`ObjectPool` 중복 반환 `InvalidOperationException`, 남의 객체는 못 잡음 → 자체 Owner 검사)·U22(`Destroy` 1프레임 뒤, 비활성화 먼저 유효)·U25(Newtonsoft 3.2.2, 테스트 asmdef에서는 안 보임) 확인됨(01 2.3·06 6.2, 6.3 U 확인 15·미확정 25), 풀 구현 확정 5.6.1 신설(`PoolInstanceTracker` 합성, 템플릿·반환 검증 예외 규칙, C의 `Prewarm`·감싼 예외, `ReleaseAll` 획득 순, TAC-F9-5 ID = `GetInstanceID()`), 공간 해시 구현 의미 5.7.1 신설(`QueryCircle`·`ForEachRing` 비우고 채움·상위 집합, `SpatialHash.CellSize`·`Count`, `SpatialHashSettings.IsValidCellSize`, B의 다른 버퍼 `ArgumentException` [기본값], `Required` 켜기 전제를 App/LOOP 계약으로 5.7·5c.3 #9), TAC-F16-2 종료 조건 여유 각주(구현자 반박 수용), R14 확인, 5.9 `QueryCircle` 소비자 재판정 의무, 데이터 구현 확정(5.11 공개 멤버 ★·`JsonTextReader` 파서 교체·`IsPlayable` = Blocking 0건·엄격성 규칙 [기본값]·5.11.0 순서 확인, 정의 객체 표 5.11.2 신설, 5.13 P2·P3 예시·정의 수, TAC-F3-7 등 정의 멤버 코드 이름 괄호), 공급자 C·`Tests/PlayMode/Targeting/*` 웨이브 3 이월(의존 누락 정정, 5c.2·5c.2b·5c.4), 5c.2 파일 목록(DATA 44 .cs·POOL `PoolInstanceTracker`·테스트 파일·asmdef 참조), 5c.3 #8 영역별 로그 도우미, 5c.5 테스트 관례(`LoadFromTexts`·문자열 치환 픽스처·`ignoreFailingMessages` 본문에서), 2a 기록 초안 별도 커밋 보충 기록(5c.4), 풀 전략 토글 잔존 인스턴스를 미결 설계 항목으로(06 6.1 끝·5.6.1, PM 결정 대기, D·U 번호 없음), 00-header 범례 (14회차) | 이 README |
+| 15 | 2026-11-07. 웨이브 2b(IMP-LOOP, main b9f8ea5, EditMode 473·PlayMode 144 각 3회) 구현 확정 사실과 사용자 결정 1건 반영. **설계 변경은 결정 1건**: `IPoolStrategy.Clear()`(비활성 인스턴스 전부 파괴, 활성 남으면 `InvalidOperationException`, DECISIONS 2절 2026-11-06) — 5.6 코드 블록·5.6.1(세 구현, `PoolInstanceTracker.EnsureNoneActive`, 계약 테스트 +15 → PlayMode Pool 99)·5.10 `ReplaceStrategies`(풀 객체가 바뀔 때만 옛 풀 `Clear()`, 새 풀 `Prewarm`은 App의 `PoolPrewarmCounts.PrewarmAll`)·TAC-F8-2 ③·TAC-F9-7 각주·06 6.1 미결 항목 해소·5c.2 IMP-CORE·IMP-POOL 행. 나머지는 코드대로 명문화: 5.3 시계·드라이버 시그니처 ★(`SimulationFrameCounter.LastFrameSteps`, `SimulationPipeline.HandlerCount`, 드라이버 3종 `Initialize`(`Func<ITickStrategy>`·`Func<Vector2>`), 점프가 `StopAtStep`에 닿으면 스텝 없이 닫힘, 콜백을 가로지르는 프로파일러 마커), 5.15.1 실제 배속을 `LastFrameSteps` 합으로 정정, 5.4 `SimulationCommandBuffer` 소유자 등록식(`RegisterHandler`·`HasHandler`·`PendingCount`·`Clear`, 미등록 종류는 적용 전 배치 전체 검사로 예외, 등록은 조립 루트), 5.15 `PendingCommandQueue`·`PendingCommand`·`PendingCommandKind` 시그니처(소유자 종류 4개 `RegisterHandler`, 내장 종류, `BossSpawnedThisRun` 연결), 5.10 `SimEntity`·`EntityLifecycle`(`Spawned`/`Despawning` 이벤트, `prefabOverride` 오버로드, 순서 주석 코드대로)·`PrefabCatalog`(카테고리 → 타입 사전 생성자)·`MonsterRegistry`·`PoolPrewarmCounts` ★, 5.8 틱 전략 구현(네임스페이스 `Survivor.Strategies.Tick`), 5.9 라우터 `Strategy`·`PendingEventCount`, 5.5·5.7 구현 멤버. [기본값] 명문화: 미등록 충돌 채널 이벤트 버림(명령과의 비대칭 근거, 웨이브 4 조립 테스트에 9채널 등록 단언), 판 리셋 플래그는 `DespawnAll` 중에만, 카탈로그 정리 API 없음, 셀프 티커 예외는 `AbortStep` 밖(5c.3 #7), `SwapData`는 D를 건드리지 않고 `DespawnSystem`이 `DespawnDistanceOverridden` 거짓이면 `Current`의 D를 읽음(5.11.1·5.12.1·5.15). 5c.3 #7 드라이버 예외 로그 형식 정정, #8 공용 포매터 미통합 PM 확정(`LoopLog`), 5c.2 IMP-LOOP 파일·테스트·asmdef 목록, 5c.4 웨이브 2b 완료·웨이브 3 전제·웨이브 4 검증, 5c.5 EditMode의 `SimEntity` 더블 제약 기준선, TAC-0-8·0-9·0-10 생명주기 부분 PM 표기, TAC-F1-7·F17-1·F17-2. U3 확인됨(1/30·1/60·1/144 해시 일치, 01 2.3·06 6.2, 6.3 U 확인 16·미확정 24), U14·U17 부분 괄호. `SimulationStateHash`는 웨이브 4로 이월(5.16, 2b는 테스트 도우미 해시). 00-header 범례 (15회차) | 이 README |
+| 16 | 2026-11-07. 웨이브 3 착수 전 소폭 개정. PLAYER↔MONSTER 경계(사용자 확정, DECISIONS 4절 2026-11-07): Core 인터페이스 ★ `IDamageable`(`IsAlive`, `ApplyDamage(float, long step)`, 구현 `Monster`, 소비 `PlayerHitHandler`·`WeaponDamageResolver`)·★ `IContactDamageSource`(`ContactDamage`, 구현 `Monster`·`EnemyProjectile`·`EnemyHazardZone`, 소비 `PlayerDamageReceiver`), 엔티티 조회는 생성자 델리게이트 `Func<EntityHandle, …>` [기본값](실패 시 무시·로그 없음), `PickupSystem`은 `Action<int> addXp`·`Action<DeterministicRng, StepContext> openChest` 주입(5.12·5.12.1·5.14·5.00 5.0.1·5c.2 IMP-CORE·PLAYER·MONSTER·FLOW·5c.3 #13·5c.4 웨이브 3). 플레이어 등록 경로 [기본값]: 풀 엔티티가 아니며 `PlayerEntity.RegisterForRun(ICollisionStrategy, Vector2)`·`UnregisterFromRun()`이 바디 2개를 직접 등록·해제(5c.3 #1 예외, TAC-F8-2·5.14 `RunSession.Reset`, 5.10 리셋 플래그 [기본값] 유지). 배선 규칙 통일: 명령 버퍼 핸들러·대기 명령 소유자 종류 4개·라우터 9채널 등록은 전부 조립 루트(5.15·5c.2·5c.3 #9, 15회차 "PLAYER·FLOW가 등록" 정정), 웨이브 4 조립 테스트 단언 추가. `LevelUpNow` [기본값](`AddXp(RequiredForNext − Xp)`, 5.15). 피해량 타입은 데이터 정의대로 `float`. 행 수 집계 기준 명시. 00-header 범례 (16회차) | 이 README |
 
 분할 뒤 개정 규칙: 설계 개정은 해당 `5.xx`·`02`·`5a`·`5c`·`06` 파일에서 하고 `(N회차 …)` 표기는 지금처럼 둔다. 회차 번호와 변경 요약은 이 README에만 추가한다. `00-header.md`의 0절은 2회차 기록으로 동결한다.
 
 ## 파일 목록
+
+행 수 집계 기준: 파일의 `\n` 개수에서 2를 뺀 값(첫 줄 "분할 파일" 머리말과 그 뒤 빈 줄 제외). README 자신은 표에 넣지 않는다.
 
 | 파일 | 내용 | 행 수 |
 |---|---|---|
 | [`00-header.md`](./00-header.md) | 제목·머리말 · 0 변경 요약 (회차 스탬프의 원본) | 70 |
 | [`01-overview.md`](./01-overview.md) | 1 개요 · 2 기존 코드 구조 분석 · Unity 동작 전제(U 표) | 137 |
 | [`02-feature-tac.md`](./02-feature-tac.md) | 3 기능 목록 · 4 기능별 기술 수용 기준 TAC (전원 읽음) | 223 |
-| [`5.00-assemblies-interfaces.md`](./5.00-assemblies-interfaces.md) | 5 머리말 · 5.0 네임스페이스와 어셈블리 · 5.0.1 인터페이스 전체 목록 | 36 |
+| [`5.00-assemblies-interfaces.md`](./5.00-assemblies-interfaces.md) | 5 머리말 · 5.0 네임스페이스와 어셈블리 · 5.0.1 인터페이스 전체 목록 | 38 |
 | [`5.01-entity-id.md`](./5.01-entity-id.md) | 5.1 객체 ID와 할당기 (Core) | 41 |
 | [`5.02-rng.md`](./5.02-rng.md) | 5.2 결정론 RNG (Core) | 32 |
-| [`5.03-step-clock.md`](./5.03-step-clock.md) | 5.3 고정 스텝 시계·게이트 (Core 계약, Simulation 구현, IMP-LOOP) (2회차 재작성) | 95 |
-| [`5.04-commands-spawn.md`](./5.04-commands-spawn.md) | 5.4 지연 명령과 생성 경로 (Core 계약, Simulation 구현) (2회차 재작성, A7) | 67 |
+| [`5.03-step-clock.md`](./5.03-step-clock.md) | 5.3 고정 스텝 시계·게이트 (Core 계약, Simulation 구현, IMP-LOOP) (2회차 재작성) · (15회차) 드라이버·프레임 카운터 시그니처 | 121 |
+| [`5.04-commands-spawn.md`](./5.04-commands-spawn.md) | 5.4 지연 명령과 생성 경로 (Core 계약, Simulation 구현) (2회차 재작성, A7) · (15회차) `SimulationCommandBuffer` | 81 |
 | [`5.05-input.md`](./5.05-input.md) | 5.5 입력 소스 (Core 계약, IMP-LOOP 키보드·IMP-DEV 자동 경로) | 21 |
-| [`5.06-pool.md`](./5.06-pool.md) | 5.6 풀 전략과 템플릿 데코레이터 (Core 계약, IMP-POOL·IMP-COLLISION·IMP-LOOP 구현) (2회차 수정, A8) · (14회차) 5.6.1 구현 확정 사실 | 88 |
-| [`5.07-targeting.md`](./5.07-targeting.md) | 5.7 타깃 공급자 (Core 계약, IMP-SPATIAL 구현) · (11회차) `SwitchTargetProviderCommand` · (14회차) 5.7.1 구현 확정 의미 | 124 |
-| [`5.08-tick.md`](./5.08-tick.md) | 5.8 중앙 틱 (Core 계약, IMP-LOOP 구현) (2회차 수정, A8) | 30 |
-| [`5.09-collision.md`](./5.09-collision.md) | 5.9 충돌 전략 (Core 계약, IMP-COLLISION 구현) | 158 |
-| [`5.10-lifecycle.md`](./5.10-lifecycle.md) | 5.10 엔티티 생명주기 (Simulation, IMP-LOOP) — 생성·회수의 유일한 경로 | 46 |
+| [`5.06-pool.md`](./5.06-pool.md) | 5.6 풀 전략과 템플릿 데코레이터 (Core 계약, IMP-POOL·IMP-COLLISION·IMP-LOOP 구현) (2회차 수정, A8) · (14회차) 5.6.1 구현 확정 사실 · (15회차) `Clear()` | 94 |
+| [`5.07-targeting.md`](./5.07-targeting.md) | 5.7 타깃 공급자 (Core 계약, IMP-SPATIAL 구현) · (11회차) `SwitchTargetProviderCommand` · (14회차) 5.7.1 구현 확정 의미 | 130 |
+| [`5.08-tick.md`](./5.08-tick.md) | 5.8 중앙 틱 (Core 계약, IMP-LOOP 구현) (2회차 수정, A8) · (15회차) 틱 전략 구현 | 64 |
+| [`5.09-collision.md`](./5.09-collision.md) | 5.9 충돌 전략 (Core 계약, IMP-COLLISION 구현) | 166 |
+| [`5.10-lifecycle.md`](./5.10-lifecycle.md) | 5.10 엔티티 생명주기 (Simulation, IMP-LOOP) — 생성·회수의 유일한 경로 · (15회차) `PrefabCatalog`·`MonsterRegistry` 등 | 109 |
 | [`5.11-data-loader.md`](./5.11-data-loader.md) | 5.11 데이터 로더·레지스트리·검증 (Data, IMP-DATA) · (14회차) 5.11.2 정의 객체 | 189 |
-| [`5.12-damage-rules.md`](./5.12-damage-rules.md) | 5.12 피해·획득 규칙 구성요소 (Simulation, IMP-PLAYER/IMP-MONSTER) · 5.12.1 IMP-MONSTER 소유 클래스 설계 (7회차 신설) | 89 |
+| [`5.12-damage-rules.md`](./5.12-damage-rules.md) | 5.12 피해·획득 규칙 구성요소 (Simulation, IMP-PLAYER/IMP-MONSTER) · 5.12.1 IMP-MONSTER 소유 클래스 설계 (7회차 신설) · (16회차) PLAYER↔MONSTER 경계 인터페이스·`PlayerEntity` 등록 | 154 |
 | [`5.13-json-schemas.md`](./5.13-json-schemas.md) | 5.13 JSON 스키마 7종 | 261 |
-| [`5.14-progression.md`](./5.14-progression.md) | 5.14 레벨업·진화·상자·진행 적용 (Simulation) (2회차 재작성, A4·A5·A11) · (11회차) `RunSession.Reset(in RunStrategies)` | 123 |
-| [`5.15-dev-mode.md`](./5.15-dev-mode.md) | 5.15 개발자 모드 주입 경계와 측정 (Dev, IMP-DEV) | 164 |
-| [`5.16-state-hash.md`](./5.16-state-hash.md) | 5.16 상태 해시 (Simulation, IMP-LOOP) | 13 |
+| [`5.14-progression.md`](./5.14-progression.md) | 5.14 레벨업·진화·상자·진행 적용 (Simulation) (2회차 재작성, A4·A5·A11) · (11회차) `RunSession.Reset(in RunStrategies)` | 128 |
+| [`5.15-dev-mode.md`](./5.15-dev-mode.md) | 5.15 개발자 모드 주입 경계와 측정 (Dev, IMP-DEV) · (15회차) `PendingCommandQueue` 구현 시그니처 | 220 |
+| [`5.16-state-hash.md`](./5.16-state-hash.md) | 5.16 상태 해시 (Simulation, IMP-LOOP) · (15회차) 웨이브 4 이월 | 15 |
 | [`5.17-flow-state.md`](./5.17-flow-state.md) | 5.17 흐름 상태 (App, IMP-FLOW) (2회차 신규) | 26 |
 | [`5.18-screen.md`](./5.18-screen.md) | 5.18 화면 설정 (App, IMP-FLOW) (2회차 신규, A13) | 23 |
 | [`5a-shared-rules.md`](./5a-shared-rules.md) | 5a 공유 규칙 표 R1~R30 (전원 읽음) | 39 |
 | [`5b-external-settings.md`](./5b-external-settings.md) | 5b 외부 서비스·프로젝트 설정 점검표 | 24 |
-| [`5c-ownership-contracts.md`](./5c-ownership-contracts.md) | 5c 폴더 구조·소유권 맵·계층 계약·디스패치 순서·테스트 전략·구현자별 읽을 파일 5c.2b (전원 읽음) | 201 |
-| [`06-open-questions.md`](./06-open-questions.md) | 6 미확정 사항 D·U | 97 |
+| [`5c-ownership-contracts.md`](./5c-ownership-contracts.md) | 5c 폴더 구조·소유권 맵·계층 계약·디스패치 순서·테스트 전략·구현자별 읽을 파일 5c.2b (전원 읽음) | 206 |
+| [`06-open-questions.md`](./06-open-questions.md) | 6 미확정 사항 D·U | 98 |
 
 ## ID → 파일
 

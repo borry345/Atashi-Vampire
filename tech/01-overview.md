@@ -86,7 +86,7 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 |---|---|---|
 | U1 | **확인됨(10회차 실측)** — `[DefaultExecutionOrder]`가 `FixedUpdate`에도 적용되고, 같은 클래스 인스턴스 간 호출 순서는 보장되지 않는다 | 드라이버 3개 + 셀프 티커 2개의 인터리브(2.2 c) |
 | U2 | **확인됨(10회차 실측, 실제 정지 프레임 기준. `captureDeltaTime`은 클램프를 우회함)** — `Time.fixedDeltaTime = 1/60`, `Time.maximumDeltaTime = 0.05`이면 한 프레임의 `FixedUpdate`가 최대 3회다 | catch-up 상한 3 |
-| U3 | **부분 확인(10회차 실측, 결정론 테스트용으로만, 상한 검증 불가)** — `Time.captureDeltaTime = 1/30, 1/60, 1/144`로 프레임레이트를 흉내 내면 `FixedUpdate` 누적이 그에 맞게 동작한다 | 프레임레이트 독립 PlayMode 테스트 |
+| U3 | **부분 확인(10회차 실측, 결정론 테스트용으로만, 상한 검증 불가)** — `Time.captureDeltaTime = 1/30, 1/60, 1/144`로 프레임레이트를 흉내 내면 `FixedUpdate` 누적이 그에 맞게 동작한다. **(15회차) 확인됨** — IMP-LOOP PlayMode 배치(2026-11-06)에서 1/30·1/60·1/144 각 600스텝의 상태 해시가 틱 전략 2종 모두 일치(5.16, 6.2 U3) | 프레임레이트 독립 PlayMode 테스트 |
 | U4 | `Rigidbody2D.collisionDetectionMode` 기본값은 `Discrete`다 (SPEC Q39) | E1 조건 |
 | U5 | **확인됨(10회차 실측, sleepMode 변경 불필요)** — 키네마틱 ↔ 키네마틱 트리거 콜백이 발생한다(필요하면 `useFullKinematicContacts`로) | 엔진 충돌 전략의 바디 구성 |
 | U6 | `Continuous` 모드가 트리거·키네마틱 바디의 판정 결과를 바꿀 수 있다 | E2가 의미 있는 검증인지 여부 |

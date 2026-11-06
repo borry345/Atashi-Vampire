@@ -123,6 +123,7 @@
 | — | asmdef 참조 위반 해소 방향 | 기본값 | 2 |
 | — | `TargetProviderSlot`은 핸들러가 아님 | 기본값 | 2 |
 | — | 풀 전략 토글 시 옛 풀 비활성 인스턴스 정리 = `IPoolStrategy.Clear()` (2026-11-06) | 확정 | 2 |
+| — | PLAYER↔MONSTER 경계 = Core 인터페이스 2개(피해 수신·접촉 피해량) + `PickupSystem` 델리게이트 주입 (2026-11-07) | 확정 | 4 |
 | — | 입력 방식 | 확정 | 3 |
 | — | 패시브 3종 | 확정 | 3 |
 | — | 무기 4종 구성(측정 축과 1:1) | 확정 | 3 |
@@ -759,6 +760,14 @@ PRD는 "풀링 외 병목 하나 더"만 요구했으나, 사용자 질문에 PM
 - 버린 대안: RUN_LOG에 기록 없음
 - 반영 위치: `spec/F18-collision-strategy.md`(SPEC 5회차 "질의 전용 예외", F 단위만 기록), `tech/06-open-questions.md`(D27)
 - 출처: RUN_LOG 2026-10-16
+
+### — PLAYER↔MONSTER 경계는 Core 인터페이스 2개 + 델리게이트 주입 (2026-11-07)
+- 상태: 확정 (2026-11-07, 사용자 — PM 추천대로)
+- 결정: Simulation 안에서 IMP-PLAYER와 IMP-MONSTER가 서로의 구체 클래스를 참조하지 않도록 **Core에 인터페이스 2개**를 추가한다. ① "피해를 받을 수 있는 엔티티"(몬스터가 구현; PLAYER의 명중 핸들러·지속 피해 처리기가 피해를 적용하고 처치 여부를 읽는다) ② "접촉 피해량을 가진 엔티티"(몬스터·적 투사체·적 장판이 구현; PLAYER의 피해 수신기가 피해량을 읽는다). MONSTER `PickupSystem`의 바깥 호출 2개(경험치 추가 → FLOW `ExperienceSystem.AddXp`, 상자 효과 → PLAYER `ChestEffectResolver.Resolve`)는 **생성자 델리게이트 주입**으로 둔다(LOOP의 `Func<ITickStrategy>` 관례). 이름·시그니처는 tech-spec-writer(16회차)가 정하고, 구현은 IMP-CORE가 한다.
+- 이유: TECH 5.12·5.9·5.14와 spec 3.0 I는 피해의 **규칙**은 정했지만 PLAYER→몬스터 피해 호출, 몬스터·적 투사체·적 장판의 피해량 접근자, `PickupSystem`의 바깥 호출 **API**를 정하지 않았다. 5c의 스크래치·스텁 모델에서는 조립 때 소유자 버전으로 대체돼 드러나지 않았으나, 웨이브 2부터 쓰는 worktree 모델에서는 각 구현자가 남의 타입 없이 혼자 컴파일돼야 한다. 2a·2b는 Core 인터페이스만 넘나들어 문제가 없었고, 웨이브 3의 PLAYER·MONSTER는 서로를 부른다. 경계를 Core 인터페이스로 두면 세 구현자(COLLISION·PLAYER·MONSTER)를 병렬로 띄울 수 있고, 테스트 더블도 인터페이스로 만들 수 있다. 포트폴리오 관점(PRD 축 2)에서 "어셈블리 경계가 드러낸 결합을 인터페이스로 끊었다"는 기록이 된다.
+- 버린 대안: (2) PLAYER+MONSTER 단일 구현자 — 인터페이스 추가는 없지만 소유 파일 약 45개(2b의 1.5배), 60~90만 토큰·2~3시간으로 컨텍스트 고갈과 단일 실패 위험. (3) 순차 디스패치(MONSTER → PLAYER, PLAYER가 `Monster` 구체 클래스 참조) — 인터페이스 없이 가능하지만 Simulation 내부 결합이 늘고 웨이브 3 시간이 두 배.
+- 반영 위치: 코드 `Scripts/Core/`(IMP-CORE, 인터페이스 2파일 + 테스트), TECH 16회차(5.12 피해 규칙에 인터페이스 정의·구현자 표, 5c.2 IMP-CORE 행, 5.0.1 인터페이스 목록, 5c.3 계약 한 줄), 웨이브 3 PLAYER·MONSTER 브리핑(`docs/dispatch/`).
+- 출처: RUN_LOG 2026-11-07
 
 ---
 
