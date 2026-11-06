@@ -65,6 +65,21 @@ namespace Survivor.Strategies.Pool
             }
         }
 
+        /// Destroys every pooled inactive instance and forgets all templates; throws InvalidOperationException while ActiveCount > 0.
+        public void Clear()
+        {
+            _tracker.EnsureNoneActive(nameof(CustomPoolStrategy));
+            foreach (Stack<GameObject> inactive in _inactiveByTemplate.Values)
+            {
+                foreach (GameObject instance in inactive)
+                {
+                    Object.Destroy(instance);
+                }
+            }
+
+            _inactiveByTemplate.Clear();
+        }
+
         private Stack<GameObject> GetStack(GameObject template)
         {
             if (!_inactiveByTemplate.TryGetValue(template, out Stack<GameObject> inactive))

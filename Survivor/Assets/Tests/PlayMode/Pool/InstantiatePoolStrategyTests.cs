@@ -19,6 +19,8 @@ namespace Survivor.Tests.PlayMode.Pool
 
         protected override PoolStrategyKind ExpectedKind => PoolStrategyKind.InstantiateDestroy;
 
+        protected override bool KeepsInactiveInstances => false;
+
         [Test]
         public void Acquire_AfterRelease_InstantiatesNewInstance()
         {
