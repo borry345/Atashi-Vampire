@@ -104,6 +104,15 @@ namespace Survivor.Strategies.Pool
             return pooled.Template;
         }
 
+        // Clear is only legal once every instance is back; logs and throws otherwise, before anything is destroyed.
+        internal void EnsureNoneActive(string strategyName)
+        {
+            if (_active.Count > 0)
+            {
+                throw Fail($"{strategyName}.Clear called with {_active.Count} active instance(s); call ReleaseAll first.");
+            }
+        }
+
         // Acquired instances in acquire order, so ReleaseAll does not depend on HashSet order.
         internal List<GameObject> SnapshotActiveInAcquireOrder()
         {

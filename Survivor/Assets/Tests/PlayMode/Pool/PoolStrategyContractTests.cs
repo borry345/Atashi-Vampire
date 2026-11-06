@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Survivor.Core;
 using Survivor.Strategies.Pool;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace Survivor.Tests.PlayMode.Pool
 {
@@ -235,6 +237,104 @@ namespace Survivor.Tests.PlayMode.Pool
             Assert.AreSame(other, instance.GetComponent<PooledObject>().Template);
             Assert.AreEqual("PoolTestOther(Clone)", instance.name);
         }
+
+        [UnityTest]
+        public IEnumerator Clear_AfterPrewarm_DestroysHeldInstancesByNextFrame()
+        {
+            Strategy.Prewarm(Template, 3);
+            Assert.AreEqual(KeepsInactiveInstances ? 3 : 0, PoolTestObjects.CountClones(Template));
+
+            Strategy.Clear();
+            yield return null;
+
+            Assert.AreEqual(0, PoolTestObjects.CountClones(Template));
+            Assert.AreEqual(0, Strategy.ActiveCount);
+        }
+
+        [UnityTest]
+        public IEnumerator Clear_AfterReleaseAll_DestroysReleasedInstancesByNextFrame()
+        {
+            GameObject other = PoolTestObjects.CreateTemplate("Other");
+            Strategy.Acquire(Template, Vector2.zero);
+            Strategy.Acquire(Template, Vector2.zero);
+            Strategy.Acquire(other, Vector2.zero);
+            Strategy.ReleaseAll();
+
+            Strategy.Clear();
+            yield return null;
+
+            Assert.AreEqual(0, PoolTestObjects.CountClones(Template));
+            Assert.AreEqual(0, PoolTestObjects.CountClones(other));
+        }
+
+        [UnityTest]
+        public IEnumerator Clear_WhileInstancesActive_LogsThrowsAndDestroysNothing()
+        {
+            Strategy.Prewarm(Template, 2);
+            GameObject active = Strategy.Acquire(Template, Vector2.zero);
+            int clonesBefore = PoolTestObjects.CountClones(Template);
+
+            PoolTestObjects.ExpectPoolError(@"\w+PoolStrategy\.Clear called with 1 active instance\(s\)");
+            Assert.Throws<InvalidOperationException>(() => Strategy.Clear());
+            yield return null;
+
+            Assert.AreEqual(clonesBefore, PoolTestObjects.CountClones(Template));
+            Assert.IsTrue(active != null && active.activeSelf);
+            Assert.AreEqual(1, Strategy.ActiveCount);
+        }
+
+        [UnityTest]
+        public IEnumerator Clear_ThenPrewarmAndAcquire_WorkAgain()
+        {
+            Strategy.Prewarm(Template, 2);
+            Strategy.Clear();
+            yield return null;
+
+            Strategy.Prewarm(Template, 2);
+            Assert.AreEqual(KeepsInactiveInstances ? 2 : 0, PoolTestObjects.CountClones(Template));
+            GameObject instance = Strategy.Acquire(Template, new Vector2(1f, 2f));
+
+            Assert.IsTrue(instance.activeSelf);
+            Assert.AreEqual(new Vector3(1f, 2f, 0f), instance.transform.position);
+            Assert.AreEqual(1, Strategy.ActiveCount);
+            Assert.AreEqual(KeepsInactiveInstances ? 2 : 1, PoolTestObjects.CountClones(Template));
+
+            Strategy.Release(instance);
+            Strategy.Clear();
+            yield return null;
+            Assert.AreEqual(0, PoolTestObjects.CountClones(Template));
+        }
+
+        [UnityTest]
+        public IEnumerator Clear_ThenSwapToUnityObjectPool_LeavesOnlyIncomingPrewarm()
+        {
+            // Strategy toggle at a run boundary: DespawnAll -> outgoing.Clear -> incoming.Prewarm (EntityLifecycle.ReplaceStrategies).
+            Strategy.Prewarm(Template, 3);
+            Strategy.Acquire(Template, Vector2.zero);
+            Strategy.Acquire(Template, Vector2.zero);
+            Strategy.ReleaseAll();
+            Strategy.Clear();
+
+            IPoolStrategy incoming = new UnityObjectPoolStrategy();
+            incoming.Prewarm(Template, 4);
+            yield return null;
+
+            int clones = 0;
+            foreach (PooledObject pooled in UnityEngine.Object.FindObjectsByType<PooledObject>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (pooled.gameObject != Template)
+                {
+                    clones++;
+                }
+            }
+
+            Assert.AreEqual(4, clones);
+            Assert.AreEqual(0, incoming.ActiveCount);
+        }
+
+        // Whether Prewarm/Release leave inactive instances in the scene (false for InstantiateDestroy).
+        protected virtual bool KeepsInactiveInstances => true;
 
         // Maps each acquired instance to the order in which it was first seen, so runs on different templates compare.
         protected static List<int> RunReuseSequence(IPoolStrategy strategy, GameObject template)

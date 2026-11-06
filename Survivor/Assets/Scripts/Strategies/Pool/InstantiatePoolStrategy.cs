@@ -48,6 +48,12 @@ namespace Survivor.Strategies.Pool
             PoolInstanceTracker.ValidatePrewarm(template, count);
         }
 
+        /// Holds no inactive instances, so only checks the contract; throws InvalidOperationException while ActiveCount > 0.
+        public void Clear()
+        {
+            _tracker.EnsureNoneActive(nameof(InstantiatePoolStrategy));
+        }
+
         /// Destroys every acquired instance, in acquire order.
         public void ReleaseAll()
         {

@@ -75,6 +75,18 @@ namespace Survivor.Strategies.Pool
             }
         }
 
+        /// Clears every per-template ObjectPool (actionOnDestroy destroys each instance) and drops them; throws InvalidOperationException while ActiveCount > 0.
+        public void Clear()
+        {
+            _tracker.EnsureNoneActive(nameof(UnityObjectPoolStrategy));
+            foreach (ObjectPool<GameObject> pool in _poolByTemplate.Values)
+            {
+                pool.Clear();
+            }
+
+            _poolByTemplate.Clear();
+        }
+
         private ObjectPool<GameObject> GetPool(GameObject template)
         {
             if (!_poolByTemplate.TryGetValue(template, out ObjectPool<GameObject> pool))
