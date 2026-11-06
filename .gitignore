@@ -65,3 +65,6 @@ Desktop.ini
 .DS_Store
 *.slnx
 .vsconfig
+
+# Claude Code 개인 설정(권한 캐시). 사용자별이라 커밋하지 않는다.
+.claude/settings.local.json
