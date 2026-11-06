@@ -54,7 +54,7 @@ Dev(F19) ──▶ App(조립·흐름 F8) ──▶ UI(F5,F8 뷰)
 |---|---|---|
 | F16 공간 해시 ↔ F18 자체 판정 | F16 마지막 기준 "F18이 후보 추림에 재사용", F10 "두 전략은 독립이 아니다" | 공간 해시를 **하나의 공유 인스턴스**(`MonsterSpatialIndex`)로 둔다. 타깃=공간 해시 **또는** 충돌=자체 중 하나라도 켜져 있으면 스텝마다 한 번 재구축한다. "전부 켬"에서 유지 비용이 한 번만 드는 것이 측정할 상호작용이다 |
 | F16 C(`Physics2D` 쿼리) ↔ F18 A(`Collider2D`) ↔ 바디 동기화 (2회차) | F18 "몬스터 `Collider2D`는 구현 A와 F16 C일 때만 켠다" | 콜라이더 켜짐과 위치 동기화 필요 여부는 `ColliderActivationPolicy.Resolve(selection)`(5a R19) 한 곳에서 판정하고, 실제 `Rigidbody2D.position`·`MovePosition` 호출과 콜라이더 켜기/끄기는 **`PhysicsBodySynchronizer` 하나**(IMP-COLLISION)만 한다. (11회차) 이 클래스는 `rb.position` 대입만 쓰고 `Physics2D.SyncTransforms`는 호출하지 않는다(실측 U32). 호출이 필요해지면 이 클래스만 한다. `Physics2D.Simulate`는 `EngineCollisionStrategy`만 부른다. 1회차에는 "`Physics2D` 타깃 + 자체 충돌" 조합에서 아무도 몬스터 바디를 옮기지 않았다(5.9.1) |
-| F9 풀 ↔ 객체 ID | 3.0 H "풀 구현과 무관하게 같은 규칙" | **ID 할당을 풀에서 분리한다.** 시뮬레이션 소유의 `EntityIdAllocator`가 ID를 발급하고, 디스폰(=반납) 시 세대를 올린다 |
+| F9 풀 ↔ 객체 ID | 3.0 H "풀 구현과 무관하게 같은 규칙" | **ID 할당을 풀에서 분리한다.** 시뮬레이션 소유의 `EntityHandleAllocator`가 ID를 발급하고, 디스폰(=반납) 시 세대를 올린다 |
 | F17 A(객체별 `FixedUpdate`) ↔ 결정론 | Unity는 같은 클래스 인스턴스끼리의 호출 순서를 보장하지 않는다 [실측 U1] | `Tick`은 **자기 상태만 쓰고**, 다른 객체에 영향을 주는 일(투사체 생성, 소환, 사망)은 지연 명령으로 미룬다. 명령은 Lifecycle에서 (Source, Sequence) 순으로 적용한다(5a R10) |
 | F17 A ↔ 측정 공정성 | 객체마다 `FixedUpdate` 메서드가 있으면 Unity는 B 모드에서도 그것을 호출한다 | 엔티티 클래스에는 `FixedUpdate`를 두지 않는다. A 모드일 때만 켜지는 별도 컴포넌트(`MonsterSelfTicker`/`ProjectileSelfTicker`)가 `FixedUpdate`를 가진다 |
 | F18 엔진판 ↔ 스텝 경계 | Unity의 물리 시뮬레이션과 `OnTrigger*` 콜백은 모든 `FixedUpdate` **뒤**에 돈다 [실측 U7] | `Physics2D.simulationMode = Script`로 두고, 엔진 전략의 `CollectEvents()` 안에서 `Physics2D.Simulate(1/60)`을 직접 호출한다. 그래야 같은 스텝 번호 안에서 이벤트가 나와 자체판과 스텝 번호가 일치한다 |

@@ -5,8 +5,8 @@ namespace Survivor.Core
     /// The four strategy choices of a run plus engine CCD mode and spatial hash cell size.
     public readonly struct StrategySelection
     {
-        // Mirrors the documented SpatialHashSettings.CellSize default (2.0, TAC-F16-4); Core cannot reference Strategies.
-        private const float DefaultSpatialHashCellSize = 2f;
+        /// Default spatial hash cell size (2.0); Core is the single owner and Strategies' SpatialHashSettings references this value.
+        public const float DefaultSpatialHashCellSize = 2f;
 
         /// Pool strategy (F9).
         public readonly PoolStrategyKind Pool;

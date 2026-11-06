@@ -29,7 +29,7 @@
 - **D19.** 개발자 모드 "레벨업 비활성" 상태에서 경험치를 어떻게 처리할지 정해져 있지 않다. [기본값] 경험치는 쌓이고 레벨은 오르지 않는다. 비차단.
 - **D20.** 해소(2회차, SPEC F3·F16 4회차): 몬스터는 플레이어 위치를 직접 참조하고 `ITargetProvider`는 무기 전용.
 - **D21.** 개발자 오버레이의 문자열 언어: CODING_GUIDE §3은 "사용자에게 보이는 문자열은 한국어"라고 한다. [기본값] 한국어로 쓰고 같은 한글 글꼴을 쓴다. 비차단.
-- **D22.** 해소(2회차, SPEC 3.0 H 4회차): "ID 발급과 세대 증가 규칙은 풀 구현 A/B/C 어느 것을 쓰든 같아야 한다" — 풀과 독립된 `EntityIdAllocator`가 그 요구를 충족한다.
+- **D22.** 해소(2회차, SPEC 3.0 H 4회차): "ID 발급과 세대 증가 규칙은 풀 구현 A/B/C 어느 것을 쓰든 같아야 한다" — 풀과 독립된 `EntityHandleAllocator`가 그 요구를 충족한다.
 - **D23.** 상자 효과 ②의 강화 대상 선택 방식이 "랜덤"으로만 적혀 있다. [기본값] 슬롯 순서 목록에서 균등. 비차단.
 - **D24.** 해소(2회차, SPEC F6 4회차·Q46②): W3 대상 없음 = 생성 안 함, 쿨다운 미소비, 다음 스텝 재시도. (9회차) `nearestEnemy`에만 해당, `placement: player`는 TAC-F6-5.
 - **D25.** 해소(7회차, 사용자 확정 2026-11-05): **uGUI + CanvasScaler + TextMeshPro**로 확정하고 개발자 오버레이는 IMGUI(5.15) 그대로 둔다. "웨이브 4 전" 재검토 조건과 UI Toolkit 복귀 여지는 없어졌다. 원래 기록: (2회차 신규) SPEC F8 4회차는 "UI는 Canvas Scaler로 스케일"이라고 적었는데 Canvas Scaler는 uGUI 컴포넌트다. 1회차 TECH_SPEC은 UI Toolkit을 골랐다. [기본값] SPEC 문구대로 **uGUI + CanvasScaler + TextMeshPro**로 바꾸고 UI를 코드(`UiFactory`)로 구성한다. 영향: IMP-FLOW 파일 목록, 5b(TMP Essentials·폰트 에셋), U18·U42. UI Toolkit의 PanelSettings "Scale With Screen Size"로도 같은 효과를 낼 수 있으므로, SPEC 문구를 "해상도 독립 스케일"로 넓히는 쪽을 PM이 고르면 UI Toolkit으로 되돌릴 수 있다. 비차단.
