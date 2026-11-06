@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "monsters": [
+    { "id": "M1", "displayName": "좀비", "behavior": "chaser", "assetKey": "shape.monster.green",
+      "maxHealth": 10, "moveSpeed": 2.0, "radius": 0.45, "contactDamage": 5 },
+    { "id": "M2", "displayName": "돌진체", "behavior": "charger", "assetKey": "shape.monster.orange",
+      "maxHealth": 20, "moveSpeed": 1.5, "radius": 0.5, "contactDamage": 8,
+      "charge": { "triggerDistance": 6, "chargeSpeed": 18, "durationSeconds": 0.5, "cooldownSeconds": 3 } },
+    { "id": "M3", "displayName": "원거리", "behavior": "ranged", "assetKey": "shape.monster.purple",
+      "maxHealth": 15, "moveSpeed": 1.8, "radius": 0.45, "contactDamage": 4,
+      "ranged": { "attackRange": 8, "fireCooldownSeconds": 2,
+                  "projectile": { "assetKey": "shape.enemyshot.red", "speed": 6, "radius": 0.2, "damage": 6, "lifetimeSeconds": 3 } } },
+    { "id": "M4", "displayName": "보스", "behavior": "boss", "assetKey": "shape.boss.red",
+      "maxHealth": 5000, "moveSpeed": 1.2, "radius": 1.5, "contactDamage": 20,
+      "bossPatterns": [
+        { "type": "hazardZone", "cooldownSeconds": 6, "zoneRadius": 3, "durationSeconds": 2, "damage": 15, "assetKey": "shape.hazard.red" },
+        { "type": "summon", "cooldownSeconds": 8, "monsterId": "M1", "count": 6, "summonRadius": 3 }
+      ] }
+  ]
+}

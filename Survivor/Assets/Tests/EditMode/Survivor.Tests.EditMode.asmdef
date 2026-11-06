@@ -3,6 +3,8 @@
     "rootNamespace": "Survivor.Tests.EditMode",
     "references": [
         "Survivor.Core",
+        "Survivor.Data",
+        "Survivor.Strategies",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
