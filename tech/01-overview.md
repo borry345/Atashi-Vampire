@@ -80,7 +80,7 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 
 ### 2.3 설계가 기대는 Unity 6 API·동작 전제 (전부 실측 필요)
 
-아래는 이 설계가 **사실이라고 가정하고** 기대는 Unity 동작이다. (11회차 정리) 작성 당시(1~9회차)에는 코드를 실행해 확인한 것이 하나도 없었다. 웨이브 0 실측(10회차, 2026-11-05, Unity 6000.3.28f1 에디터 PlayMode)으로 아래 표 중 9행이 **확인됨**, 1행(U23)이 **틀림**(D9 변경으로 반영), 2행(U3·U11)이 **부분 확인**이 되었다. (12회차) 빌드 실측(2026-11-06, Windows 플레이어 1280x720 창)으로 U35·U36도 **확인됨**이 되어 확인됨은 11행이다. 표시가 없는 행과 부분 확인 행은 여전히 미확정이다. 결과 요약은 6.2에 있고, 번호는 6.2절과 같다.
+아래는 이 설계가 **사실이라고 가정하고** 기대는 Unity 동작이다. (11회차 정리) 작성 당시(1~9회차)에는 코드를 실행해 확인한 것이 하나도 없었다. 웨이브 0 실측(10회차, 2026-11-05, Unity 6000.3.28f1 에디터 PlayMode)으로 아래 표 중 9행이 **확인됨**, 1행(U23)이 **틀림**(D9 변경으로 반영), 2행(U3·U11)이 **부분 확인**이 되었다. (12회차) 빌드 실측(2026-11-06, Windows 플레이어 1280x720 창)으로 U35·U36도 **확인됨**이 되어 확인됨은 11행이다. (14회차) 웨이브 2a 구현자 테스트(2026-11-06, Unity 6000.3.28f1 에디터, IMP-DATA EditMode·IMP-POOL batchmode `-nographics` PlayMode)로 U20·U21·U22·U25도 **확인됨**이 되어 확인됨은 15행이다. 표시가 없는 행과 부분 확인 행은 여전히 미확정이다. 결과 요약은 6.2에 있고, 번호는 6.2절과 같다.
 
 | # | 전제 | 이 전제에 기대는 설계 |
 |---|---|---|
@@ -103,12 +103,12 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U17 | Input System 패키지가 활성이고 업데이트 모드가 Dynamic이라 `wasPressedThisFrame`이 `Update`에서 유효하다 | 입력 수집 |
 | U18 | (2회차 수정) 한글 TTF로 만든 TextMeshPro Dynamic Font Asset이 uGUI에서, 같은 TTF의 `Font`가 IMGUI(`GUIStyle.font`)에서 한글을 렌더링한다 | 모든 UI |
 | U19 | **대체됨(2회차)** — UI Toolkit을 쓰지 않으므로(D25) 무의미하다. U42로 대체 | - |
-| U20 | 런타임에 만든 `Texture2D` 원 스프라이트의 월드 크기를 `sprite.bounds`로 알 수 있다 | 반지름 → 표시 배율 |
-| U21 | `ObjectPool<T>`의 `maxSize`를 넘겨 반환하면 객체가 파괴되고, `collectionCheck`가 중복 반환을 잡는다 | 풀 구현 C |
-| U22 | `Destroy`는 프레임 끝까지 지연되므로 `SetActive(false)`를 먼저 해야 같은 프레임의 다음 스텝에 끼어들지 않는다 | 풀 구현 B |
+| U20 | 런타임에 만든 `Texture2D` 원 스프라이트의 월드 크기를 `sprite.bounds`로 알 수 있다. **(14회차) 확인됨** — IMP-DATA EditMode 테스트에서 `DefaultShapeFactory.Circle` 생성: 64×64 `Texture2D`, 스프라이트 `bounds` 1×1 유닛, 중심 불투명·모서리 투명 | 반지름 → 표시 배율(`bounds.size` 1×1 기준) |
+| U21 | `ObjectPool<T>`의 `maxSize`를 넘겨 반환하면 객체가 파괴되고, `collectionCheck`가 중복 반환을 잡는다. **(14회차) 확인됨** — IMP-POOL PlayMode 관찰: `collectionCheck: true` 중복 반환은 `InvalidOperationException`, `maxSize: 2`에 3개 반환 시 초과분 1개 파괴. 단 **풀에서 나오지 않은 객체의 반환은 `collectionCheck`로도 잡히지 않는다** → 자체 Owner 검사(`PoolInstanceTracker`, 5.6) | 풀 구현 C |
+| U22 | `Destroy`는 프레임 끝까지 지연되므로 `SetActive(false)`를 먼저 해야 같은 프레임의 다음 스텝에 끼어들지 않는다. **(14회차) 확인됨** — IMP-POOL PlayMode: 파괴는 정확히 1프레임 뒤 적용, 같은 프레임에는 `activeSelf=false`라 `FindObjectsInactive.Exclude` 검색에 잡히지 않음(batchmode `-nographics` 기준, 플레이어 빌드 미확인) | 풀 구현 B |
 | U23 | **틀림(10회차 실측) → D9 변경으로 반영** — `maximumDeltaTime`은 스케일 전 시간에만 걸린다(timeScale 3에서 프레임당 최대 7스텝 관찰). 원래 전제: `Time.maximumDeltaTime`은 스케일된 `deltaTime`을 제한한다(그러면 60FPS에서 `timeScale = 3`이 프레임당 정확히 3스텝) | 개발자 모드 배속 3x → (10회차) 배속 시 `maximumDeltaTime = 0.05 / timeScale` 동기 갱신(5.3·5.15.1) |
 | U24 | (2회차 수정) 자동 선택한 16:9 창 크기가 작업 표시줄·DPI 배율 때문에 강제로 줄어들지 않고 그대로 유지된다(1280x720 미만 작업 영역에서는 잘린 채 유지) | Q44 화면 밖 계산(16:9 전제) |
-| U25 | `com.unity.nuget.newtonsoft-json` 패키지를 6000.3에서 쓸 수 있고 Mono 백엔드에서 동작한다 | JSON 파서(D17 확정) |
+| U25 | `com.unity.nuget.newtonsoft-json` 패키지를 6000.3에서 쓸 수 있고 Mono 백엔드에서 동작한다. **(14회차) 확인됨** — 3.2.2가 6000.3.28f1 에디터(Mono)에서 동작, `Packages/manifest.json` 직접 의존(2026-11-06, 사용자 승인). 테스트 asmdef(`overrideReferences: true`)에서는 보이지 않는다(5c.1·5c.5) | JSON 파서(D17 확정) |
 | U26 | 같은 빌드·같은 PC에서 float 연산은 실행마다 비트 단위로 같다(Mono JIT) | 프레임레이트 간 결정론 |
 | U27 | `Unity.exe -batchmode -runTests -testPlatform PlayMode`로 물리를 포함한 PlayMode 테스트가 돈다 | E1·E2 자동 실행 |
 | U28 | 6.3의 새 저수준 2D 물리 API와 무관하게 기존 `Physics2D`·`Rigidbody2D` API가 그대로 동작한다 | F18 A, F16 C |

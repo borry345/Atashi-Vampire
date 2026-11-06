@@ -42,9 +42,13 @@
 - **D32.** (2회차 신규) SPEC 3.0 I는 "몸통 접촉 적이 여럿이면 최대 피해 1회"만 정했다. 같은 스텝에 몸통 접촉·M3 투사체·M4 장판이 섞이면? [기본값] 세 종류 후보 전체에서 최대 피해 1회, 같으면 작은 ID(무적 시간이 0이어도 스텝당 최대 1회). 비차단.
 - **D33.** (2회차 신규) SPEC F8 "작업 영역에 들어가는 가장 큰 16:9 해상도"가 창 테두리·제목 표시줄을 포함한 바깥 크기 기준인지 정해져 있지 않다. [기본값] 바깥 크기 기준(클라이언트 크기 + 16×39 픽셀 여유). 1080p 모니터에서는 1600x900이 고르게 된다. 비차단.
 
+**(14회차) 미결 설계 항목 — PM 결정 대기 (D 번호 없음, 결정은 PM·사용자가 DECISIONS에서)**
+
+- **풀 전략 토글 시 옛 전략의 비활성 인스턴스 잔존.** 코드에서 확인됨(웨이브 2a, `Strategies/Pool/*`): 풀 전략 토글(TAC-F9-7, 다음 판 `Reset`에서 적용) 때 옛 A(`CustomPoolStrategy`, 템플릿별 `Stack`)·C(`UnityObjectPoolStrategy`, 템플릿별 `ObjectPool`) 객체가 보유한 비활성 인스턴스가 씬에 그대로 남는다. `ReleaseAll`은 활성 인스턴스만 반환하며, `IPoolStrategy`(5.6)에는 비활성 인스턴스를 정리하는 수단이 없다. 후보: (a) `IPoolStrategy`에 `Dispose`/`Clear` 추가(Core 인터페이스 변경), (b) App이 전략 교체 때 옛 전략의 비활성 인스턴스를 씬에서 파괴, (c) 판마다 누적 허용(측정 오염 가능). 14회차는 결정하지 않는다 — PM이 사용자와 결정한 뒤 15회차에 반영한다. 차단 여부: LOOP·FLOW의 `RunSession.Reset` 전략 교체 구현(웨이브 2b·4) 전에 정해지는 것이 바람직하다(5.6 각주).
+
 ### 6.2 실측/실행 필요 — 미확정 (Needs measurement/execution — unconfirmed)
 
-아래는 모두 정적으로 읽어서는 확정할 수 없는 Unity 동작 전제다(2.3 표와 번호가 같다). **사실로 취급하지 않는다.** 웨이브 0 스파이크나 해당 구현자의 PlayMode 테스트로 확인한다. (10회차) "확인됨"·"틀림"·"부분 확인" 표기 항목은 웨이브 0 실측(Unity 6000.3.28f1 에디터 PlayMode, 2026-11-05, `docs/spike/results/2026-11-05-editor-run2.txt`)의 결과다. (12회차) U35·U36은 빌드 실측(Windows 플레이어, 2026-11-06, `docs/spike/results/2026-11-06-build-run1.txt`)의 결과다.
+아래는 모두 정적으로 읽어서는 확정할 수 없는 Unity 동작 전제다(2.3 표와 번호가 같다). **사실로 취급하지 않는다.** 웨이브 0 스파이크나 해당 구현자의 PlayMode 테스트로 확인한다. (10회차) "확인됨"·"틀림"·"부분 확인" 표기 항목은 웨이브 0 실측(Unity 6000.3.28f1 에디터 PlayMode, 2026-11-05, `docs/spike/results/2026-11-05-editor-run2.txt`)의 결과다. (12회차) U35·U36은 빌드 실측(Windows 플레이어, 2026-11-06, `docs/spike/results/2026-11-06-build-run1.txt`)의 결과다. (14회차) U20·U21·U22·U25는 웨이브 2a 구현자 테스트(Unity 6000.3.28f1, 2026-11-06 — IMP-DATA EditMode, IMP-POOL batchmode `-nographics` PlayMode)의 결과다.
 
 - **U1** 확인됨(10회차 실측 2026-11-05) — `DefaultExecutionOrder`가 `FixedUpdate`에 적용됨(-100 두 인스턴스 → +100 두 인스턴스, 매 스텝). 같은 클래스 인스턴스 간 순서는 생성 순으로 관찰됐을 뿐 보장 아님(설계대로 의존하지 않음). 원래 질문: `DefaultExecutionOrder`가 `FixedUpdate`에 적용되는지, 인스턴스 간 순서가 보장되지 않는지. 틀리면 F17 A 모드의 단계 순서를 다시 설계해야 한다. **IMP-LOOP 착수 전 확인 권장 → 확인 완료(10회차).**
 - **U2** 확인됨(10회차 실측 2026-11-05) — 실제 정지 프레임(`Thread.Sleep(100)` ×5) 뒤 프레임당 `FixedUpdate` 최대 3회, `Time.deltaTime`은 0.05로 클램프. **주의**: `Time.captureDeltaTime = 0.1`로 흉내 낸 긴 프레임은 `maximumDeltaTime` 클램프를 우회해 6스텝이 돌았다 → 상한 검증 테스트는 실제 정지 프레임으로 한다(TAC-0-3). 원래 질문: `maximumDeltaTime = 0.05`에서 프레임당 정확히 최대 3스텝인지. 틀리면 SPEC의 "0.05로 설정"을 고쳐야 하므로 PM에게 보고한다.
@@ -65,12 +69,12 @@
 - **U17** Input System 활성 여부, 업데이트 모드, `wasPressedThisFrame` 동작.
 - **U18** (2회차 수정) TMP Dynamic Font Asset(uGUI)과 IMGUI `Font`의 한글 렌더링.
 - **U19** 대체됨(2회차) — UI Toolkit 미사용(D25). U42로 대체. 집계에서 뺀다.
-- **U20** 런타임 생성 원 스프라이트의 월드 크기 계산.
-- **U21** `ObjectPool<T>`의 `maxSize`·`collectionCheck` 동작.
-- **U22** `Destroy` 지연과 같은 프레임 다음 스텝 간섭 여부.
+- **U20** 확인됨(14회차, IMP-DATA EditMode 배치 2026-11-06) — `DefaultShapeFactory.Circle`이 EditMode 배치에서 생성된다. 64×64 `Texture2D`, 스프라이트 `bounds` 1×1 유닛(픽셀/유닛 64), 중심 불투명·모서리 투명. 반지름 → 표시 배율은 `bounds.size`(1×1) 기준으로 계산할 수 있다. 원래 질문: 런타임 생성 원 스프라이트의 월드 크기 계산.
+- **U21** 확인됨(14회차, IMP-POOL PlayMode 배치, Unity 6000.3.28f1) — `ObjectPool<GameObject>` `collectionCheck: true`에서 중복 반환은 `System.InvalidOperationException`("Trying to release an object that has already been released to the pool.")이다. 설계가 요구한 타입과 같아 감쌀 필요가 없고 `CountInactive`도 유지된다. `collectionCheck: false`면 예외 없이 `CountInactive=2 CountAll=1 CountActive=-1`로 깨지고 이후 `Get` 2회가 같은 객체를 준다. **풀에서 나오지 않은(남의) 객체 반환은 `collectionCheck: true`여도 잡지 못한다**(`CountInactive=1 CountAll=0 CountActive=-1`) → 자체 Owner 검사가 필수이며 구현은 `PoolInstanceTracker`(5.6)다. `maxSize: int.MaxValue`에서 1000개 반환 시 `CountAll=1000 CountInactive=1000`, `actionOnDestroy` 0회. 대조군 `maxSize: 2`에 3개 반환 시 `CountInactive=2`, `actionOnDestroy` 1회(초과분 파괴 확인). 재사용 순서는 LIFO도 FIFO도 아니지만 결정적이다(관찰 패턴 `0,1,2,1,0,3,2,3`; A 자체 풀은 LIFO `0,1,2,0,1,3,3,1`). 이 순서가 swap-remove 모델과 일치한다는 것은 구현자 추론이다(Unity 소스 미확인). (남은 미확인: `collectionCheck`의 비용 — 반환마다 O(n) 탐색인지 미측정. F10 측정에서 C에 불리하게 작용할 수 있다.) 원래 질문: `ObjectPool<T>`의 `maxSize`·`collectionCheck` 동작.
+- **U22** 확인됨(14회차, IMP-POOL PlayMode 배치) — B(`InstantiatePoolStrategy`)의 `Release`는 `SetActive(false)` 뒤 `Destroy`다. 파괴는 **정확히 1프레임 뒤**(`yield return null` 1회) 적용되며 3회 시행이 같았다. 같은 프레임에는 객체가 남아 있지만 이미 `activeSelf=false`라 `FindObjectsByType<PooledObject>(FindObjectsInactive.Exclude)`에 잡히지 않는다 → 같은 프레임 다음 스텝에 간섭하지 않으며 "비활성화 먼저" 설계가 유효하다. `ReleaseAll`도 1프레임 뒤 전부 파괴된다. 측정 조건은 batchmode `-nographics` PlayMode 테스트 코루틴이다(플레이어 빌드에서는 미확인). 원래 질문: `Destroy` 지연과 같은 프레임 다음 스텝 간섭 여부.
 - **U23** **틀림(10회차 실측 2026-11-05) → D9 변경으로 반영, 해소** — `maximumDeltaTime`은 **스케일 전** 시간에만 걸린다. timeScale = 3·targetFrameRate 60·vSync 0에서 60프레임 평균 3.02스텝이지만 최대 7스텝, 스케일된 deltaTime 최대 0.116(비스케일 0.039). → 배속 시 `maximumDeltaTime = 0.05 / timeScale` 동기 갱신(D9, 5.3·5.15.1·TAC-F19-6). 원래 질문: `maximumDeltaTime`이 스케일된 시간을 제한하는지(60FPS·3x = 프레임당 3스텝).
 - **U24** (2회차 수정) 자동 선택한 16:9 창이 작업 표시줄·DPI 배율로 강제 축소되지 않는지.
-- **U25** Newtonsoft 패키지의 6000.3 가용성과 Mono 동작.
+- **U25** 확인됨(14회차, IMP-DATA) — `com.unity.nuget.newtonsoft-json` 3.2.2가 6000.3.28f1 에디터(Mono)에서 동작한다. `Packages/manifest.json`에 직접 의존으로 추가됐다(2026-11-06, 사용자 승인, DECISIONS D17 이력). 패키지가 autoReferenced라 `Survivor.Data.asmdef`에 명시 참조 없이 컴파일된다. **단 테스트 asmdef(`overrideReferences: true`)는 Newtonsoft를 보지 못한다** — Data 테스트는 JSON 픽스처를 문자열 치환으로 변형해 우회한다(5c.1·5c.5). 원래 질문: Newtonsoft 패키지의 6000.3 가용성과 Mono 동작.
 - **U26** 같은 빌드·같은 PC에서 float 결과가 실행마다 같은지(결정론 전제 전체).
 - **U27** batchmode에서 물리를 포함한 PlayMode 테스트가 도는지.
 - **U28** 6.3에서 기존 `Physics2D` API가 그대로 동작하는지.
@@ -89,7 +93,7 @@
 - **U41** (2회차 신규) Mono의 UTF-8 디코딩이 잘못된 바이트를 U+FFFD로 바꾸는지(CP949 감지 전제).
 - **U42** (2회차 신규) `InputSystemUIInputModule` 메뉴 탐색과, UI 클릭 콜백·`Update` 사이 순서(보장 안 된다고 가정했으므로 틀려도 설계는 안전).
 
-### 6.3 집계 (8회차 갱신, 10회차 U 갱신, 11회차 U 재조정)
+### 6.3 집계 (8회차 갱신, 10회차 U 갱신, 11회차 U 재조정, 14회차 U 갱신)
 
 - 문서 간 불일치/SPEC 미규정: 번호 **33개**(D1~D33). **해소 18건**(D3·D8·D9·D10·D11·D12·D13·D17·D18·D20·D22·D24, (3회차) D26, (7회차) D14·D25, (8회차) D5·D27·D29), **미해소 15건**. **blocking 0건** — 모두 [기본값]이 있다. PM 확인 권장: (7회차) 없음 — D25는 사용자 확정으로 해소, D29·D31은 PM 확인 완료(2026-11-05, 기본값 유지). (4회차 변화 없음)
-- 실측/실행 필요 (10회차 갱신, 11회차 재조정): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 10건**(확인됨 9건 U1·U2·U5·U7·U8·U9·U30·U31·U32 + 틀림 → D9 변경으로 반영 U23), **부분 확인 2건**(U3, (11회차 정정) U11 — 미확정에 남김), 남은 **미확정 31건**(부분 확인 2건과 U35·U36 빌드 측정 대기 포함). (12회차) 빌드 실측 2026-11-06으로 U35·U36 확인됨 → 확인됨 11건, 남은 **미확정 29건**(부분 확인 2건 포함). (3회차·7회차·8회차까지는 미확정 41건, 10회차 표기는 30건이었으나 U11을 확인으로 잘못 셌다.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기 → (12회차) 확인 완료, 웨이브 0 전부 종료). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
+- 실측/실행 필요 (10회차 갱신, 11회차 재조정): 번호 **42개**(U1~U42) 중 U19는 대체, (10회차 실측 2026-11-05) **확인·해소 10건**(확인됨 9건 U1·U2·U5·U7·U8·U9·U30·U31·U32 + 틀림 → D9 변경으로 반영 U23), **부분 확인 2건**(U3, (11회차 정정) U11 — 미확정에 남김), 남은 **미확정 31건**(부분 확인 2건과 U35·U36 빌드 측정 대기 포함). (12회차) 빌드 실측 2026-11-06으로 U35·U36 확인됨 → 확인됨 11건, 남은 **미확정 29건**(부분 확인 2건 포함). (14회차) 웨이브 2a 구현자 테스트 2026-11-06으로 U20·U21·U22·U25 확인됨 → **확인됨 15건**, 남은 **미확정 25건**(부분 확인 2건 포함). 6.1 끝의 (14회차) 미결 설계 항목(풀 전략 토글 잔존)은 U·D 집계에 넣지 않는다. (3회차·7회차·8회차까지는 미확정 41건, 10회차 표기는 30건이었으나 U11을 확인으로 잘못 셌다.) 형식상 blocking은 없다. **착수 전 확인 권장**: IMP-LOOP 전 U1·U2·U31 → 확인 완료, IMP-COLLISION 전 U5·U7·U8·U30·U32 → 확인 완료, (7회차) IMP-SPATIAL(C 구현) 전 U32 → 확인 완료, IMP-DEV 전 U40(미확인, 남음)(웨이브 0 스파이크 (a)~(j) 중 (i) U35·(j) U36은 빌드 측정 대기 → (12회차) 확인 완료, 웨이브 0 전부 종료). U6은 E2의 의미에, U31은 F17 A의 결정론 성립 자체에 영향을 준다.
