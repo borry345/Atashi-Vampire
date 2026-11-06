@@ -3,10 +3,10 @@ using System.Collections.Generic;
 
 namespace Survivor.Core
 {
-    /// Issues EntityIds independently of any pool strategy so ids are identical across F9 strategies.
-    public sealed class EntityIdAllocator
+    /// Issues EntityHandles independently of any pool strategy so ids are identical across F9 strategies.
+    public sealed class EntityHandleAllocator
     {
-        // Indexed by EntityId.Index; slot 0 is unused so Index stays 1-based.
+        // Indexed by EntityHandle.Index; slot 0 is unused so Index stays 1-based.
         private readonly List<int> _generations = new List<int> { 0 };
         private readonly List<bool> _live = new List<bool> { false };
         private readonly Stack<int> _freeIndices = new Stack<int>();
@@ -16,7 +16,7 @@ namespace Survivor.Core
         public int LiveCount => _liveCount;
 
         /// Pops the most recently freed index (LIFO) at its current generation, else issues the next new index at generation 1.
-        public EntityId Allocate()
+        public EntityHandle Allocate()
         {
             int index;
             if (_freeIndices.Count > 0)
@@ -32,15 +32,15 @@ namespace Survivor.Core
 
             _live[index] = true;
             _liveCount++;
-            return new EntityId(index, _generations[index]);
+            return new EntityHandle(index, _generations[index]);
         }
 
         /// Frees a live id and increments its slot generation; throws InvalidOperationException if !IsLive(id).
-        public void Free(EntityId id)
+        public void Free(EntityHandle id)
         {
             if (!IsLive(id))
             {
-                throw new InvalidOperationException($"EntityIdAllocator.Free: id {id} is not live.");
+                throw new InvalidOperationException($"EntityHandleAllocator.Free: id {id} is not live.");
             }
 
             _live[id.Index] = false;
@@ -50,7 +50,7 @@ namespace Survivor.Core
         }
 
         /// True when the id was issued by Allocate and has not been freed since.
-        public bool IsLive(EntityId id)
+        public bool IsLive(EntityHandle id)
         {
             return id.IsValid
                 && id.Index < _generations.Count

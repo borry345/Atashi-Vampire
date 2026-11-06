@@ -38,7 +38,7 @@ namespace Survivor.Core
         public Rect Bounds => _count == 0 ? default : Rect.MinMaxRect(_min.x, _min.y, _max.x, _max.y);
 
         /// Binary search by Id; false when the id is not in this step's snapshot.
-        public bool TryGetIndex(EntityId id, out int index)
+        public bool TryGetIndex(EntityHandle id, out int index)
         {
             int low = 0;
             int high = _count - 1;

@@ -103,6 +103,7 @@
 | 절차-D4 | 2차 독립 검토(2026-11-05) 결과 처리 — 참조 방향 1건 수정, PM 기본값 13건, 라운드 종료 | 확정 | 11 |
 | — | 고정 타임스텝 채택(클램프 폐기) | 확정 | 1 |
 | — | 객체 ID에 세대 번호 포함 | 기본값 | 1 |
+| — | 객체 ID 타입 이름 `EntityId` → `EntityHandle` (Unity 6 `UnityEngine.EntityId` 충돌) | 확정 | 1 |
 | — | 쿨다운·무적은 스텝 번호로 센다 | 기본값 | 1 |
 | — | F17 A 모드 부작용은 지연 명령 큐로 ID 순 적용 | 기본값 | 1 |
 | — | 스텝 게이트는 Lifecycle 핸들러가 스텝 안에서 닫는다 | 기본값 | 1 |
@@ -241,6 +242,14 @@
 - 버린 대안: RUN_LOG에 기록 없음
 - 반영 위치: SPEC 3.0 H 문구 추가(`spec/00-common.md`, SPEC 5회차), TECH 3회차에서 D26 해소(`tech/06-open-questions.md`)
 - 출처: RUN_LOG 2026-10-16
+
+### — 객체 ID 타입 이름 `EntityId` → `EntityHandle` (2026-11-06)
+- 상태: 확정 (2026-11-06, 사용자 결정)
+- 결정: Core의 객체 ID 구조체 이름을 `EntityId`에서 `EntityHandle`로, 할당기를 `EntityIdAllocator`에서 `EntityHandleAllocator`로 바꾼다. 구조(인덱스+세대), 문자열 형식 `"{Index}:{Generation}"`(R15), 비교 순서(R10), 세대 규칙(D22·D26)은 그대로다.
+- 이유: Unity 6000.3에 `UnityEngine.EntityId`(옛 instance ID의 새 이름)가 있어, `using UnityEngine;`과 함께 쓰는 Core 밖 파일에서 `EntityId`가 모호 참조(CS0104)가 된다 — 웨이브 1 IMP-CORE가 테스트 컴파일에서 실측(RUN_LOG 2026-11-06). Unity 것은 엔진이 발급해 값을 정할 수 없고 실행마다 달라 결정론(R10 ID 순 처리, 같은 시드 재실행 비교)에 쓸 수 없으며 세대 개념이 없어 풀 재사용 시 옛 기록 오적용 버그(TECH C 목록 ④)가 되살아난다 — 그래서 자체 타입은 유지하고 이름만 바꾼다. `EntityHandle`은 "재사용 자리 + 세대" 구조를 부르는 관용어이고, 설치된 Unity 엔진 DLL·프로젝트 패키지에 같은 이름의 타입이 없음을 PM이 확인했다(검색에 걸린 `System.Reflection.Metadata.EntityHandle`은 Burst 컴파일러 내부용으로 게임 코드가 참조하지 않는다).
+- 버린 대안: ① 이름 유지 + Core 밖 모든 파일에 `using EntityId = Survivor.Core.EntityId;` 별칭 규칙(지금 비용 0이지만 앞으로 150개 안팎 파일마다 한 줄, 빠뜨리면 컴파일 오류) ② `SimEntityId`(기획 문서 "객체 ID"와 대응은 쉽지만 구조를 드러내지 못함) ③ `ActorId`(젬·상자·장판까지 actor라 부르기 어색) ④ `UnityEngine.EntityId` 재사용(위 이유로 불가).
+- 반영 위치: 코드 — Core·테스트(웨이브 1, IMP-CORE 재개). 문서 — tech/ 약 55곳(5.01·5.04·5.07·5.08·5.09·5.10·5.12·5a R6·R10·R15·5c·02·01·06), TECH 13회차에서 기계적으로 치환 예정. spec/에는 영어 타입 이름이 없어 변경 없음. 이 문서 D22의 `EntityIdAllocator` 표기는 당시 이름으로 둔다.
+- 출처: RUN_LOG 2026-11-06
 
 ### — 쿨다운·무적은 스텝 번호로 센다
 - 상태: 기본값 (2026-10-16, PM — Q41 논의 중 설계 요구로 승격)

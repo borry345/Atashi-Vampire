@@ -4,7 +4,7 @@ namespace Survivor.Core
     public interface IUpdatable
     {
         /// Entity id of the owner.
-        EntityId Id { get; }
+        EntityHandle Id { get; }
 
         /// Tick group the owner belongs to.
         TickGroup Group { get; }

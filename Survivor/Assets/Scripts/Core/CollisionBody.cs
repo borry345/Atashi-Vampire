@@ -6,7 +6,7 @@ namespace Survivor.Core
     public sealed class CollisionBody
     {
         /// Owner entity id.
-        public EntityId Id;
+        public EntityHandle Id;
 
         /// Collision layer of the body.
         public CollisionLayer Layer;

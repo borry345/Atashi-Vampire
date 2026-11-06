@@ -2,8 +2,6 @@ using System;
 using NUnit.Framework;
 using Survivor.Core;
 using UnityEngine;
-// Unity 6 ships UnityEngine.EntityId; the alias picks the simulation id when both namespaces are imported.
-using EntityId = Survivor.Core.EntityId;
 
 namespace Survivor.Tests.EditMode.Core
 {
@@ -13,7 +11,7 @@ namespace Survivor.Tests.EditMode.Core
         {
             return new MonsterSnapshot
             {
-                Id = new EntityId(index, generation), Position = new Vector2(x, y), Radius = radius, IsLarge = isLarge,
+                Id = new EntityHandle(index, generation), Position = new Vector2(x, y), Radius = radius, IsLarge = isLarge,
             };
         }
 
@@ -24,7 +22,7 @@ namespace Survivor.Tests.EditMode.Core
             Assert.AreEqual(0, buffer.Count);
             Assert.AreEqual(0f, buffer.MaxHashedRadius);
             Assert.AreEqual(default(Rect), buffer.Bounds);
-            Assert.IsFalse(buffer.TryGetIndex(new EntityId(1, 1), out int index));
+            Assert.IsFalse(buffer.TryGetIndex(new EntityHandle(1, 1), out int index));
             Assert.AreEqual(-1, index);
         }
 
@@ -39,7 +37,7 @@ namespace Survivor.Tests.EditMode.Core
             Assert.AreEqual(3, buffer.Count);
             Assert.AreEqual(0.9f, buffer.MaxHashedRadius);
             Assert.AreEqual(Rect.MinMaxRect(-5f, -8f, 10f, 20f), buffer.Bounds);
-            Assert.AreEqual(new EntityId(4, 2), buffer[1].Id);
+            Assert.AreEqual(new EntityHandle(4, 2), buffer[1].Id);
             Assert.AreEqual(new Vector2(1f, 20f), buffer[2].Position);
         }
 
@@ -65,14 +63,14 @@ namespace Survivor.Tests.EditMode.Core
             }
 
             Assert.AreEqual(1000, buffer.Count);
-            Assert.IsTrue(buffer.TryGetIndex(new EntityId(2, 1), out int first));
+            Assert.IsTrue(buffer.TryGetIndex(new EntityHandle(2, 1), out int first));
             Assert.AreEqual(0, first);
-            Assert.IsTrue(buffer.TryGetIndex(new EntityId(2000, 1), out int last));
+            Assert.IsTrue(buffer.TryGetIndex(new EntityHandle(2000, 1), out int last));
             Assert.AreEqual(999, last);
-            Assert.IsTrue(buffer.TryGetIndex(new EntityId(778, 1), out int mid));
+            Assert.IsTrue(buffer.TryGetIndex(new EntityHandle(778, 1), out int mid));
             Assert.AreEqual(388, mid);
-            Assert.IsFalse(buffer.TryGetIndex(new EntityId(777, 1), out _));
-            Assert.IsFalse(buffer.TryGetIndex(new EntityId(778, 2), out _));
+            Assert.IsFalse(buffer.TryGetIndex(new EntityHandle(777, 1), out _));
+            Assert.IsFalse(buffer.TryGetIndex(new EntityHandle(778, 2), out _));
         }
 
         [Test]

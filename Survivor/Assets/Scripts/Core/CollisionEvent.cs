@@ -16,13 +16,13 @@ namespace Survivor.Core
         public readonly CollisionChannel Channel;
 
         /// Body on the channel's A-side layer.
-        public readonly EntityId A;
+        public readonly EntityHandle A;
 
         /// Body on the channel's B-side layer.
-        public readonly EntityId B;
+        public readonly EntityHandle B;
 
         /// Creates an event.
-        public CollisionEvent(long step, CollisionEventKind kind, CollisionChannel channel, EntityId a, EntityId b)
+        public CollisionEvent(long step, CollisionEventKind kind, CollisionChannel channel, EntityHandle a, EntityHandle b)
         {
             Step = step;
             Kind = kind;

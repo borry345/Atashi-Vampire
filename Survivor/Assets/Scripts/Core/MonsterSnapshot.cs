@@ -6,7 +6,7 @@ namespace Survivor.Core
     public struct MonsterSnapshot
     {
         /// Monster id.
-        public EntityId Id;
+        public EntityHandle Id;
 
         /// Position at BuildIndex.
         public Vector2 Position;

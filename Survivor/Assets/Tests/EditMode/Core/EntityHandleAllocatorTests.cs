@@ -4,15 +4,15 @@ using Survivor.Core;
 
 namespace Survivor.Tests.EditMode.Core
 {
-    public sealed class EntityIdAllocatorTests
+    public sealed class EntityHandleAllocatorTests
     {
         [Test]
         public void FirstAllocations_AreSequentialAtGenerationOne()
         {
-            var allocator = new EntityIdAllocator();
-            Assert.AreEqual(new EntityId(1, 1), allocator.Allocate());   // the player is always 1:1
-            Assert.AreEqual(new EntityId(2, 1), allocator.Allocate());   // the player magnet is 2:1
-            Assert.AreEqual(new EntityId(3, 1), allocator.Allocate());
+            var allocator = new EntityHandleAllocator();
+            Assert.AreEqual(new EntityHandle(1, 1), allocator.Allocate());   // the player is always 1:1
+            Assert.AreEqual(new EntityHandle(2, 1), allocator.Allocate());   // the player magnet is 2:1
+            Assert.AreEqual(new EntityHandle(3, 1), allocator.Allocate());
             Assert.AreEqual(3, allocator.LiveCount);
         }
 
@@ -20,11 +20,11 @@ namespace Survivor.Tests.EditMode.Core
         public void ReusedIndex_HasGenerationOneHigher()
         {
             // TAC-0-9.
-            var allocator = new EntityIdAllocator();
+            var allocator = new EntityHandleAllocator();
             allocator.Allocate();
-            EntityId second = allocator.Allocate();
+            EntityHandle second = allocator.Allocate();
             allocator.Free(second);
-            EntityId reused = allocator.Allocate();
+            EntityHandle reused = allocator.Allocate();
             Assert.AreEqual(second.Index, reused.Index);
             Assert.AreEqual(second.Generation + 1, reused.Generation);
             Assert.AreNotEqual(second, reused);
@@ -33,46 +33,46 @@ namespace Survivor.Tests.EditMode.Core
         [Test]
         public void FreedIndices_AreReusedLastInFirstOut()
         {
-            var allocator = new EntityIdAllocator();
+            var allocator = new EntityHandleAllocator();
             for (int i = 0; i < 5; i++)
             {
                 allocator.Allocate();
             }
 
-            allocator.Free(new EntityId(3, 1));
-            allocator.Free(new EntityId(5, 1));
-            Assert.AreEqual(new EntityId(5, 2), allocator.Allocate());
-            Assert.AreEqual(new EntityId(3, 2), allocator.Allocate());
-            Assert.AreEqual(new EntityId(6, 1), allocator.Allocate());
+            allocator.Free(new EntityHandle(3, 1));
+            allocator.Free(new EntityHandle(5, 1));
+            Assert.AreEqual(new EntityHandle(5, 2), allocator.Allocate());
+            Assert.AreEqual(new EntityHandle(3, 2), allocator.Allocate());
+            Assert.AreEqual(new EntityHandle(6, 1), allocator.Allocate());
         }
 
         [Test]
         public void IsLive_TracksAllocationAndFree()
         {
-            var allocator = new EntityIdAllocator();
-            EntityId id = allocator.Allocate();
+            var allocator = new EntityHandleAllocator();
+            EntityHandle id = allocator.Allocate();
             Assert.IsTrue(allocator.IsLive(id));
             allocator.Free(id);
             Assert.IsFalse(allocator.IsLive(id));
-            EntityId next = allocator.Allocate();
+            EntityHandle next = allocator.Allocate();
             Assert.IsTrue(allocator.IsLive(next));
             Assert.IsFalse(allocator.IsLive(id));                  // stale generation
-            Assert.IsFalse(allocator.IsLive(EntityId.None));
-            Assert.IsFalse(allocator.IsLive(new EntityId(99, 1)));  // never issued
+            Assert.IsFalse(allocator.IsLive(EntityHandle.None));
+            Assert.IsFalse(allocator.IsLive(new EntityHandle(99, 1)));  // never issued
             Assert.AreEqual(1, allocator.LiveCount);
         }
 
         [Test]
         public void FreeOfNonLiveId_Throws()
         {
-            var allocator = new EntityIdAllocator();
-            EntityId id = allocator.Allocate();
+            var allocator = new EntityHandleAllocator();
+            EntityHandle id = allocator.Allocate();
             allocator.Free(id);
             Assert.Throws<InvalidOperationException>(() => allocator.Free(id));                 // double free
-            Assert.Throws<InvalidOperationException>(() => allocator.Free(EntityId.None));
-            Assert.Throws<InvalidOperationException>(() => allocator.Free(new EntityId(7, 1))); // never issued
-            EntityId reused = allocator.Allocate();
-            Assert.Throws<InvalidOperationException>(() => allocator.Free(new EntityId(reused.Index, reused.Generation + 1)));
+            Assert.Throws<InvalidOperationException>(() => allocator.Free(EntityHandle.None));
+            Assert.Throws<InvalidOperationException>(() => allocator.Free(new EntityHandle(7, 1))); // never issued
+            EntityHandle reused = allocator.Allocate();
+            Assert.Throws<InvalidOperationException>(() => allocator.Free(new EntityHandle(reused.Index, reused.Generation + 1)));
             Assert.AreEqual(1, allocator.LiveCount);
         }
 
@@ -80,27 +80,27 @@ namespace Survivor.Tests.EditMode.Core
         public void Reset_RestartsAtOneOneAndGenerationsReturnToOne()
         {
             // D26: generation uniqueness holds within one run only; reset makes same-seed reruns issue the same ids.
-            var allocator = new EntityIdAllocator();
-            EntityId first = allocator.Allocate();
-            EntityId second = allocator.Allocate();
+            var allocator = new EntityHandleAllocator();
+            EntityHandle first = allocator.Allocate();
+            EntityHandle second = allocator.Allocate();
             allocator.Free(second);
             allocator.Allocate();
 
             allocator.Reset();
             Assert.AreEqual(0, allocator.LiveCount);
             Assert.IsFalse(allocator.IsLive(first));
-            Assert.AreEqual(new EntityId(1, 1), allocator.Allocate());
-            Assert.AreEqual(new EntityId(2, 1), allocator.Allocate());
+            Assert.AreEqual(new EntityHandle(1, 1), allocator.Allocate());
+            Assert.AreEqual(new EntityHandle(2, 1), allocator.Allocate());
         }
 
         [Test]
         public void SameOperationSequence_GivesSameIds()
         {
-            var a = new EntityIdAllocator();
-            var b = new EntityIdAllocator();
+            var a = new EntityHandleAllocator();
+            var b = new EntityHandleAllocator();
             var rng = new DeterministicRng(3UL, 1UL);
-            var liveA = new System.Collections.Generic.List<EntityId>();
-            var liveB = new System.Collections.Generic.List<EntityId>();
+            var liveA = new System.Collections.Generic.List<EntityHandle>();
+            var liveB = new System.Collections.Generic.List<EntityHandle>();
             for (int i = 0; i < 2000; i++)
             {
                 bool free = liveA.Count > 0 && rng.Chance(0.45f);

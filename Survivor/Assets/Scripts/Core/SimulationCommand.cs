@@ -8,14 +8,14 @@ namespace Survivor.Core
         /// What the command does; selects the handler.
         public readonly SimulationCommandKind Kind;
 
-        /// Issuing entity (sort key 1); EntityId.None for dev/weapon-less sources, the player id for weapons.
-        public readonly EntityId Source;
+        /// Issuing entity (sort key 1); EntityHandle.None for dev/weapon-less sources, the player id for weapons.
+        public readonly EntityHandle Source;
 
         /// Per-source order within the step (sort key 2), assigned by the buffer.
         public readonly int Sequence;
 
         /// Despawn target.
-        public readonly EntityId Target;
+        public readonly EntityHandle Target;
 
         /// Despawn reason.
         public readonly DespawnReason Reason;
@@ -50,8 +50,8 @@ namespace Survivor.Core
         /// Creates a command; Sequence is normally left at 0 and assigned by the buffer through WithSequence.
         public SimulationCommand(
             SimulationCommandKind kind,
-            EntityId source,
-            EntityId target = default,
+            EntityHandle source,
+            EntityHandle target = default,
             DespawnReason reason = DespawnReason.Killed,
             Vector2 position = default,
             Vector2 direction = default,
@@ -87,7 +87,7 @@ namespace Survivor.Core
                 Count, LevelIndex, SlotIndex, OrbIndex, IgnoreCap, sequence);
         }
 
-        /// Orders by Source (EntityId order), then Sequence (rule R10).
+        /// Orders by Source (EntityHandle order), then Sequence (rule R10).
         public static int Compare(in SimulationCommand a, in SimulationCommand b)
         {
             int bySource = a.Source.CompareTo(b.Source);

@@ -4,7 +4,7 @@ using System.Globalization;
 namespace Survivor.Core
 {
     /// Identity of a simulation entity; Index is reused, Generation increments on each free.
-    public readonly struct EntityId : IEquatable<EntityId>, IComparable<EntityId>
+    public readonly struct EntityHandle : IEquatable<EntityHandle>, IComparable<EntityHandle>
     {
         /// 1-based slot index. 0 means None.
         public readonly int Index;
@@ -13,14 +13,14 @@ namespace Survivor.Core
         public readonly int Generation;
 
         /// Creates an id from an index and a generation.
-        public EntityId(int index, int generation)
+        public EntityHandle(int index, int generation)
         {
             Index = index;
             Generation = generation;
         }
 
         /// The invalid id (default value).
-        public static readonly EntityId None = default;
+        public static readonly EntityHandle None = default;
 
         /// True when Index > 0.
         public bool IsValid => Index > 0;
@@ -29,17 +29,17 @@ namespace Survivor.Core
         public long Packed => ((long)Index << 32) | (uint)Generation;
 
         /// Orders by Index, then Generation (rule R10).
-        public int CompareTo(EntityId other)
+        public int CompareTo(EntityHandle other)
         {
             int byIndex = Index.CompareTo(other.Index);
             return byIndex != 0 ? byIndex : Generation.CompareTo(other.Generation);
         }
 
         /// True when both Index and Generation match.
-        public bool Equals(EntityId other) => Index == other.Index && Generation == other.Generation;
+        public bool Equals(EntityHandle other) => Index == other.Index && Generation == other.Generation;
 
-        /// True when obj is an EntityId with the same Index and Generation.
-        public override bool Equals(object obj) => obj is EntityId other && Equals(other);
+        /// True when obj is an EntityHandle with the same Index and Generation.
+        public override bool Equals(object obj) => obj is EntityHandle other && Equals(other);
 
         /// Hash of the packed value.
         public override int GetHashCode() => Packed.GetHashCode();
@@ -51,15 +51,15 @@ namespace Survivor.Core
         }
 
         /// True when a orders before b.
-        public static bool operator <(EntityId a, EntityId b) => a.CompareTo(b) < 0;
+        public static bool operator <(EntityHandle a, EntityHandle b) => a.CompareTo(b) < 0;
 
         /// True when a orders after b.
-        public static bool operator >(EntityId a, EntityId b) => a.CompareTo(b) > 0;
+        public static bool operator >(EntityHandle a, EntityHandle b) => a.CompareTo(b) > 0;
 
         /// True when both ids are equal.
-        public static bool operator ==(EntityId a, EntityId b) => a.Equals(b);
+        public static bool operator ==(EntityHandle a, EntityHandle b) => a.Equals(b);
 
         /// True when the ids differ.
-        public static bool operator !=(EntityId a, EntityId b) => !a.Equals(b);
+        public static bool operator !=(EntityHandle a, EntityHandle b) => !a.Equals(b);
     }
 }

@@ -6,7 +6,7 @@ namespace Survivor.Core
     public readonly struct TargetHit
     {
         /// Id of the chosen monster.
-        public readonly EntityId Id;
+        public readonly EntityHandle Id;
 
         /// Snapshot position of the chosen monster.
         public readonly Vector2 Position;
@@ -15,7 +15,7 @@ namespace Survivor.Core
         public readonly float DistanceSquared;
 
         /// Creates a hit.
-        public TargetHit(EntityId id, Vector2 position, float distanceSquared)
+        public TargetHit(EntityHandle id, Vector2 position, float distanceSquared)
         {
             Id = id;
             Position = position;
