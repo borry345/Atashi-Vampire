@@ -1,0 +1,5 @@
+{ "schemaVersion": 1, "maxHealth": 100, "moveSpeed": 5, "radius": 0.5, "pickupRadius": 2.0,
+  "invulnerabilitySeconds": 0.5, "startingWeaponId": "W1",
+  "xpCurve": { "thresholds": [5, 8, 12, 16, 20, 25, 30], "growthAfterTable": 5 },
+  "pickups": { "gemAssetKey": "shape.gem.blue", "gemRadius": 0.2, "gemXpValue": 1, "gemAttractSpeed": 10,
+               "chestAssetKey": "shape.chest.yellow", "chestRadius": 0.5 } }

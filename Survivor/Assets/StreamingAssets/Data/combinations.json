@@ -1,0 +1,3 @@
+{ "schemaVersion": 1, "combinations": [
+  { "id": "evolve_W1", "weaponId": "W1", "passiveId": "P1", "resultWeaponId": "E1" },
+  { "id": "evolve_W2", "weaponId": "W2", "passiveId": "P3", "resultWeaponId": "E2" } ] }

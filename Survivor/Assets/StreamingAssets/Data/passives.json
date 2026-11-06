@@ -1,0 +1,7 @@
+{ "schemaVersion": 1, "passives": [
+  { "id": "P1", "displayName": "공격 속도", "iconKey": "icon.p1", "stat": "attackSpeed",
+    "levels": [ { "bonus": 0.10 }, { "bonus": 0.20 }, { "bonus": 0.30 }, { "bonus": 0.40 }, { "bonus": 0.50 } ] },
+  { "id": "P2", "displayName": "이동 속도", "iconKey": "icon.p2", "stat": "moveSpeed",
+    "levels": [ { "bonus": 0.10 }, { "bonus": 0.20 }, { "bonus": 0.30 }, { "bonus": 0.40 }, { "bonus": 0.50 } ] },
+  { "id": "P3", "displayName": "획득 범위", "iconKey": "icon.p3", "stat": "pickupRadius",
+    "levels": [ { "bonus": 0.10 }, { "bonus": 0.20 }, { "bonus": 0.30 }, { "bonus": 0.40 }, { "bonus": 0.50 } ] } ] }

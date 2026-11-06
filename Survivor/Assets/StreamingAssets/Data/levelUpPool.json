@@ -1,0 +1,2 @@
+{ "schemaVersion": 1, "defaultWeight": 10, "healBaseWeight": 30,
+  "rules": [ { "kind": "weaponNew", "targetId": "*", "weight": 8 }, { "kind": "weaponUpgrade", "targetId": "W1", "weight": 12 } ] }
