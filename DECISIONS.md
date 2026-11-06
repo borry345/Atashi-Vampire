@@ -101,6 +101,7 @@
 | 절차-D2 | RUN_LOG는 실행 일지, 결정은 DECISIONS.md | 확정 | 11 |
 | 절차-D3 | 7회차 문서(무기 절 공백) → 웨이브 0 실측 → 2차 독립 검토 1회 → 구현 순서 | 확정 | 11 |
 | 절차-D4 | 2차 독립 검토(2026-11-05) 결과 처리 — 참조 방향 1건 수정, PM 기본값 13건, 라운드 종료 | 확정 | 11 |
+| 절차-D5 | 웨이브 2 격리: 구현자별 git worktree + Unity 사본, 2단계(DATA·POOL·SPATIAL → LOOP) | 확정 | 11 |
 | — | 고정 타임스텝 채택(클램프 폐기) | 확정 | 1 |
 | — | 객체 ID에 세대 번호 포함 | 기본값 | 1 |
 | — | 객체 ID 타입 이름 `EntityId` → `EntityHandle` (Unity 6 `UnityEngine.EntityId` 충돌) | 확정 | 1 |
@@ -1666,6 +1667,14 @@ F19는 처음에 "적 N기 고정 배치, 입력 없음"의 전용 벤치마크 
 - 비용: 1차 검토 286k + 2차 검토 301k + SPEC 8·10회차·TECH 8·11회차 개정(에이전트 재개, 합계 약 60만)
 
 ---
+
+### 절차-D5. 웨이브 2 구현자 격리 방식 (2026-11-06)
+- 상태: 확정 (2026-11-06, 사용자 결정 — 선택지 2개 중 1번)
+- 결정: 웨이브 2(IMP-DATA·IMP-LOOP·IMP-POOL·IMP-SPATIAL)는 구현자마다 **별도 git worktree(Agent 도구 `isolation: worktree`, `.claude/worktrees/`, .gitignore)와 그 안의 Unity 프로젝트 사본**에서 작업한다. 조립은 PM이 각 worktree에서 소유 파일(5c.2)만 main으로 옮기고 EditMode 전체 3회로 확인한다(하네스 "스크래치 → 소유자 파일만 조립" 모델을 Unity가 컴파일할 수 있는 형태로 옮긴 것). **2단계**: 2a = DATA·POOL·SPATIAL 병렬(셋 다 Core만 의존), 2b = DATA 조립 뒤 LOOP 단독(Data 타입을 쓴다). POOL·SPATIAL이 필요한 `Survivor.Strategies.asmdef`와 공용 `Tests/PlayMode` asmdef는 PM이 IMP-CORE를 통해 뼈대만 먼저 main에 둔다(.meta GUID가 worktree마다 갈리는 것을 막기 위해, 소유자 LOOP가 뒤에 채움). 공용 테스트 asmdef(EditMode·PlayMode)에 각자 추가하는 참조는 조립 때 PM이 합친다.
+- 이유: Unity는 `Assets/` 밖을 컴파일하지 않아 기존 `.scratch/` 방식으로는 구현자가 자기 테스트를 못 돌리고, 한 프로젝트에서는 배치 실행이 프로젝트 잠금으로 한 번에 하나만 돌며 한 명의 컴파일 오류가 전원의 테스트를 깨뜨린다. 2단계 분리는 남의 코드를 흉내 낼(스텁) 필요를 없애 조립 때 계약 불일치가 드러나는 위험을 줄인다. 예상: 2~3시간·90만~180만 토큰, 사본마다 Unity Library 2.5GB 재생성(조립 뒤 삭제).
+- 버린 대안: ② 한 명씩 순차(디스크 0, 3~4시간) ③ 한 프로젝트에서 병렬(프로젝트 잠금·교차 컴파일 오류로 불가).
+- 반영 위치: 이 항목, RUN_LOG 2026-11-06, `.gitignore`(`.claude/worktrees/`), 웨이브 2 브리핑 `docs/dispatch/`. 웨이브 3 이후도 같은 방식을 기본으로 한다(달라지면 이 항목에 이력 추가).
+- 출처: RUN_LOG 2026-11-06
 
 ## 12. 내용이 기록되지 않은 열린 번호
 

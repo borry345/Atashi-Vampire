@@ -68,3 +68,6 @@ Desktop.ini
 
 # Claude Code 개인 설정(권한 캐시). 사용자별이라 커밋하지 않는다.
 .claude/settings.local.json
+
+# Agent 도구의 worktree 격리 폴더(웨이브 2 구현자별 작업 사본). 저장소에 넣지 않는다.
+.claude/worktrees/
