@@ -4,6 +4,7 @@
     "references": [
         "Survivor.Core",
         "Survivor.Strategies",
+        "Survivor.Simulation",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
