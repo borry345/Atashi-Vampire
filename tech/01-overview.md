@@ -80,22 +80,22 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 
 ### 2.3 설계가 기대는 Unity 6 API·동작 전제 (전부 실측 필요)
 
-아래는 이 설계가 **사실이라고 가정하고** 기대는 Unity 동작이다. (11회차 정리) 작성 당시(1~9회차)에는 코드를 실행해 확인한 것이 하나도 없었다. 웨이브 0 실측(10회차, 2026-11-05, Unity 6000.3.28f1 에디터 PlayMode)으로 아래 표 중 9행이 **확인됨**, 1행(U23)이 **틀림**(D9 변경으로 반영), 2행(U3·U11)이 **부분 확인**이 되었다. (12회차) 빌드 실측(2026-11-06, Windows 플레이어 1280x720 창)으로 U35·U36도 **확인됨**이 되어 확인됨은 11행이다. (14회차) 웨이브 2a 구현자 테스트(2026-11-06, Unity 6000.3.28f1 에디터, IMP-DATA EditMode·IMP-POOL batchmode `-nographics` PlayMode)로 U20·U21·U22·U25도 **확인됨**이 되어 확인됨은 15행이다. 표시가 없는 행과 부분 확인 행은 여전히 미확정이다. 결과 요약은 6.2에 있고, 번호는 6.2절과 같다.
+아래는 이 설계가 **사실이라고 가정하고** 기대는 Unity 동작이다. (11회차 정리) 작성 당시(1~9회차)에는 코드를 실행해 확인한 것이 하나도 없었다. 웨이브 0 실측(10회차, 2026-11-05, Unity 6000.3.28f1 에디터 PlayMode)으로 아래 표 중 9행이 **확인됨**, 1행(U23)이 **틀림**(D9 변경으로 반영), 2행(U3·U11)이 **부분 확인**이 되었다. (12회차) 빌드 실측(2026-11-06, Windows 플레이어 1280x720 창)으로 U35·U36도 **확인됨**이 되어 확인됨은 11행이다. (14회차) 웨이브 2a 구현자 테스트(2026-11-06, Unity 6000.3.28f1 에디터, IMP-DATA EditMode·IMP-POOL batchmode `-nographics` PlayMode)로 U20·U21·U22·U25도 **확인됨**이 되어 확인됨은 15행이다. (15회차 U3 → 16행) (17회차) 웨이브 3 IMP-COLLISION 테스트(2026-11-07, Unity 6000.3.28f1 batchmode PlayMode)로 U4·U6·U11·U12·U27이 **확인됨**이 되어 확인됨은 21행이고, U10·U28은 부분 확인(미확정 유지)이다. 표시가 없는 행과 부분 확인 행은 여전히 미확정이다. 결과 요약은 6.2에 있고, 번호는 6.2절과 같다.
 
 | # | 전제 | 이 전제에 기대는 설계 |
 |---|---|---|
 | U1 | **확인됨(10회차 실측)** — `[DefaultExecutionOrder]`가 `FixedUpdate`에도 적용되고, 같은 클래스 인스턴스 간 호출 순서는 보장되지 않는다 | 드라이버 3개 + 셀프 티커 2개의 인터리브(2.2 c) |
 | U2 | **확인됨(10회차 실측, 실제 정지 프레임 기준. `captureDeltaTime`은 클램프를 우회함)** — `Time.fixedDeltaTime = 1/60`, `Time.maximumDeltaTime = 0.05`이면 한 프레임의 `FixedUpdate`가 최대 3회다 | catch-up 상한 3 |
 | U3 | **부분 확인(10회차 실측, 결정론 테스트용으로만, 상한 검증 불가)** — `Time.captureDeltaTime = 1/30, 1/60, 1/144`로 프레임레이트를 흉내 내면 `FixedUpdate` 누적이 그에 맞게 동작한다. **(15회차) 확인됨** — IMP-LOOP PlayMode 배치(2026-11-06)에서 1/30·1/60·1/144 각 600스텝의 상태 해시가 틱 전략 2종 모두 일치(5.16, 6.2 U3) | 프레임레이트 독립 PlayMode 테스트 |
-| U4 | `Rigidbody2D.collisionDetectionMode` 기본값은 `Discrete`다 (SPEC Q39) | E1 조건 |
+| U4 | `Rigidbody2D.collisionDetectionMode` 기본값은 `Discrete`다 (SPEC Q39). **(17회차) 확인됨** — IMP-COLLISION PlayMode(2026-11-07) | E1 조건 |
 | U5 | **확인됨(10회차 실측, sleepMode 변경 불필요)** — 키네마틱 ↔ 키네마틱 트리거 콜백이 발생한다(필요하면 `useFullKinematicContacts`로) | 엔진 충돌 전략의 바디 구성 |
-| U6 | `Continuous` 모드가 트리거·키네마틱 바디의 판정 결과를 바꿀 수 있다 | E2가 의미 있는 검증인지 여부 |
+| U6 | `Continuous` 모드가 트리거·키네마틱 바디의 판정 결과를 바꿀 수 있다. **(17회차) 확인됨 — 바꾸지 않는다**: IMP-COLLISION PlayMode(2026-11-07)에서 E2 골격 2배치 Discrete/Continuous 이벤트 집합 일치 → E2는 자명하게 동일(의미는 바꾸지 않음, 5c.5 E2·D30) | E2가 의미 있는 검증인지 여부 |
 | U7 | **확인됨(10회차 실측, Simulate 안 동기)** — `simulationMode = Script`에서 `Physics2D.Simulate()` 호출 중(또는 직후)에 `OnTriggerEnter2D/Exit2D`가 동기적으로 호출된다 | 엔진판 이벤트가 같은 스텝 번호에 나온다 |
 | U8 | **확인됨(10회차 실측)** — `Physics2D.callbacksOnDisable = false`이면 콜라이더 비활성화 시 Exit 콜백이 나오지 않는다 | "등록 해제 시 Exit 없음" 규칙의 엔진판 일치 |
 | U9 | **확인됨(10회차 실측, 거리 = 반지름 합에서 Enter → 접촉 포함 `≤`)** — Box2D 원-원 겹침의 경계(거리 = 반지름 합)가 자체 판정 `≤`와 같은 쪽으로 판정된다 | E1 경계 사례 |
-| U10 | `Rigidbody2D.MovePosition`은 스윕 이동이고, `transform.position`을 직접 쓰면 다음 시뮬레이션에서 텔레포트로 처리된다 | 엔진 모드에서 표시 동기화를 생략한다 |
-| U11 | **부분 확인(10회차 실측: `MovePosition` 반영 시점만 — `autoSyncTransforms`와 무관하게 `Simulate` 뒤에만 반영, `rb.position` 직접 대입은 U32. 콜라이더 활성화 직후 `OverlapCircle` 반영은 미확인 → 웨이브 3 IMP-COLLISION EM 테스트로 확인. 11회차 정정)** — `Rigidbody2D.position`을 바꾸거나 콜라이더를 켠 직후 `Physics2D.OverlapCircle`에 반영된다(`autoSyncTransforms`·`SyncTransforms` 영향) | `Physics2D` 타깃 공급자 |
-| U12 | 이름 없는 레이어 인덱스(8~17)에 `Physics2D.IgnoreLayerCollision`을 코드로 설정할 수 있다 | 레이어 충돌 매트릭스를 코드로 설정 |
+| U10 | `Rigidbody2D.MovePosition`은 스윕 이동이고, `transform.position`을 직접 쓰면 다음 시뮬레이션에서 텔레포트로 처리된다. **(17회차) 부분 확인** — 트리거 기준 `MovePosition`은 비스윕이며 다음 `Simulate`에 적용된다(IMP-COLLISION PlayMode). `transform` 직접 쓰기가 텔레포트인지는 미확인(미확정 유지) | 엔진 모드에서 표시 동기화를 생략한다 |
+| U11 | **부분 확인(10회차 실측: `MovePosition` 반영 시점만 — `autoSyncTransforms`와 무관하게 `Simulate` 뒤에만 반영, `rb.position` 직접 대입은 U32. 콜라이더 활성화 직후 `OverlapCircle` 반영은 미확인 → 웨이브 3 IMP-COLLISION EM 테스트로 확인. 11회차 정정)** — `Rigidbody2D.position`을 바꾸거나 콜라이더를 켠 직후 `Physics2D.OverlapCircle`에 반영된다(`autoSyncTransforms`·`SyncTransforms` 영향). **(17회차) 확인됨** — 콜라이더 활성화 직후 `OverlapCircle` 반영을 IMP-COLLISION 테스트로 확인(남은 부분 해소) | `Physics2D` 타깃 공급자 |
+| U12 | 이름 없는 레이어 인덱스(8~17)에 `Physics2D.IgnoreLayerCollision`을 코드로 설정할 수 있다. **(17회차) 확인됨** — 인덱스로 설정 유효, 55쌍 중 9채널만 충돌(IMP-COLLISION PlayMode, `PhysicsSettingsApplier`) | 레이어 충돌 매트릭스를 코드로 설정 |
 | U13 | Windows 플레이어에서 `Application.streamingAssetsPath` + `File.ReadAllText`가 동기로 동작하고, 빌드 폴더 `<Name>_Data/StreamingAssets/`를 편집할 수 있다 | F11 로더, F13 |
 | U14 | `ProfilerMarker`는 비개발 빌드에서 호출째 제거되고, `ProfilerRecorder`는 Development Build에서 마커의 프레임 합계를 읽으며, `Begin`/`End`를 다른 스크립트에서 짝지어도 된다 | 시스템 ms 수집 |
 | U15 | `ProfilerRecorder`로 "GC Allocated In Frame" 카운터를 읽을 수 있다 | F10 항목 3 |
@@ -110,8 +110,8 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U24 | (2회차 수정) 자동 선택한 16:9 창 크기가 작업 표시줄·DPI 배율 때문에 강제로 줄어들지 않고 그대로 유지된다(1280x720 미만 작업 영역에서는 잘린 채 유지) | Q44 화면 밖 계산(16:9 전제) |
 | U25 | `com.unity.nuget.newtonsoft-json` 패키지를 6000.3에서 쓸 수 있고 Mono 백엔드에서 동작한다. **(14회차) 확인됨** — 3.2.2가 6000.3.28f1 에디터(Mono)에서 동작, `Packages/manifest.json` 직접 의존(2026-11-06, 사용자 승인). 테스트 asmdef(`overrideReferences: true`)에서는 보이지 않는다(5c.1·5c.5) | JSON 파서(D17 확정) |
 | U26 | 같은 빌드·같은 PC에서 float 연산은 실행마다 비트 단위로 같다(Mono JIT) | 프레임레이트 간 결정론 |
-| U27 | `Unity.exe -batchmode -runTests -testPlatform PlayMode`로 물리를 포함한 PlayMode 테스트가 돈다 | E1·E2 자동 실행 |
-| U28 | 6.3의 새 저수준 2D 물리 API와 무관하게 기존 `Physics2D`·`Rigidbody2D` API가 그대로 동작한다 | F18 A, F16 C |
+| U27 | `Unity.exe -batchmode -runTests -testPlatform PlayMode`로 물리를 포함한 PlayMode 테스트가 돈다. **(17회차) 확인됨** — `-nographics` batchmode에서 물리 포함 PlayMode 테스트 통과(Collision 41건) | E1·E2 자동 실행 |
+| U28 | 6.3의 새 저수준 2D 물리 API와 무관하게 기존 `Physics2D`·`Rigidbody2D` API가 그대로 동작한다. **(17회차) 부분 확인** — 웨이브 3에서 기존 API 동작, `Physics2D.autoSyncTransforms`만 deprecated(CS0618, `#pragma`로 유지 — 5.9.1). 미확정 유지 | F18 A, F16 C |
 | U29 | `SpriteRenderer.drawMode = Tiled`로 반복 배경을 그릴 수 있다(URP 2D 포함) | F8 반복 배경 |
 | U30 | **확인됨(10회차 실측)** — (2회차) `Physics2D.defaultContactOffset`을 코드로 최솟값 근처(0.0001)까지 낮출 수 있고, 이 값이 트리거 겹침 경계를 반지름 합 바깥으로 넓히는 효과를 없앤다 | E1 경계 일치 |
 | U31 | **확인됨(10회차 실측)** — (2회차) `FixedUpdate` 도중(Late 드라이버 안에서) `enabled = true`가 된 셀프 티커는 **같은 프레임의 다음 `FixedUpdate` 호출부터** 호출된다(다음 프레임까지 밀리지 않는다) | F17 A 모드의 프레임레이트 결정론 |
