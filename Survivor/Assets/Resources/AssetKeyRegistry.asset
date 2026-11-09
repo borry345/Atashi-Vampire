@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d20d58a50e2cc1740b5818ab36bebd9f, type: 3}
+  m_Name: AssetKeyRegistry
+  m_EditorClassIdentifier: Survivor.Data::Survivor.Data.AssetKeyRegistry
+  Entries:
+  - Key: shape.monster.green
+    Sprite: {fileID: 0}
+    Color: {r: 0.23921569, g: 0.74509805, b: 0.3529412, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.monster.orange
+    Sprite: {fileID: 0}
+    Color: {r: 0.9490196, g: 0.54901963, b: 0.15686275, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.monster.purple
+    Sprite: {fileID: 0}
+    Color: {r: 0.60784316, g: 0.34901962, b: 0.8156863, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.enemyshot.red
+    Sprite: {fileID: 0}
+    Color: {r: 0.8784314, g: 0.2509804, b: 0.2509804, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.boss.red
+    Sprite: {fileID: 0}
+    Color: {r: 0.8784314, g: 0.2509804, b: 0.2509804, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.hazard.red
+    Sprite: {fileID: 0}
+    Color: {r: 0.8784314, g: 0.2509804, b: 0.2509804, a: 0.35}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.projectile.white
+    Sprite: {fileID: 0}
+    Color: {r: 0.9490196, g: 0.9490196, b: 0.9490196, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.orb.cyan
+    Sprite: {fileID: 0}
+    Color: {r: 0.1882353, g: 0.78431374, b: 0.84705883, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.zone.green
+    Sprite: {fileID: 0}
+    Color: {r: 0.23921569, g: 0.74509805, b: 0.3529412, a: 0.35}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.projectile.pink
+    Sprite: {fileID: 0}
+    Color: {r: 0.9411765, g: 0.38431373, b: 0.57254905, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.projectile.gold
+    Sprite: {fileID: 0}
+    Color: {r: 0.9019608, g: 0.7058824, b: 0.13333334, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.orb.gold
+    Sprite: {fileID: 0}
+    Color: {r: 0.9019608, g: 0.7058824, b: 0.13333334, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.gem.blue
+    Sprite: {fileID: 0}
+    Color: {r: 0.24705882, g: 0.49803922, b: 0.8784314, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: shape.chest.yellow
+    Sprite: {fileID: 0}
+    Color: {r: 0.9490196, g: 0.83137256, b: 0.23921569, a: 1}
+    PrefabOverride: {fileID: 0}

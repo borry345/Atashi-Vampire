@@ -40,7 +40,7 @@ namespace Survivor.Tests.EditMode.Architecture
                 { UI, (new[] { Core, Data, Simulation }, new[] { UnityUi, TextMeshPro, InputSystem }) },
                 { App, (new[] { Core, Data, Simulation, Strategies, UI }, new[] { UnityUi, InputSystem, Urp, Urp2D }) },
                 { Dev, (new[] { Core, Data, Simulation, Strategies, App }, new[] { InputSystem, RenderCore }) },
-                { "Survivor.Editor", (new string[0], new string[0]) },
+                { "Survivor.Editor", (new[] { Core, Data }, new string[0]) },
                 { "Survivor.Tests.EditMode", (new[] { Core, Data, Simulation, Strategies, UI, App }, new[] { TestRunner, EditorTestRunner }) },
                 { "Survivor.Tests.PlayMode", (new[] { Core, Data, Simulation, Strategies, UI, App }, new[] { TestRunner, EditorTestRunner }) },
                 { "Survivor.Tests.Dev", (new[] { Core, Data, Simulation, Strategies, UI, App, Dev }, new[] { TestRunner, EditorTestRunner }) },
