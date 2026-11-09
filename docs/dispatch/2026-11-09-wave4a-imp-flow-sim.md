@@ -11,9 +11,9 @@
 
 ## 1. 이미 확인된 사실 (다시 조사하지 말 것)
 
-- **당신은 자기 전용 git worktree에서 작업한다.** cwd가 worktree 루트, Unity 프로젝트는 `<cwd>\Survivor`. 다른 경로(원본 저장소 `C:\Users\SSAFY\Desktop\borry\indiv` 등)는 읽지도 쓰지도 않는다. 동시에 IMP-SPATIAL C가 자기 worktree에서 `Strategies/Targeting/Physics2DTargetProvider.cs`·`Tests/PlayMode/Targeting/`을 만들고 있을 수 있다 — 당신 worktree에 없는 것이 정상이고 당신과 겹치는 파일은 없다.
+- **당신은 자기 전용 git worktree에서 작업한다.** cwd가 worktree 루트, Unity 프로젝트는 `<cwd>\Survivor`. 다른 경로(원본 저장소 `C:\Users\SSAFY\Desktop\borry\indiv` 등)는 읽지도 쓰지도 않는다. 동시에 도는 다른 구현자는 없다(SPATIAL C는 main에 머지됨 — `Strategies/Targeting/Physics2DTargetProvider.cs`·`Tests/PlayMode/Targeting/`이 보이는 것이 정상).
 - Unity **6000.3.28f1**, 에디터 `C:\Program Files\Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe`, GUI는 닫혀 있다. worktree의 `Survivor/Library`가 없어 **첫 배치 실행은 3~5분**, 이후 EditMode 15~30초.
-- 기준선(main, 2026-11-09): **EditMode 615 / PlayMode 185**, 전부 통과. 당신은 EditMode만 추가한다(PlayMode는 확인용 1회, 185 유지).
+- 기준선(main, 2026-11-09): **EditMode 615 / PlayMode 202**, 전부 통과. 당신은 EditMode만 추가한다(PlayMode는 확인용 1회, 202 유지).
 - 이미 main에 있고 당신이 **읽기만** 하는 것(**문서와 코드가 다르면 코드가 맞다**):
   - Core: `UpgradeKind`·`UpgradeOption(kind, targetId, isFiller)`, `UpgradeOrdering.Compare`(R12), `ProgressionRules.IsWeaponUpgradable(level, levelCount, evolvedOnly)`·`IsPassiveUpgradable(level, levelCount)`·`ApplyHeal`(R22·R23), `HealWeight.Compute(wBase, hp, maxHp)`(R8), `WeightedSampler.SampleWithoutReplacement`(R9), `KillRules.CountsAsKill`(R24), `GameRules`(무기 슬롯 4·패시브 슬롯 3·`HealRatio` 등 상수 — 이름은 `Core/GameRules.cs`), `SimulationRules`(`LevelUpEnabled`, `RecordBestTime`, `StopAtStep`, `AutoPauseOnFocusLoss`, …), `RngStreams(masterSeed)`·`Get(RngStream)`·`Reseed(ulong)`·`MasterSeed`, `RngStream` 열거형(`LevelUp` 스트림 포함), `EntityHandleAllocator`, `StepContext`, `IStepPhaseHandler`, `SimulationPhase`, `DespawnReason`.
   - Data: `GameDataRegistry`(인스턴스: `Current`, `LastReport`, `Initialize(data, report)`, `TrySwap`, `event Swapped`), `GameData`(`Weapons`·`Passives`·`Monsters`·`Combinations`·`SpawnTable`·`LevelUpPool`·`PlayerStats`, `TryGetWeapon/Passive/Monster`), `PlayerStatsDefinition.XpCurve`(`XpCurveDefinition`: `Thresholds`·`GrowthAfterTable`)·`MaxHealth`·`StartingWeaponId`, `XpCurve.RequiredForNext(int level, XpCurveDefinition def)`(레벨 L→L+1 필요량 = `thresholds[L-1]`, 표를 넘으면 마지막 값 + `growthAfterTable × 넘긴 수`), `LevelUpPoolDefinition.ResolveWeight(UpgradeKind, targetId)`(구체 ID 규칙이 `"*"`보다 우선, 없으면 `DefaultWeight`)·`HealBaseWeight`·`UniformFallback`, `WeaponDefinition`(단계 목록·`EvolvedOnly` — 멤버 이름은 `Data/Definitions/`에서), `PassiveDefinition`, `CombinationRule`. 정의 객체의 setter는 internal이라 **테스트는 `GameDataLoader.LoadFromTexts`로만 데이터를 만든다**(5c.5 14회차 관례; 실제 JSON은 `Survivor/Assets/StreamingAssets/Data/*.json`, 변형은 문자열 치환).
@@ -55,7 +55,7 @@
 - 테스트에 `UnityEngine.Random`·시드 없는 `System.Random`·`DateTime.Now`·`Time.*` 금지. 난수는 `RngStreams`(고정 시드)뿐.
 - **레벨업 추첨은 `LevelUp` 스트림만 소비한다**(TAC-F5-1·F5-4 ②). 다른 스트림(Spawn·Drop·Chest…)을 건드리면 몬스터 스폰이 어긋나 전략 조합 결정론이 깨진다 — 테스트: 추첨 전후 다른 스트림의 다음 값이 같다.
 - **상태 해시는 입력 순서가 고정**이어야 한다. `ActiveEntities`는 순서가 없으므로 **`EntityHandle` 오름차순으로 정렬한 사본**을 돌린다(5.16). 해시 테스트: 같은 시드·같은 스텝 수 → 같은 값(2회 실행), 시드가 다르면 다른 값, 무기 구성이 다르면 다른 값(`NextFireStep` 포함 확인), 엔티티 등록 순서를 바꿔도(같은 상태) 같은 값.
-- **합격 기준: EditMode 전체 스위트 연속 3회 전회 동일(총 N, 통과 N, 실패 0) + PlayMode 확인 1회 185 유지.** 네 줄 그대로 보고.
+- **합격 기준: EditMode 전체 스위트 연속 3회 전회 동일(총 N, 통과 N, 실패 0) + PlayMode 확인 1회 202 유지.** 네 줄 그대로 보고.
 
 ## 5. 기준선 — 정상 동작인데 결함으로 오판하기 쉬운 것, 그리고 PM 기본값
 
