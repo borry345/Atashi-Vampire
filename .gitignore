@@ -36,6 +36,8 @@
 *.unitypackage.meta
 crashlytics-build.properties
 sysinfo.txt
+# Visual Studio 프로젝트 변환 보고서
+UpgradeLog*.htm
 
 # Asset Store 도구
 /[Aa]ssets/AssetStoreTools*

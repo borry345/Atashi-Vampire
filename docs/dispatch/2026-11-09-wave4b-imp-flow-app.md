@@ -3,7 +3,7 @@
 > `general-purpose`, `model: opus`, `isolation: worktree`. "=== 프롬프트 시작 ===" 이후를 그대로 보낸다(또는 worktree 안의 이 파일을 읽게 한다).
 > **선행 조건 (디스패치 전 PM이 확인)**:
 > 1. 4a(IMP-FLOW-SIM) main 머지 — 4a 보고(2026-11-09)의 시그니처를 1절 "FLOW(4a)" 항목에 반영 완료. 머지 뒤 기준선 숫자(EM 667 / PM 202)만 어셈블리 결과로 재확인한다.
-> 2. **사용자**: TMP Essential Resources 임포트(`Assets/TextMesh Pro/` 생성) + 한글 TTF를 `Assets/UI/Fonts/`에 넣고 TMP Font Asset(Dynamic) 생성(5b, 5c.2 "사용자" 행). 없으면 `TMP_Text`가 기본 폰트를 못 찾아 PlayMode UI 테스트가 깨지고 한글이 네모로 나온다.
+> 2. **사용자**: ✓ 완료(2026-11-09, PM 확인). TMP Essential Resources는 `Assets/TextMesh Pro/`에, 한글 TMP Font Asset은 **`Assets/TextMesh Pro/Fonts/Noto_Sans_KR/NotoSansKR-VariableFont_wght SDF.asset`**(GUID `c1e7308fdc465514fb90510f9257fb1b`)에 있다 — 5b·5c.2의 `Assets/UI/Fonts/`가 아니라 이 경로가 실제다(TECH 18회차에 반영 예정). 아틀라스는 **Static** 4096², 포인트 30, 글리프 11,970개(한글 음절 11,172 전부 + ASCII 95 + 기호 706 — 화살표·수학 기호 포함). Dynamic이 아니므로 런타임 글리프 추가는 없고 이 밖의 문자는 네모로 나온다 → UI 문자열은 한글·ASCII·기본 기호만 쓴다.
 > 3. **사용자**: Player Settings(5b — Windowed 1280x720, Resizable·Allow Fullscreen Switch·Run In Background 끔, Active Input Handling = Input System Package). 4b가 끝난 뒤 `ProjectSettings/EditorBuildSettings.asset`의 씬 목록에 `Assets/Scenes/Main.unity`를 추가(사용자 소유 파일이라 구현자는 건드리지 않는다. PlayMode 테스트는 `EditorSceneManager.LoadSceneInPlayMode`로 경로 로드하므로 빌드 목록 없이도 돈다).
 > 4. 기준선 숫자(EM·PM)를 4a 머지 뒤 값으로 바꾼다.
 
@@ -16,7 +16,7 @@
 ## 1. 이미 확인된 사실 (다시 조사하지 말 것)
 
 - **자기 전용 git worktree**에서 작업한다. cwd가 worktree 루트, Unity 프로젝트는 `<cwd>/Survivor`. 다른 경로는 읽지도 쓰지도 않는다. 동시에 도는 구현자는 없다.
-- Unity **6000.3.28f1**, 에디터 `C:\Program Files\Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe`, GUI는 닫혀 있다. URP 2D 템플릿 프로젝트(`Assets/Settings/Renderer2D.asset`·`UniversalRP.asset`, `Lit2DSceneTemplate`), 패키지 URP 17.3.0·ugui 2.0.0(TMP 포함)·InputSystem 1.20.1·Newtonsoft 3.2.2. `Assets/Settings/InputSystem_Actions.inputactions`(템플릿 기본)가 있다. **TMP Essential Resources와 한글 TMP Font Asset은 사용자가 넣어 두었다**(`Assets/TextMesh Pro/`, `Assets/UI/Fonts/`) — 없으면 BLOCKED로 보고하고 멈춘다.
+- Unity **6000.3.28f1**, 에디터 `C:\Program Files\Unity\Hub\Editor\6000.3.28f1\Editor\Unity.exe`, GUI는 닫혀 있다. URP 2D 템플릿 프로젝트(`Assets/Settings/Renderer2D.asset`·`UniversalRP.asset`, `Lit2DSceneTemplate`), 패키지 URP 17.3.0·ugui 2.0.0(TMP 포함)·InputSystem 1.20.1·Newtonsoft 3.2.2. `Assets/Settings/InputSystem_Actions.inputactions`(템플릿 기본)가 있다. **TMP Essential Resources와 한글 TMP Font Asset은 사용자가 넣어 두었다**(`Assets/TextMesh Pro/`, 폰트는 위 헤더 2번 경로) — worktree에 없으면 BLOCKED로 보고하고 멈춘다.
 - 기준선(main, 4a 머지 뒤): **EditMode 667 / PlayMode 202**, 전부 통과. 당신은 EditMode(`Architecture/`, `App/`)와 PlayMode(`Flow/`)를 추가한다.
 - 씬: `Assets/Scenes/SampleScene.unity`(URP 2D 템플릿: `Main Camera`, `Global Light 2D`)만 있다. **`Main.unity`는 당신이 만든다** — PM [기본값]: `SampleScene.unity`를 복사해 `Main.unity`로 두고(`Global Light 2D`가 이미 있으면 `GameBootstrap`은 만들지 않는다, 5b), `GameBootstrap` 컴포넌트를 가진 빈 GameObject 하나를 추가한다(YAML 직접 편집 또는 에디터 스크립트 1회 실행 — 방법은 당신이 정하되 결과 씬을 PlayMode 테스트가 `EditorSceneManager.LoadSceneInPlayMode`로 열어 검증한다). 나머지(드라이버 3개, `PresentationSync`, `SimulationFrameCounter`, `KeyboardInputSource`, Canvas·EventSystem·뷰, `CameraFollow`·`BackgroundTiler`)는 **`GameBootstrap`이 런타임에 코드로 만든다**(씬에 손으로 배치한 참조가 없어야 테스트 리그가 같은 경로를 탄다). `SampleScene.unity`는 지우지 않는다(빌드 목록은 사용자 소유 `ProjectSettings/`).
 - **부팅 순서(5.11.0, `GameBootstrap.Awake`)**: `SimulationSettingsApplier.Apply()`(Simulation, 고정 스텝·시간) → `PhysicsSettingsApplier.Apply()`(Strategies) → `DisplaySetup.Apply()`(App, `Screen.SetResolution`의 유일한 호출자, 1회) → `GameDataLoader.LoadAll(Application.streamingAssetsPath)` → `new GameDataRegistry()` + `Initialize(data, report)` → `report.IsPlayable`이면 `FlowState.Title`, 아니면 `FlowState.DataError`(TAC-F8-4: 시작 버튼 비활성 + `BlockingIssues`를 파일명·정의 ID·필드와 함께 표시). 스폰 테이블 `bossMonsterId` 무효는 Warning만 — 시작 허용(TAC-F8-10, 경고 로그 "보스 정의가 없어 클리어할 수 없다"는 로더가 남긴다고 가정 — 로더 코드에서 확인, 없으면 보고).
@@ -37,7 +37,7 @@
 ### 소유 경로
 
 1. `Survivor/Assets/Scripts/App/**` — `Survivor.App.asmdef`(참조: Core, Data, Simulation, Strategies, UI + `Unity.InputSystem`, `Unity.RenderPipelines.Universal.Runtime`; `UnityEngine.UI`는 ugui 패키지가 autoReferenced), `GameBootstrap.cs`(+`IDevModeHost` 구현), `IDevModeHost.cs`, `GameFlowController.cs`, `FlowState.cs`, `StrategyFactory.cs`, `DisplaySetup.cs`, `WindowSizeSelector.cs`, `CameraFollow.cs`, `BackgroundTiler.cs`.
-2. `Survivor/Assets/Scripts/UI/**` — `Survivor.UI.asmdef`(참조: Core, Data, Simulation + `Unity.TextMeshPro`, `Unity.InputSystem`), `UiFactory.cs`(코드로 Canvas·패널·버튼·TMP 텍스트 생성), `TitleView.cs`, `HudView.cs`, `LevelUpView.cs`, `PauseMenuView.cs`, `ResultView.cs`, `DataErrorView.cs`, `UiInputHandler.cs`. `UI/Fonts/`는 사용자 소유(읽기만, 폰트 에셋은 `Resources.Load` 또는 직렬화 참조 — 방법은 당신이 정하고 보고).
+2. `Survivor/Assets/Scripts/UI/**` — `Survivor.UI.asmdef`(참조: Core, Data, Simulation + `Unity.TextMeshPro`, `Unity.InputSystem`), `UiFactory.cs`(코드로 Canvas·패널·버튼·TMP 텍스트 생성), `TitleView.cs`, `HudView.cs`, `LevelUpView.cs`, `PauseMenuView.cs`, `ResultView.cs`, `DataErrorView.cs`, `UiInputHandler.cs`. 폰트 에셋은 `Assets/TextMesh Pro/**`(사용자 소유, 읽기만)에 있고 `TMP Settings`의 기본 폰트(`m_defaultFontAsset`)로 지정돼 있으므로 `TMP_Text`를 만들면 자동으로 붙는다 — **폰트를 코드로 로드하지 않는다**(`Resources` 폴더가 아니라 `Resources.Load`도 불가). 한글이 네모로 나오면 당신 코드가 폰트를 덮어쓴 것이다.
 3. `Survivor/Assets/Scenes/Main.unity`(신규) + `.meta`.
 4. `Survivor/Assets/Tests/EditMode/Architecture/AsmdefReferenceTests.cs`(신규 폴더), `Tests/EditMode/App/**`(신규: `WindowSizeSelector` 표, `StrategyFactory` 종류별 타입), `Tests/PlayMode/Flow/**`(신규).
 5. 테스트 asmdef 2개의 `references`에 `Survivor.UI`·`Survivor.App` **각 1줄씩 추가**(5c.2 IMP-CORE 행 관례 — 다른 줄은 손대지 않는다).
@@ -83,7 +83,7 @@
 12. `GameDataRegistry.Initialize`는 1회만(두 번째는 예외). 테스트 리그가 `GameBootstrap`을 여러 번 만들면 각자 새 레지스트리다.
 13. `KeyboardInputSource`·`UiInputHandler`는 `Keyboard.current`가 null이면 0/무입력 — 배치 PlayMode에서 null이 정상이라, 입력이 필요한 흐름 테스트는 **뷰의 공개 메서드/이벤트를 직접 호출**한다(`levelUpView.Choose(1)` 등). ESC 경로는 `GameFlowController`의 공개 메서드(★ `TogglePause()` 같은 — 당신이 정함)로 테스트.
 14. `Screen.SetResolution`은 배치 모드에서 효과가 없고 예외도 없다 — `DisplaySetup.Apply()`는 PM 테스트에서 호출만 되고 EM에서 `Choose` 표를 검증한다.
-15. TMP 기본 폰트 에셋은 `TMP_Settings`(Essential Resources)에서 온다 — `TMP_Text` 생성 시 null 경고가 나면 Essentials 미설치(BLOCKED). 한글 폰트는 `UI/Fonts/`의 TMP Font Asset을 `Resources.Load`하거나 `UiFactory`에 주입 — 경로는 사용자가 넣은 실제 파일명을 `ls`로 확인.
+15. TMP 기본 폰트 에셋은 `TMP_Settings`(Essential Resources)에서 오며 PM이 NotoSansKR SDF(헤더 2번 경로)로 바꿔 두었다 — `TMP_Text` 생성 시 null 경고가 나면 Essentials가 worktree에 없는 것(BLOCKED). `UiFactory`는 `font`를 지정하지 않는다.
 16. **최고 기록 저장은 Death/Clear 결과 경로에서만**(TAC-F8-3): `OnApplicationQuit`·`Error`·"타이틀로 나가기"에서 저장 코드가 없어야 한다(PM이 grep으로 확인한다).
 17. `RunOutcome.SurvivalSteps`는 게이트가 `context.Step + 1`로 세운 값(4a) — App은 다시 계산하지 않는다.
 
