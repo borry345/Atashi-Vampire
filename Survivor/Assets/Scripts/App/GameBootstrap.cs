@@ -71,6 +71,8 @@ namespace Survivor.App
         private GameFlowController _flow;
         private Camera _camera;
         private SimulationFrameCounter _frameCounter;
+        private AssetKeyResolver _resolver;
+        private EntityPresenter _presenter;
 
         /// Raised when a run ends by death or clear.
         public event Action<RunOutcome> RunEnded;
@@ -135,6 +137,7 @@ namespace Survivor.App
         internal PickupRegistry PickupRegistry => _pickupRegistry;
         internal SimulationFrameCounter FrameCounter => _frameCounter;
         internal Camera MainCamera => _camera;
+        internal EntityPresenter Presenter => _presenter;
 
         /// Builds the provider for kind and queues SwitchTargetProvider with the shared requirements callback (TAC-F16-5).
         public void RequestTargetProviderSwitch(TargetProviderKind kind)
@@ -196,6 +199,15 @@ namespace Survivor.App
             _data.Initialize(data, report);
             AppLog.Info("Data loaded: playable=" + report.IsPlayable + ", blocking=" + report.BlockingCount.ToString(CultureInfo.InvariantCulture)
                 + ", warnings=" + report.WarningCount.ToString(CultureInfo.InvariantCulture) + ".");
+            // Key warnings go to the log only (null report) so they never mix with the title's data error list (5.11 rev 14).
+            AssetKeyRegistry registry = AssetKeyRegistry.LoadDefault();
+            _resolver = new AssetKeyResolver(registry, null);
+            if (data != null)
+            {
+                _resolver.ValidateKeys(data);
+            }
+
+            AppLog.Info("Asset key registry " + (registry != null ? "loaded." : "missing; entities use the magenta fallback circle."));
 
             EnsureGlobalLight();
             Assemble();
@@ -333,6 +345,8 @@ namespace Survivor.App
             simulation.AddComponent<SimulationDriverMid>().Initialize(_clock, _pipeline, () => _lifecycle.Ticks, _snapshot, _targets);
             simulation.AddComponent<SimulationDriverLate>().Initialize(_clock, _pipeline, _rules);
             simulation.AddComponent<PresentationSync>().Initialize(_lifecycle);
+            _presenter = simulation.AddComponent<EntityPresenter>();
+            _presenter.Initialize(_lifecycle, _resolver, current);
         }
 
         // Camera (orthographic size 9, exact follow), endless background and the player circle (TAC-F1-6, TAC-F8-11).
