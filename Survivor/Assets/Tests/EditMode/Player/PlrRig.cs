@@ -315,6 +315,10 @@ namespace Survivor.Tests.EditMode.Player
             }
 
             Object.DestroyImmediate(Host);
+            if (Player != null && Player.MagnetHost != null)
+            {
+                Object.DestroyImmediate(Player.MagnetHost);
+            }
         }
 
         private void Run(SimulationPhase phase, in StepContext context)

@@ -5,6 +5,8 @@
         "Survivor.Core",
         "Survivor.Strategies",
         "Survivor.Simulation",
+        "Survivor.UI",
+        "Survivor.App",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

@@ -70,6 +70,7 @@ namespace Survivor.Strategies
             body.StrategySlot = _registered.Count;
             _registered.Add(body);
             _bodies.LinkOf(body).Sink = this;
+            _bodies.RefreshDrivesTransform(body);
         }
 
         /// Removes body and silently forgets its pairs (no Exit, TAC-F18-5). Throws ArgumentNullException for null,
@@ -96,6 +97,7 @@ namespace Survivor.Strategies
             if (_bodies.IsRegistered(body))
             {
                 _bodies.LinkOf(body).Sink = null;
+                _bodies.RefreshDrivesTransform(body);
             }
 
             _removedId = body.Id;
@@ -187,6 +189,7 @@ namespace Survivor.Strategies
                     if (_bodies.IsRegistered(body))
                     {
                         _bodies.LinkOf(body).Sink = null;
+                        _bodies.RefreshDrivesTransform(body);
                     }
                 }
 

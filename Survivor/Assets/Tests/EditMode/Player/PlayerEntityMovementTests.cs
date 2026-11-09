@@ -31,7 +31,9 @@ namespace Survivor.Tests.EditMode.Player
             Assert.AreEqual(0.5f, player.Body.Radius);
             Assert.AreEqual(2.0f, player.MagnetBody.Radius);
             Assert.AreSame(_rig.Host, player.Body.Host);
-            Assert.AreSame(_rig.Host, player.MagnetBody.Host);
+            Assert.AreNotSame(player.Body.Host, player.MagnetBody.Host, "one collider per host: the magnet has its own host");
+            Assert.AreSame(player.MagnetHost, player.MagnetBody.Host);
+            Assert.IsNull(player.MagnetBody.Host.transform.parent, "the magnet host is a root object, not a child of the body host");
             Assert.AreEqual(new Vector2(3f, -4f), player.Position);
             Assert.AreEqual(player.Position, player.MagnetBody.Position);
             CollectionAssert.AreEquivalent(new[] { player.Body, player.MagnetBody }, _rig.Collisions.Bodies);
