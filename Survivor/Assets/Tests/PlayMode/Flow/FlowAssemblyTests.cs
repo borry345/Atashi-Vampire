@@ -141,7 +141,7 @@ namespace Survivor.Tests.PlayMode.Flow
             Assert.IsTrue(Host.SpatialIndex.Required, "spatial hash target / self collision need the index");
             Assert.IsFalse(Host.Bodies.Requirements.MonsterColliders, "R19: no colliders for the shipping default");
             Assert.AreSame(Host.Player.Host, Host.PlayerHost);
-            Assert.AreNotSame(Host.Player.Body.Host, Host.Player.MagnetBody.Host, "workaround: the magnet has its own host");
+            Assert.AreNotSame(Host.Player.Body.Host, Host.Player.MagnetBody.Host, "the magnet has its own host (a root object PlayerEntity creates)");
             yield return Frames(3);
 
             Flow.TogglePause();

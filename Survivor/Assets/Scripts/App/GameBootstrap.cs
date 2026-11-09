@@ -44,7 +44,6 @@ namespace Survivor.App
         private CollisionEventRouter _router;
         private PendingCommandQueue _pending;
         private GameObject _playerHost;
-        private GameObject _magnetHost;
         private KeyboardInputSource _keyboard;
         private PassiveInventory _passives;
         private PlayerHealth _health;
@@ -126,7 +125,6 @@ namespace Survivor.App
         internal CollisionEventRouter Router => _router;
         internal PlayerEntity Player => _player;
         internal GameObject PlayerHost => _playerHost;
-        internal GameObject MagnetHost => _magnetHost;
         internal KeyboardInputSource KeyboardInput => _keyboard;
         internal PlayerMovement Movement => _movement;
         internal PlayerDamageReceiver DamageReceiver => _receiver;
@@ -245,16 +243,12 @@ namespace Survivor.App
 
             // PLAYER (5c.3a).
             _playerHost = new GameObject("Player");
-            // Out-of-ownership workaround (reported): PhysicsBodySynchronizer refuses a second body on a host that already
-            // carries a registered collider, so the magnet gets its own host instead of sharing the player's (5.12 says shared).
-            _magnetHost = new GameObject("Player.Magnet");
             var input = new GameObject("Input");
             input.transform.SetParent(transform, false);
             _keyboard = input.AddComponent<KeyboardInputSource>();
             _passives = new PassiveInventory();
             _health = new PlayerHealth();
             _player = new PlayerEntity(_ids, _bodies, current, _passives, _playerHost);
-            _player.MagnetBody.Host = _magnetHost;
             _movement = new PlayerMovement(_player, _keyboard, _passives, current);
             _weapons = new WeaponInventory(_player, _passives, _lifecycle);
             _playerSpawns = new PlayerSpawnCommandHandler(_lifecycle, _weapons);

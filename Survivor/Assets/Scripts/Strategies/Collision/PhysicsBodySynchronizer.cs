@@ -82,12 +82,12 @@ namespace Survivor.Strategies
             entry.Collider.radius = body.Radius;
             entry.AppliedRadius = body.Radius;
             entry.Link.Body = body;
-            body.DrivesTransform = false;
 
             // TAC-F18-4: place the body before it can be simulated so a pooled host is never swept from its old position.
             body.Host.transform.position = new Vector3(body.Position.x, body.Position.y, body.Host.transform.position.z);
             rb.position = body.Position;
             SetEnabled(entry, _requirements.CollidersEnabledFor(body.Layer));
+            UpdateDrivesTransform(entry);
 
             body.PhysicsSlot = _slots.Count;
             _slots.Add(entry);
@@ -106,6 +106,7 @@ namespace Survivor.Strategies
 
             Entry entry = RequireRegistered(body, "Unregister");
             SetEnabled(entry, false);
+            UpdateDrivesTransform(entry);
             entry.Link.Body = null;
             entry.Link.Sink = null;
             _byCollider.Remove(entry.Collider);
@@ -133,6 +134,7 @@ namespace Survivor.Strategies
             {
                 Entry entry = _sorted[i];
                 SetEnabled(entry, next.CollidersEnabledFor(entry.Body.Layer));
+                UpdateDrivesTransform(entry);
             }
         }
 
@@ -241,6 +243,21 @@ namespace Survivor.Strategies
                 ApplyRadius(entry);
                 entry.Rigidbody.position = entry.Body.Position;
             }
+        }
+
+        /// (Added beyond 5.9) Recomputes body.DrivesTransform after the engine strategy attached or detached itself as the sink.
+        internal void RefreshDrivesTransform(CollisionBody body)
+        {
+            UpdateDrivesTransform(_slots[body.PhysicsSlot]);
+        }
+
+        // 5c.3 #6: while Physics2D.Simulate moves the body (engine strategy attached, collider on) the simulation writes its
+        // transform and PresentationSync must not. A presentation write differs from the body pose by Box2D's integration
+        // rounding, and the next Simulate syncs that transform into the body as a teleport that drops the step's MovePosition,
+        // so the engine strategy would see the body one step late (wave 4c). Unregister passes an entry already switched off.
+        private static void UpdateDrivesTransform(Entry entry)
+        {
+            entry.Body.DrivesTransform = entry.Enabled && entry.Link.Sink != null;
         }
 
         private static void ApplyRadius(Entry entry)

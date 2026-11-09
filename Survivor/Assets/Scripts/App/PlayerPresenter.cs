@@ -7,7 +7,8 @@ namespace Survivor.App
 {
     /// Presentation of the player (PlayerEntity leaves it to the composition root): moves the player host to the simulated
     /// position once per frame and shows a circle sized to the body radius on a child, so the host (which carries the engine
-    /// collider) keeps scale 1. Writes nothing the simulation reads.
+    /// collider) keeps scale 1. Writes nothing the simulation reads. Skips the position write while the engine simulation drives
+    /// the host transform (Body.DrivesTransform, 5c.3 #6).
     [DefaultExecutionOrder(-100)]
     public sealed class PlayerPresenter : MonoBehaviour
     {
@@ -37,9 +38,13 @@ namespace Survivor.App
                 return;
             }
 
-            Transform t = transform;
-            Vector2 p = _player.Position;
-            t.position = new Vector3(p.x, p.y, t.position.z);
+            if (!_player.Body.DrivesTransform)
+            {
+                Transform t = transform;
+                Vector2 p = _player.Position;
+                t.position = new Vector3(p.x, p.y, t.position.z);
+            }
+
             float diameter = _player.Body.Radius > 0f ? _player.Body.Radius * 2f : 1f;
             _visual.localScale = new Vector3(diameter, diameter, 1f);
         }

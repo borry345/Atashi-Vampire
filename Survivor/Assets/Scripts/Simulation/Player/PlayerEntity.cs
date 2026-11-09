@@ -7,7 +7,8 @@ namespace Survivor.Simulation
 {
     /// The player (not a pooled entity, 5.12 rev 16): authoritative Position plus a body circle (PlayerBody, 1:1) and a magnet
     /// circle (PlayerMagnet, 2:1) registered directly to the run's collision strategy and the physics registry (5c.3 #1 exception).
-    /// Both bodies share the injected Host; Rigidbody2D/colliders are added by PhysicsBodySynchronizer, never here.
+    /// The body uses the injected Host and the magnet a separate root GameObject created here (one collider per host, 5.9);
+    /// Rigidbody2D and colliders are added by PhysicsBodySynchronizer, never here.
     public sealed class PlayerEntity
     {
         private readonly EntityHandleAllocator _ids;
@@ -17,7 +18,8 @@ namespace Survivor.Simulation
         private ICollisionStrategy _collisions;
 
         /// Creates the player over the run allocator, physics registry, current-data source (GameDataRegistry.Current), passives
-        /// (P3 pickup bonus) and the GameObject both bodies use as Host. Null arguments throw ArgumentNullException.
+        /// (P3 pickup bonus) and the GameObject the body uses as Host; the magnet gets its own root GameObject "Player.Magnet".
+        /// Null arguments throw ArgumentNullException.
         public PlayerEntity(EntityHandleAllocator ids, IPhysicsBodyRegistry physicsBodies, Func<GameData> currentData,
                             PassiveInventory passives, GameObject host)
         {
@@ -26,8 +28,12 @@ namespace Survivor.Simulation
             _currentData = currentData ?? throw new ArgumentNullException(nameof(currentData));
             _passives = passives ?? throw new ArgumentNullException(nameof(passives));
             Host = host != null ? host : throw new ArgumentNullException(nameof(host));
+            // PhysicsBodySynchronizer keeps one collider per host, so the magnet cannot share the body's host. It is not parented
+            // to it either: a moving parent would move the child's transform and turn the next Simulate into a teleport.
+            var magnetHost = new GameObject("Player.Magnet");
+            MagnetHost = magnetHost;
             Body = new CollisionBody { Layer = CollisionLayer.PlayerBody, Host = host };
-            MagnetBody = new CollisionBody { Layer = CollisionLayer.PlayerMagnet, Host = host };
+            MagnetBody = new CollisionBody { Layer = CollisionLayer.PlayerMagnet, Host = magnetHost };
         }
 
         /// Authoritative position; PlayerMove keeps Body/MagnetBody.Position equal to it.
@@ -39,8 +45,11 @@ namespace Survivor.Simulation
         /// CollisionLayer.PlayerMagnet circle, Id 2:1 after RegisterForRun.
         public CollisionBody MagnetBody { get; }
 
-        /// GameObject shared by both bodies (presentation is the composition root's job).
+        /// GameObject of the body circle (presentation is the composition root's job).
         public GameObject Host { get; }
+
+        /// (Added beyond 5.12) Root GameObject (no parent) created by the constructor; Host of the magnet circle.
+        public GameObject MagnetHost { get; }
 
         /// True between RegisterForRun and UnregisterFromRun.
         public bool IsRegistered => _collisions != null;
