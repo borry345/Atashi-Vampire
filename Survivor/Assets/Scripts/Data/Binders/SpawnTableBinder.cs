@@ -151,6 +151,8 @@ namespace Survivor.Data
                 }
             }
 
+            // hpMultiplier is read by its own reader below so that a bad value never skips the segment.
+            r.Known("hpMultiplier");
             r.ReportUnknownKeys();
             if (r.HasErrors)
             {
@@ -158,6 +160,7 @@ namespace Survivor.Data
                 return null;
             }
 
+            float hpMultiplier = ReadHpMultiplier(obj, path, fileName, report);
             return new SpawnSegmentDefinition
             {
                 StartSeconds = (float)start,
@@ -165,8 +168,24 @@ namespace Survivor.Data
                 EndSeconds = (float)end,
                 EndStep = endStep,
                 SpawnsPerSecond = (float)rate,
+                HpMultiplier = hpMultiplier,
                 Entries = entries,
             };
+        }
+
+        /// Optional segments[s].hpMultiplier (5.13.4): finite and > 0, default 1.0. An invalid value is a warning and
+        /// only this segment falls back to 1.0; the segment and the table stay valid.
+        private static float ReadHpMultiplier(JObject obj, string path, string fileName, DataValidationReport report)
+        {
+            var hp = new FieldReader(obj, fileName, null, path, report, IssueSeverity.Warning);
+            double value = hp.Number("hpMultiplier", NumberRange.Positive, false, 1d);
+            if (hp.HasErrors)
+            {
+                hp.Warn("hpMultiplier", "이 구간의 체력 배율을 1.0으로 대체합니다.", obj["hpMultiplier"]);
+                return 1f;
+            }
+
+            return (float)value;
         }
 
         private static SpawnEntryDefinition BindEntry(JToken token, string path, string fileName, DataValidationReport report)

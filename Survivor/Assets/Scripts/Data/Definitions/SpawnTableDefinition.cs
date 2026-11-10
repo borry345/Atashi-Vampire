@@ -13,5 +13,31 @@ namespace Survivor.Data
 
         /// Valid segments in ascending, non-overlapping time order.
         public IReadOnlyList<SpawnSegmentDefinition> Segments { get; internal set; }
+
+        /// R31: health multiplier at a step. The segment containing the step, otherwise the latest segment that
+        /// started at or before it (gaps, after the last segment), otherwise 1.0. Not rounded; no allocation.
+        public float HpMultiplierAt(long step)
+        {
+            float multiplier = 1f;
+            IReadOnlyList<SpawnSegmentDefinition> segments = Segments;
+            if (segments == null)
+            {
+                return multiplier;
+            }
+
+            // Segments are ascending and non-overlapping (binder), so the last one with StartStep <= step covers both cases.
+            for (int i = 0; i < segments.Count; i++)
+            {
+                SpawnSegmentDefinition segment = segments[i];
+                if (segment.StartStep > step)
+                {
+                    break;
+                }
+
+                multiplier = segment.HpMultiplier;
+            }
+
+            return multiplier;
+        }
     }
 }

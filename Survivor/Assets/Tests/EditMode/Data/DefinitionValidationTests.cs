@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using Survivor.Data;
+using UnityEngine.TestTools.Constraints;
 
 namespace Survivor.Tests.EditMode.Data
 {
@@ -251,6 +252,153 @@ namespace Survivor.Tests.EditMode.Data
                 IssueSeverity.Warning, DataFileKind.SpawnTable, null, "spawnRadius");
             Assert.IsNotNull(data.SpawnTable);
             Assert.IsTrue(report.IsPlayable);
+        }
+
+        // ---------------- spawnTable.json: hpMultiplier (5.13.4, TAC-F3-13) and R31 HpMultiplierAt (TAC-F3-14) ----------------
+
+        private const string Seg0 = "\"endSeconds\": 120, \"spawnsPerSecond\": 2, ";
+        private const string Seg1 = "\"endSeconds\": 300, \"spawnsPerSecond\": 4, ";
+        private const string Seg2 = "\"endSeconds\": 480, \"spawnsPerSecond\": 7, ";
+        private const string Seg3 = "\"endSeconds\": 600, \"spawnsPerSecond\": 10,";
+
+        /// The fixture table with multipliers 1.0 / 1.5 / 2.2 / 3.0 and segment 1's value replaced by a raw JSON literal.
+        private static Dictionary<DataFileKind, string> MultiplierTexts(string segment1Literal = "1.5")
+        {
+            string text = DataTestFixtures.SpawnTable;
+            text = DataTestFixtures.ReplaceOnce(text, Seg0, Seg0 + " \"hpMultiplier\": 1.0, ");
+            text = DataTestFixtures.ReplaceOnce(text, Seg1, Seg1 + " \"hpMultiplier\": " + segment1Literal + ", ");
+            text = DataTestFixtures.ReplaceOnce(text, Seg2, Seg2 + " \"hpMultiplier\": 2.2, ");
+            text = DataTestFixtures.ReplaceOnce(text, Seg3, Seg3 + " \"hpMultiplier\": 3.0, ");
+            return DataTestFixtures.WithText(DataFileKind.SpawnTable, text);
+        }
+
+        private static SpawnTableDefinition LoadTable(string spawnTableText)
+        {
+            var (data, report) = DataTestFixtures.Load(DataTestFixtures.WithText(DataFileKind.SpawnTable, spawnTableText));
+            Assert.IsNotNull(data.SpawnTable, DataTestFixtures.Dump(report));
+            return data.SpawnTable;
+        }
+
+        [Test]
+        public void SpawnTable_HpMultiplierOmitted_IsOne()
+        {
+            var (data, report) = DataTestFixtures.Load(DataTestFixtures.ValidTexts());
+            Assert.AreEqual(4, data.SpawnTable.Segments.Count);
+            Assert.IsTrue(data.SpawnTable.Segments.All(s => s.HpMultiplier == 1f));
+            Assert.AreEqual(0, DataTestFixtures.Find(report, IssueSeverity.Warning, DataFileKind.SpawnTable).Count, DataTestFixtures.Dump(report));
+        }
+
+        [Test]
+        public void SpawnTable_HpMultiplierValid_IsBoundWithoutIssues()
+        {
+            var (data, report) = DataTestFixtures.Load(MultiplierTexts());
+            Assert.AreEqual(0, report.Issues.Count, "hpMultiplier is a known key\n" + DataTestFixtures.Dump(report));
+            CollectionAssert.AreEqual(new[] { 1.0f, 1.5f, 2.2f, 3.0f }, data.SpawnTable.Segments.Select(s => s.HpMultiplier).ToArray());
+        }
+
+        [TestCase("0")]
+        [TestCase("-1.5")]
+        [TestCase("\"1.5\"")]
+        [TestCase("null")]
+        [TestCase("true")]
+        [TestCase("1e39")]
+        public void SpawnTable_HpMultiplierInvalid_WarnsAndOnlyThatSegmentFallsBackToOne(string literal)
+        {
+            var (data, report) = DataTestFixtures.Load(MultiplierTexts(literal));
+            Assert.IsTrue(DataTestFixtures.Has(report, IssueSeverity.Warning, DataFileKind.SpawnTable, null, "segments[1].hpMultiplier"), DataTestFixtures.Dump(report));
+            Assert.IsTrue(report.IsPlayable);
+            Assert.AreEqual(0, report.Issues.Count(i => i.Severity == IssueSeverity.Blocking), DataTestFixtures.Dump(report));
+            Assert.IsTrue(report.Issues.All(i => i.FieldPath == "segments[1].hpMultiplier"), "the segment is not skipped and nothing else is reported\n" + DataTestFixtures.Dump(report));
+
+            Assert.AreEqual(4, data.SpawnTable.Segments.Count);
+            SpawnSegmentDefinition segment = data.SpawnTable.Segments[1];
+            Assert.AreEqual(1f, segment.HpMultiplier);
+            Assert.AreEqual(4f, segment.SpawnsPerSecond);
+            Assert.AreEqual(7200, segment.StartStep);
+            Assert.AreEqual(18000, segment.EndStep);
+            Assert.AreEqual(2, segment.Entries.Count);
+            Assert.AreEqual(1.0f, data.SpawnTable.Segments[0].HpMultiplier);
+            Assert.AreEqual(2.2f, data.SpawnTable.Segments[2].HpMultiplier);
+            Assert.AreEqual(3.0f, data.SpawnTable.Segments[3].HpMultiplier);
+        }
+
+        [Test]
+        public void SpawnTable_HpMultiplierInvalid_MessageNamesFileSegmentAndField()
+        {
+            var (_, report) = DataTestFixtures.Load(MultiplierTexts("0"));
+            List<ValidationIssue> issues = report.Issues.Where(i => i.FieldPath == "segments[1].hpMultiplier").ToList();
+            Assert.Greater(issues.Count, 0, DataTestFixtures.Dump(report));
+            Assert.IsTrue(issues.All(i => i.FileName == "spawnTable.json"));
+            Assert.IsTrue(issues.Any(i => i.Message.Contains("1.0")), "the fallback value is stated\n" + DataTestFixtures.Dump(report));
+            StringAssert.Contains("segments[1].hpMultiplier", issues[0].ToString());
+        }
+
+        [TestCase(0L, 1.0f)]
+        [TestCase(7199L, 1.0f)]
+        [TestCase(7200L, 1.5f)]
+        [TestCase(17999L, 1.5f)]
+        [TestCase(18000L, 2.2f)]
+        [TestCase(28799L, 2.2f)]
+        [TestCase(28800L, 3.0f)]
+        [TestCase(35999L, 3.0f)]
+        [TestCase(36000L, 3.0f)]
+        [TestCase(1000000L, 3.0f)]
+        [TestCase(-1L, 1.0f)]
+        public void R31_HpMultiplierAt_ContiguousTable(long step, float expected)
+        {
+            var (data, report) = DataTestFixtures.Load(MultiplierTexts());
+            Assert.AreEqual(0, report.Issues.Count, DataTestFixtures.Dump(report));
+            Assert.AreEqual(expected, data.SpawnTable.HpMultiplierAt(step), "exact value, no rounding");
+        }
+
+        private const string GapTable = @"{ ""schemaVersion"": 1, ""despawnDistance"": 45, ""bossMonsterId"": ""M4"",
+  ""segments"": [
+    { ""startSeconds"": 60,  ""endSeconds"": 120, ""spawnsPerSecond"": 2, ""hpMultiplier"": 1.5, ""entries"": [ { ""monsterId"": ""M1"", ""weight"": 1 } ] },
+    { ""startSeconds"": 180, ""endSeconds"": 300, ""spawnsPerSecond"": 2, ""hpMultiplier"": 2.25, ""entries"": [ { ""monsterId"": ""M1"", ""weight"": 1 } ] } ] }";
+
+        [TestCase(0L, 1.0f)]
+        [TestCase(3599L, 1.0f)]
+        [TestCase(3600L, 1.5f)]
+        [TestCase(7199L, 1.5f)]
+        [TestCase(7200L, 1.5f)]
+        [TestCase(10799L, 1.5f)]
+        [TestCase(10800L, 2.25f)]
+        [TestCase(17999L, 2.25f)]
+        [TestCase(18000L, 2.25f)]
+        [TestCase(36000L, 2.25f)]
+        public void R31_HpMultiplierAt_GapAndLateFirstSegment(long step, float expected)
+        {
+            SpawnTableDefinition table = LoadTable(GapTable);
+            Assert.AreEqual(2, table.Segments.Count);
+            Assert.AreEqual(expected, table.HpMultiplierAt(step));
+        }
+
+        [Test]
+        public void R31_HpMultiplierAt_NoSegments_IsOne()
+        {
+            // The only segment is skipped (spawnsPerSecond 0), so the table is valid but has no segments.
+            SpawnTableDefinition table = LoadTable(@"{ ""schemaVersion"": 1, ""despawnDistance"": 45, ""bossMonsterId"": ""M4"",
+  ""segments"": [ { ""startSeconds"": 0, ""endSeconds"": 600, ""spawnsPerSecond"": 0, ""hpMultiplier"": 2.0, ""entries"": [ { ""monsterId"": ""M1"", ""weight"": 1 } ] } ] }");
+            Assert.AreEqual(0, table.Segments.Count);
+            Assert.AreEqual(1f, table.HpMultiplierAt(0));
+            Assert.AreEqual(1f, table.HpMultiplierAt(36000));
+        }
+
+        [Test]
+        public void R31_HpMultiplierAt_IsRepeatable_AndDoesNotAllocate()
+        {
+            SpawnTableDefinition table = LoadTable(GapTable);
+            float first = table.HpMultiplierAt(9000);
+            Assert.AreEqual(first, table.HpMultiplierAt(9000));
+            float sink = 0f;
+            Assert.That(() =>
+            {
+                for (long step = 0; step < 40000; step += 97)
+                {
+                    sink += table.HpMultiplierAt(step);
+                }
+            }, UnityEngine.TestTools.Constraints.Is.Not.AllocatingGCMemory());
+            Assert.Greater(sink, 0f);
         }
 
         // ---------------- passives.json ----------------

@@ -1,6 +1,6 @@
 { "schemaVersion": 1, "despawnDistance": 45, "bossMonsterId": "M4",
   "segments": [
-    { "startSeconds": 0,   "endSeconds": 120, "spawnsPerSecond": 2,  "entries": [ { "monsterId": "M1", "weight": 1 } ] },
-    { "startSeconds": 120, "endSeconds": 300, "spawnsPerSecond": 4,  "entries": [ { "monsterId": "M1", "weight": 3 }, { "monsterId": "M2", "weight": 1 } ] },
-    { "startSeconds": 300, "endSeconds": 480, "spawnsPerSecond": 7,  "entries": [ { "monsterId": "M1", "weight": 4 }, { "monsterId": "M2", "weight": 2 }, { "monsterId": "M3", "weight": 1 } ] },
-    { "startSeconds": 480, "endSeconds": 600, "spawnsPerSecond": 10, "entries": [ { "monsterId": "M1", "weight": 4 }, { "monsterId": "M2", "weight": 2 }, { "monsterId": "M3", "weight": 2 } ] } ] }
+    { "startSeconds": 0,   "endSeconds": 120, "spawnsPerSecond": 2,  "hpMultiplier": 1.0, "entries": [ { "monsterId": "M1", "weight": 1 } ] },
+    { "startSeconds": 120, "endSeconds": 300, "spawnsPerSecond": 4,  "hpMultiplier": 1.5, "entries": [ { "monsterId": "M1", "weight": 3 }, { "monsterId": "M2", "weight": 1 } ] },
+    { "startSeconds": 300, "endSeconds": 480, "spawnsPerSecond": 7,  "hpMultiplier": 2.2, "entries": [ { "monsterId": "M1", "weight": 4 }, { "monsterId": "M2", "weight": 2 }, { "monsterId": "M3", "weight": 1 } ] },
+    { "startSeconds": 480, "endSeconds": 600, "spawnsPerSecond": 10, "hpMultiplier": 3.0, "entries": [ { "monsterId": "M1", "weight": 4 }, { "monsterId": "M2", "weight": 2 }, { "monsterId": "M3", "weight": 2 } ] } ] }
