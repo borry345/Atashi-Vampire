@@ -1,4 +1,4 @@
-# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (20회차)
+# tech/ 색인 — TECH_SPEC 뱀서라이크 1차 MVP (21회차)
 
 > 2026-10-27 단일 `TECH_SPEC.md`를 제목 단위로 분할했다(RUN_LOG 2026-10-27 D1). 내용은 바이트 그대로 옮겼고 ID(TAC·R·D·U·A 번호, 5.x 절 번호)는 변하지 않았다. 소유자는 tech-spec-writer이며, 개정 회차와 변경 요약은 이 파일이 관리한다.
 
@@ -26,6 +26,7 @@
 | 18 | 2026-11-10. 웨이브 3d(IMP-SPATIAL C, 2026-11-09)·웨이브 4(진행·판 세션, App 조립·UI·씬, 충돌·자석 수정 `74be6f9`, 시각 `2f2d672`; 조립본 EditMode 719·PlayMode 260) 구현 확정 사실 반영, 사용자 결정 없음. `Physics2DTargetProvider` 확정 동작(확장 질의 → 1e-3 여유 재질의, 꺼진 콜라이더 제외, NaN 질의점 false, 생성자 예외, 추가 공개 멤버 없음 — 5.07, A=B=C 동등성은 PlayMode 배치 5c.5). 진행·판 세션 공개 면 ★(5.14): `RunSession` 생성자 24개·읽기 속성 11개, 리셋 4단계 `StepOutcomeGate.Reset()` 추가와 null 전략 `ArgumentException`(PM 수용), 리셋 순서 코드 대조, `BestRecordStore`, `ExperienceSystem`·`StepOutcomeGate` 생성자와 대기 명령 핸들러, `RunOutcome.None`, `LevelUpSession.TrySubmit`은 회차를 닫지 않음(App이 `Close`), 가중치 0 후보 유지·추첨 순서 출력·`HealTargetId`(PM 수용). App·UI 공개 면 ★(5.17): `GameFlowController`·`GameBootstrap.Flow`·`StrategyFactory`(충돌 데코레이터 인자 ≠ 템플릿 데코레이터 3종)·`CameraFollow`·`BackgroundTiler`·`PlayerPresenter`·UI 뷰, PM 수용 이탈 6건(풀 재사용, 런타임 오류 = `DataError` 표시, 판 시드, HUD 4항목, 씬 오브젝트 3개, `[Flow]` 로그), `DisplaySetup.AppliedSize`(5.18). `Body.DrivesTransform` 의미 확정과 internal `RefreshDrivesTransform`(5.9·5c.3 #6), 자석 host 분리 `PlayerEntity.MagnetHost`(5.12·5c.3a), 시각 프레젠터 `EntityPresenter`·키 매핑·기본 레지스트리 생성기(5.11·5b). 어셈블리 참조 표를 `AsmdefReferenceTests.Table`대로(App → URP 2D 런타임, Editor → Core·Data, PlayMode 테스트의 Data 미참조), 폴더 트리·폰트 경로(TMP Static Font Asset, `Assets/TextMesh Pro/Fonts/Noto_Sans_KR/`) 정정(5c.1·5b·5.00). 5c.2 IMP-SPATIAL·IMP-DATA·IMP-FLOW·IMP-DEV·사용자 행 파일 목록, 5c.4 웨이브 3·4 완료와 웨이브 5 선행 조건·정리 후보 목록, 5c.5 기준선(EM 719·PM 260, 리그의 자석 host 정리, `captureDeltaTime` 1/60 전제). U10 확인·U18 부분(01 2.3·06 6.2, 6.3 U 확인 22·미확정 18). 웨이브 5 입력: 5c.2b IMP-DEV 읽을 파일 갱신, `IDevModeHost` 구현 확정 표기(5.15). 00-header 범례 (18회차) | 이 README |
 | 19 | 2026-11-10. 18회차 보고의 개발자 모드 설계 공백을 닫음: 사용자 결정 1건(오버레이는 영어 레이블 + `Font.CreateDynamicFontFromOSFont("Malgun Gothic")`, 실패 시 기본 폰트, 자산 추가 없음 — 5.15·5b·5c.2 사용자 행·5c.4 웨이브 5)과 PM 기본값 7건(DECISIONS 9절): 호스트는 `FindAnyObjectByType<GameBootstrap>()`(정적 `Current` 없음, TAC-F19-1 정정), ★ `WeaponInstance.LastTargetId`(투사체·장판 무기의 조준 직후 대입, 유도 재조준 제외 — 5.12), 판 시작 배속 초기화는 Dev(5.15.1·D9), ★ `IDevModeHost.LastFrameSteps`·`ActiveGemCount`·`LiveMonsterCount`(5.15·5.15.3), `StartNewRun` 상태 검사는 Dev, `StopAtStep`은 배치 측정 전용(5.15·5.17 알려진 동작), `LoggingCollisionStrategy.Kind` 위임 계약. 5c.2 IMP-DEV 행에 웨이브 5 줄 단위 수정권(PLAYER 3파일·FLOW 2파일). 00-header 범례 (19회차) | 이 README |
 | 20 | 2026-11-10. SPEC 11회차(수용 기준 312/323) 반영, 사용자 결정 없음(DECISIONS 5절·7절·9절 확정분 + Q49 PM 기본값을 기술 계약으로). 데이터: `segments[].hpMultiplier`(선택·기본 1.0·무효면 Warning + 그 구간만 1.0, 별도 리더 바인딩 [기본값]), ★ `SpawnSegmentDefinition.HpMultiplier`·★ `SpawnTableDefinition.HpMultiplierAt(long)` = 신규 공유 규칙 R31 단일 소유(`TableSpawnPolicy.FindSegment`와 의미 구분)(5.13.4·5.11.2·5a). 몬스터: ★ `Monster.Initialize(definition, isBoss, hpMultiplier)`·★ `MaxHp`, 스폰 경로 2곳 배율 전달, 보스 소환 판별 = Source가 살아 있는 `IsBoss` 몬스터 [기본값], 테스트 호출부 0개(5.12.1). HUD: 5.17.1 신설 — ★ `HudView.RefreshLoadout`·`HudLoadoutFormatter`(UI)·`UiFactory.CreateBottomLeftText`, 갱신 기준 `PlayerProgressionApplier.ChangeCount`(상자 진화·개발자 `SetLoadout`까지 잡음) [기본값]. 개발자: 5.15.4 현황 패널 ★ `DevStatusFormatter`·`DevStatusInput`(웨이브 5a는 `HP mult: n/a`), CSV 헤더 `hpMultipliers`(5.15.3). TAC-F3-13~16·F8-14·15·F19-12~14. 5c: 소유 표 4행, 웨이브 5 → 5a(본체)·5b(측정·로그), 웨이브 6 신설(DATA → MONSTER ∥ FLOW ∥ DEV 배율 연결, 버그 라운드), 옛 웨이브 6 → 7(5c.2a·5c.2b·02 3절). 06 6.1 끝에 결정 이력과 판단·실측 대기 5건(D·U 번호 없음). 00-header 범례 (20회차) | 이 README |
+| 21 | 2026-11-10. SPEC 12회차(수용 기준 329/340, 첫 Play 피드백 13건) 중 **웨이브 6a·6b분**만 반영, 웨이브 7분은 5c.4·06 한 줄씩(계약은 22회차). 사용자 결정은 DECISIONS 5·6·7·9절·절차-D7 그대로. 몬스터(6a): 접촉 멈춤 = 신규 공유 규칙 **R32** ★ `StepMove.MoveStopAtContact`(첫 교점 + R5 검증 1ulp 보정 [기본값]), 플레이어 반지름은 `MonsterSpawner.Bind`가 판 단위로 담아 ★ `Monster.Initialize` 4인자(21회차 수정) [기본값](`StepContext`에 반지름 없음 — 코드 확인), 스폰 켬/끔 ★ `PendingCommand.SetSpawnsEnabled`·`PendingCommandKind.SetSpawnsEnabled = 10`(다섯 번째 소유자 종류)·`MonsterSpawner.SpawnsEnabled`·`HandleSetSpawnsEnabled`(등록은 조립 루트 1줄 — 브리핑의 `MonsterCommandHandler` 전제 정정), 보스 장판은 `monsters.json`에서만 제거·스키마/판정 유지·깨지는 테스트 2개(5.12.1). 플레이어(6a): ★ `ChestResult`·`ChestResultLog`(10건, `Sequence`)·`PlayerProgressionApplier.ChestResults`·`Heal()` 반환값, ★ `PlayerProjectile.LastTargetId`, `SetLoadout`이 "슬롯 = 목록 위치" 전체 교체임을 확인하고 `WeaponId == null` = 빈 슬롯 추가(5.12). 표시(6b): ★ `GameRules.BodyVisualScale`(R20)·`EntityPresenter.VisualScaleOf`(카테고리 구분 [기본값])·`PlayerPresenter`, ★ `OrbitRingPresenter`(5.17.2), `×` 없으면 `x`(5.17.1). 개발자(6b): ★ `DevLoadoutPlanner`·`DevCommandLog`, `DevController` 로드아웃 0~5·스폰 토글(Dev 기억 [기본값])·줌·`CommandLog`·`RunNumber`, 투사체 타깃 선, 배율 연결, ★ `IDevModeHost.ChestResults`(19멤버), 측정 가드 통과 시 줌 9(5b 계약)(5.15.2·5.15.5). 5.13.2 예시에서 장판 제거, 5.16 기준선 6a 1회 갱신·해시 밖 목록. TAC-F3-17~21·F4-9·F6-10·F8-16·F19-15~19. 5c.2 소유·줄 단위 수정권, 5c.2b 6a·6b 읽기 표, 5c.4 6 → 6a·6b, 7 신설(패시브·분리), 5b는 7 뒤, 옛 7 → 8. 06 20회차 5건 상태 + 21회차 판단·실측 대기 15건 + 웨이브 7 3건. 00-header 범례 (21회차) | 이 README |
 
 분할 뒤 개정 규칙: 설계 개정은 해당 `5.xx`·`02`·`5a`·`5c`·`06` 파일에서 하고 `(N회차 …)` 표기는 지금처럼 둔다. 회차 번호와 변경 요약은 이 README에만 추가한다. `00-header.md`의 0절은 2회차 기록으로 동결한다.
 
@@ -37,7 +38,7 @@
 |---|---|---|
 | [`00-header.md`](./00-header.md) | 제목·머리말 · 0 변경 요약 (회차 스탬프의 원본) | 70 |
 | [`01-overview.md`](./01-overview.md) | 1 개요 · 2 기존 코드 구조 분석 · Unity 동작 전제(U 표) | 137 |
-| [`02-feature-tac.md`](./02-feature-tac.md) | 3 기능 목록 · 4 기능별 기술 수용 기준 TAC (전원 읽음) | 232 |
+| [`02-feature-tac.md`](./02-feature-tac.md) | 3 기능 목록 · 4 기능별 기술 수용 기준 TAC (전원 읽음) · (21회차) TAC-F3-17~21·F4-9·F6-10·F8-16·F19-15~19 | 245 |
 | [`5.00-assemblies-interfaces.md`](./5.00-assemblies-interfaces.md) | 5 머리말 · 5.0 네임스페이스와 어셈블리 · 5.0.1 인터페이스 전체 목록 | 39 |
 | [`5.01-entity-id.md`](./5.01-entity-id.md) | 5.1 객체 ID와 할당기 (Core) | 41 |
 | [`5.02-rng.md`](./5.02-rng.md) | 5.2 결정론 RNG (Core) | 32 |
@@ -50,17 +51,17 @@
 | [`5.09-collision.md`](./5.09-collision.md) | 5.9 충돌 전략 (Core 계약, IMP-COLLISION 구현) · (17회차) 구현 공개 멤버·순변화 필터 · (18회차) `DrivesTransform` 의미 | 211 |
 | [`5.10-lifecycle.md`](./5.10-lifecycle.md) | 5.10 엔티티 생명주기 (Simulation, IMP-LOOP) — 생성·회수의 유일한 경로 · (15회차) `PrefabCatalog`·`MonsterRegistry` 등 | 113 |
 | [`5.11-data-loader.md`](./5.11-data-loader.md) | 5.11 데이터 로더·레지스트리·검증 (Data, IMP-DATA) · (14회차) 5.11.2 정의 객체 · (18회차) 시각 소비자 `EntityPresenter`·레지스트리 생성기 | 193 |
-| [`5.12-damage-rules.md`](./5.12-damage-rules.md) | 5.12 피해·획득 규칙 구성요소 (Simulation, IMP-PLAYER/IMP-MONSTER) · 5.12.1 IMP-MONSTER 소유 클래스 설계 (7회차 신설) · (16회차) PLAYER↔MONSTER 경계 인터페이스·`PlayerEntity` 등록 · (17회차) PLAYER·MONSTER 구현 공개 멤버, 겹침 양쪽 정리, `Monster` 행동 · (18회차) 자석 host 분리 · (19회차) `LastTargetId` · (20회차) 몬스터 체력 배율 | 341 |
-| [`5.13-json-schemas.md`](./5.13-json-schemas.md) | 5.13 JSON 스키마 7종 · (20회차) `hpMultiplier`·`HpMultiplierAt` | 265 |
+| [`5.12-damage-rules.md`](./5.12-damage-rules.md) | 5.12 피해·획득 규칙 구성요소 (Simulation, IMP-PLAYER/IMP-MONSTER) · 5.12.1 IMP-MONSTER 소유 클래스 설계 (7회차 신설) · (16회차) PLAYER↔MONSTER 경계 인터페이스·`PlayerEntity` 등록 · (17회차) PLAYER·MONSTER 구현 공개 멤버, 겹침 양쪽 정리, `Monster` 행동 · (18회차) 자석 host 분리 · (19회차) `LastTargetId` · (20회차) 몬스터 체력 배율 · (21회차) IMP-PLAYER 6a(상자 결과 목록·투사체 타깃·로드아웃 빈 슬롯), 접촉 멈춤·스폰 켬/끔·보스 장판 데이터 제거 | 441 |
+| [`5.13-json-schemas.md`](./5.13-json-schemas.md) | 5.13 JSON 스키마 7종 · (20회차) `hpMultiplier`·`HpMultiplierAt` · (21회차) 5.13.2 장판 스키마 유지·예시에서 제거 | 265 |
 | [`5.14-progression.md`](./5.14-progression.md) | 5.14 레벨업·진화·상자·진행 적용 (Simulation) (2회차 재작성, A4·A5·A11) · (11회차) `RunSession.Reset(in RunStrategies)` · (17회차) 리셋 순서 보강 · (18회차) 진행·판 세션 공개 면, `BestRecordStore` | 221 |
-| [`5.15-dev-mode.md`](./5.15-dev-mode.md) | 5.15 개발자 모드 주입 경계와 측정 (Dev, IMP-DEV) · (15회차) `PendingCommandQueue` 구현 시그니처 · (19회차) App 결합 기본값 · (20회차) 5.15.4 현황 패널, CSV `hpMultipliers` | 294 |
-| [`5.16-state-hash.md`](./5.16-state-hash.md) | 5.16 상태 해시 (Simulation, IMP-LOOP) · (15회차) 웨이브 4 이월 | 15 |
-| [`5.17-flow-state.md`](./5.17-flow-state.md) | 5.17 흐름 상태 (App, IMP-FLOW) (2회차 신규) · (18회차) App·UI 공개 면, PM 수용 이탈 · (20회차) 5.17.1 HUD 보유 패널 | 144 |
+| [`5.15-dev-mode.md`](./5.15-dev-mode.md) | 5.15 개발자 모드 주입 경계와 측정 (Dev, IMP-DEV) · (15회차) `PendingCommandQueue` 구현 시그니처 · (19회차) App 결합 기본값 · (20회차) 5.15.4 현황 패널, CSV `hpMultipliers` · (21회차) `SetSpawnsEnabled`·`IDevModeHost.ChestResults`, 5.15.5 웨이브 6b 개발자 편의 | 383 |
+| [`5.16-state-hash.md`](./5.16-state-hash.md) | 5.16 상태 해시 (Simulation, IMP-LOOP) · (15회차) 웨이브 4 이월 · (21회차) 6a 기준선 갱신 사유·해시 밖 목록 | 23 |
+| [`5.17-flow-state.md`](./5.17-flow-state.md) | 5.17 흐름 상태 (App, IMP-FLOW) (2회차 신규) · (18회차) App·UI 공개 면, PM 수용 이탈 · (20회차) 5.17.1 HUD 보유 패널 · (21회차) 5.17.2 표시 배율·궤도 표시 | 168 |
 | [`5.18-screen.md`](./5.18-screen.md) | 5.18 화면 설정 (App, IMP-FLOW) (2회차 신규, A13) | 25 |
-| [`5a-shared-rules.md`](./5a-shared-rules.md) | 5a 공유 규칙 표 R1~R30 · (20회차) R31 (전원 읽음) | 40 |
+| [`5a-shared-rules.md`](./5a-shared-rules.md) | 5a 공유 규칙 표 R1~R30 · (20회차) R31 · (21회차) R32, R20 `BodyVisualScale` (전원 읽음) | 41 |
 | [`5b-external-settings.md`](./5b-external-settings.md) | 5b 외부 서비스·프로젝트 설정 점검표 | 24 |
-| [`5c-ownership-contracts.md`](./5c-ownership-contracts.md) | 5c 폴더 구조·소유권 맵·계층 계약·디스패치 순서·테스트 전략·구현자별 읽을 파일 5c.2b · (17회차) 5c.3a 웨이브 3 조립 표 · (18회차) 정리 후보 목록 · (20회차) 웨이브 5a·5b·6·7 (전원 읽음) | 261 |
-| [`06-open-questions.md`](./06-open-questions.md) | 6 미확정 사항 D·U | 108 |
+| [`5c-ownership-contracts.md`](./5c-ownership-contracts.md) | 5c 폴더 구조·소유권 맵·계층 계약·디스패치 순서·테스트 전략·구현자별 읽을 파일 5c.2b · (17회차) 5c.3a 웨이브 3 조립 표 · (18회차) 정리 후보 목록 · (20회차) 웨이브 5a·5b·6·7 · (21회차) 웨이브 6a·6b·7·8, 6a·6b 읽기 표 (전원 읽음) | 274 |
+| [`06-open-questions.md`](./06-open-questions.md) | 6 미확정 사항 D·U · (21회차) 판단·실측 대기 15건·웨이브 7 예정 3건 | 139 |
 
 ## ID → 파일
 
@@ -68,7 +69,7 @@
 |---|---|
 | `TAC-F<n>-<k>` | `02-feature-tac.md` |
 | `5.<n>` 절, 함수·인터페이스 | `5.<nn>-*.md` |
-| `R<n>` 공유 규칙 ((20회차) R1~R31) | `5a-shared-rules.md` |
+| `R<n>` 공유 규칙 ((20회차) R1~R31, (21회차) R32) | `5a-shared-rules.md` |
 | `D<n>` 문서 간 불일치·기본값, `U<n>` 실측 필요 | `06-open-questions.md` (U 표 원문은 `01-overview.md` 2.3) |
 | `IMP-*` 소유권, 웨이브 | `5c-ownership-contracts.md` |
 

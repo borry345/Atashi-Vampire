@@ -57,6 +57,37 @@
 - **기존 상태 해시 기준선(실측).** `StreamingAssets/Data/spawnTable.json`에 1.5/2.2/3.0이 들어가면, 실제 데이터로 7200스텝(2분)을 넘겨 일반 몬스터를 스폰하는 기존 테스트의 기대 해시가 바뀔 수 있다(`SimulationStateHash`가 `Hp`를 섞는다). 36조합(1,800스텝)·게이트 결정론(5c.5)은 7200 미만이라 영향이 없을 것으로 보이나, 어떤 테스트가 실제 데이터를 7200스텝 넘게 돌리는지는 읽어서 다 확인하지 않았다 — 웨이브 6 IMP-DATA·MONSTER 머지 뒤 전체 스위트로 확인하고, 바뀌면 기대값 갱신은 그 테스트 소유자 몫이다.
 - **웨이브 6에 IMP-DEV 포함.** 브리핑의 웨이브 6 구성(DATA·MONSTER·FLOW·버그 라운드)에 IMP-DEV가 없지만, "현황 패널 배율은 웨이브 6에서 연결"과 CSV `hpMultipliers` 실값은 Dev 파일 수정이라 IMP-DEV가 필요하다. [기본값] 5c.4 웨이브 6 행에 IMP-DEV(배율 연결만)를 넣었다.
 
+**(21회차) 위 20회차 5건의 현재 상태**
+- `×` 글리프 — **유지(실측), 기본값 변경**: PM 결정으로 없으면 `x`로 대체(5.17.1 (21회차)). 확인 주체 웨이브 6b IMP-FLOW.
+- 타깃 공급자 호스트 멤버 — **해소(기본값 확정)**: PM 보류 결정 "추가 안 함"(웨이브 5a 구현자가 필요를 보고하지 않음). Dev가 기억하는 방식 유지(5.15.4).
+- 진화 표기 언어 — **해소**: SPEC 12회차 F19 28·68행이 `(evolved)`로 정정됐고 코드도 `(evolved)`다(5.15.4 (21회차)).
+- 상태 해시 기준선 — **유지, 범위 확대**: 접촉 멈춤으로 36조합·게이트·Dev 결정론이 모두 바뀐다. 웨이브 6a 머지 때 1회 갱신(5.16 (21회차)). 기록값은 테스트 상수가 아니다(Tests grep).
+- 웨이브 6에 IMP-DEV 포함 — **해소**: 6b 행(5c.4).
+
+**(21회차) 이 회차가 닫은 결정 — 이력**: DECISIONS 5절 "첫 Play 피드백: 몬스터 규칙 3건"(1·2항 → 6a), 6절 "상자 보상에 패시브 추가 + 상자 획득 결과 표시"(2항 기록 → 6a, 표시 → 6b), 7절 "표시 크기 > 히트박스, W2 궤도 원 궤도 표시"(→ 6b), 9절 "개발자 모드 편의 7건"(1·3~7항 → 6a·6b), 11절 절차-D7(웨이브 6a·6b·7·5b·8)을 SPEC 12회차(Q50 ①~⑳)대로 기술 계약으로 옮겼다 — 5.12(IMP-PLAYER 6a)·5.12.1(접촉 멈춤·스폰 켬/끔·장판 데이터 제거)·R32·5.13.2·5.15/5.15.5·5.16·5.17.1/5.17.2·TAC-F3-17~21·F4-9·F6-10·F8-16·F19-15~19·5c.2·5c.4. D·U 번호 신설 없음.
+
+**(21회차) 판단·실측 대기 항목 — D·U 번호 없음, 결정은 PM이** (차단 여부는 각 항목 끝)
+- **[코드 확인] 플레이어 반지름의 출처.** `StepContext`에 플레이어 반지름이 없다(`StepContext.cs:6~33`). [기본값] `MonsterSpawner.Bind`가 `Current.PlayerStats.Radius`를 판 단위로 담고 `Monster.Initialize` 4번째 인자로 넘긴다(5.12.1) — Core·LOOP·FLOW 무수정. 전제는 "플레이어 몸 반지름은 판 중 불변"이며 코드가 그렇다(`PlayerEntity.cs:75`만 씀). 비차단.
+- **[코드 확인] 5.11.1 핫 리로드 표와 코드의 차이.** 5.11.1 표는 `playerStats.radius`를 "다음 참조부터(바디 반지름 갱신, `NotifyRadiusChanged`)"라 적었지만 코드는 판 시작에만 반지름을 정한다(`PlayerEntity.cs:72~75`, 다른 쓰기 없음). 이번 회차는 코드 쪽을 전제로 R32를 정했다. 판 중 반지름 갱신을 구현하게 되면 R32의 출처(`MonsterSpawner.PlayerRadius`)도 같이 바꿔야 한다. 5.11.1 문구 정정 여부는 PM. 비차단.
+- **[실측] 접촉 멈춤 위치와 엔진 충돌판.** 멈춘 위치는 R5(자체판이 쓰는 `CircleMath.Overlaps`)로 접촉이 보장되지만, 엔진판(Box2D 트리거, `defaultContactOffset` 최소값)이 반지름 합 경계에서 수 ulp 안쪽의 정지 쌍을 매 스텝 겹침으로 유지하는지는 실행해야 안다(U9는 "정확히 접촉에서 Enter"까지만 확인). 어긋나면 36조합 전략 결정론이 깨진다. [기본값] 그대로 두고 6a 머지 검증(TAC-F3-19)에서 확인, 깨지면 PM이 대안(멈춤 비율을 더 안쪽으로 몇 ulp — SPEC "접촉 거리 미만으로 이동하지 않음"과의 허용 오차 판단 필요)을 정한다. **6a 머지 전 확인 필수**(차단 가능).
+- **[코드 확인] 스폰 켬/끔 명령의 핸들러 자리.** 브리핑은 `MonsterCommandHandler`를 핸들러로 적었으나 그것은 `SimulationCommand`(스텝 안 명령) 핸들러다(`MonsterCommandHandler.cs:15·35~50`). 대기 명령은 `PendingCommandQueue`의 내장 종류이거나 `IsOwnerHandled` 4종의 등록 핸들러로만 적용된다(`PendingCommandQueue.cs:36~63`). [기본값] 다섯 번째 소유자 종류 + ★ `MonsterSpawner.HandleSetSpawnsEnabled`, 등록은 조립 루트 1줄(MONSTER 줄 단위, 5.12.1). 비차단.
+- **[기본값] 스폰 토글 표시 상태.** Dev가 마지막으로 넣은 값을 기억하고 판 리셋에서 `true`(5.15.5). 호스트 멤버를 늘리지 않는 5.15.4 관례. 표시가 최대 1스텝 앞설 수 있다. 판 밖 토글은 거부. 비차단.
+- **[기본값] N 유지 모드의 재개.** 스폰을 다시 켠 스텝에 `DevSpawnPolicy` N 유지가 "N − 생존 수"만큼 채운다 — N 유지의 정의이지 꺼진 동안의 누적이 아니라고 본다(SPEC F19 72행 "몰아 스폰 금지"와 충돌하지 않는다고 판단). 비차단.
+- **[코드 확인] 로드아웃은 "슬롯 = 목록 위치" 전체 교체.** `PlayerProgressionApplier.SetLoadout`(146~206행)은 빈칸을 표현할 수 없어, 0 항목을 빼고 보내면 뒤 무기가 앞 슬롯으로 당겨지고(새 인스턴스) 목록에 없는 진화 무기가 지워진다. [기본값] PLAYER는 `WeaponId == null` = 빈 슬롯만 받고(6a), 배치·거부 규칙은 ★ `DevLoadoutPlanner`(6b)가 소유한다(5.12·5.15.5). 요청에 없는 기본 무기는 제거(기존 오버레이 "empty id = no weapon"과 같음). 비차단.
+- **[기본값] 상자 결과 보관소·노출.** `PlayerProgressionApplier.ChestResults`(판 리셋 `ResetForRun`에서 비움) + ★ `IDevModeHost.ChestResults`(호스트 19멤버). 회복량은 실제 회복량(`Heal()` 반환값, 만체력이면 0). 비차단.
+- **[기본값] 커맨드 로그 형식·명령 이름·상자 줄.** `"#<run> <step> <Command>: <message>"`, 상자 `"… Chest: <displayName> Lv a→b"`/`(evolved)`/`Heal +x`, 상자 결과는 `Poll` 맨 앞과 줄 쓰기 직전에 끌어와 같은 스텝이면 명령 먼저(5.15.5). 비차단.
+- **[기본값] 몸체형/영역형 구분.** `EntityCategory`로(`PlayerOrb`·`PlayerZone`·`EnemyZone` = 1.0, 5.17.2). 비차단.
+- **[실측] 궤도 표시 `LineRenderer` 재질.** `Shader.Find("Sprites/Default")` 재질이 URP 2D 빌드에 포함되고 보이는지 미확인. 없으면 WARN 1줄 뒤 링 없음. 웨이브 6b IMP-FLOW 첫 Play·빌드에서 확인. 비차단(표시만).
+- **[기본값] 줌아웃과 배경.** `BackgroundTiler`가 크기 9 화면 + 여백만 덮어 크게 줌아웃하면 가장자리에 배경색이 보인다(`GameBootstrap.cs:370~371`). 개발자 표시 전용이라 허용, App 무수정. 바꾸려면 FLOW가 덮는 크기를 줌 최대(27) 기준으로. 비차단.
+- **[기록] 보스 표시 여유.** 보스 표시 반지름 1.875 > 스폰 여유 1.64 — 등장 순간 표시 원 가장자리가 화면 모서리에 걸칠 수 있다. 스폰 지점(중심)·판정 반지름(1.5) 기준으로는 SPEC 위반이 아니다(5.17.2). 비차단.
+- **[실측, 5a 구현자 보고] Resume 조건과 한 스텝 모드 + ESC.** 한 스텝 모드(`SingleStepDone`)에서 ESC를 누르면 Flow가 `Close(Paused)`로 덮고, 일시정지에서 돌아오면 `Open`이라 한 스텝 모드를 벗어난다. Dev "Resume"은 `CloseReason == SingleStepDone`에서만 받으므로(`DevController.cs:62~63·179~187`) 그 뒤엔 "Resume only from one-step mode" 거부가 난다. [기본값] 이 동작을 정상으로 본다(일시정지 복귀 = 연속 진행 재개). 웨이브 6b IMP-DEV가 Play로 확인하고 다르면 보고. 비차단.
+- **[실측, 5a 구현자 보고] 다른 닫힘에 덮인 RunReset을 놓치는 판 시작 감지.** `Poll`은 `CloseSequence`가 바뀌었고 마지막 `CloseReason == RunReset`이거나 `Step`이 줄었을 때만 리셋으로 본다(`DevController.cs:94~105`). 두 `Poll` 사이에 RunReset 뒤 다른 닫힘이 오고 스텝도 줄지 않으면(예: 0스텝 판에서 바로 다시 시작) 놓친다. 21회차부터 이 감지가 커맨드 로그 판 번호(`RunNumber`)·스폰 토글 표시 초기화에도 쓰인다. [기본값] 감지 조건 유지, 웨이브 6b IMP-DEV가 실측해 놓치는 경로가 있으면 보고(대안: `CloseSequence` 변화량 ≥ 2이면서 `Step ≤ _seenStep`도 리셋으로 보기 — 오탐 검토 필요). 비차단.
+
+**(21회차) 웨이브 7 항목 — TECH 22회차 예정 (이 회차는 계약을 쓰지 않음)**
+- 패시브 로드아웃(SPEC F19 12회차 16·71행): `SetLoadout` 페이로드 확장 또는 별도 경로·핸들러, Dev 오버레이 P1~P3 칸.
+- 상자 효과 ② 강화 후보에 패시브 포함(SPEC F4 12회차 14~16행, Q50 ⑥): 무기·패시브 한 풀 균등 추첨 — `ChestEffect`·`ChestResult` 확장, Chest 스트림 추첨 구조 변경(해시 기준선 재갱신).
+- 몬스터끼리 분리 패스(SPEC F3 12회차 60~63행, Q50 ③④⑭⑮): 1회 패스·ID 오름차순·패스 끝 일괄 적용·보스 고정·거리 0은 +x, 후보 탐색 방법 무관 같은 결과, 400기 비용.
+
 ### 6.2 실측/실행 필요 — 미확정 (Needs measurement/execution — unconfirmed)
 
 아래는 모두 정적으로 읽어서는 확정할 수 없는 Unity 동작 전제다(2.3 표와 번호가 같다). **사실로 취급하지 않는다.** 웨이브 0 스파이크나 해당 구현자의 PlayMode 테스트로 확인한다. (10회차) "확인됨"·"틀림"·"부분 확인" 표기 항목은 웨이브 0 실측(Unity 6000.3.28f1 에디터 PlayMode, 2026-11-05, `docs/spike/results/2026-11-05-editor-run2.txt`)의 결과다. (12회차) U35·U36은 빌드 실측(Windows 플레이어, 2026-11-06, `docs/spike/results/2026-11-06-build-run1.txt`)의 결과다. (14회차) U20·U21·U22·U25는 웨이브 2a 구현자 테스트(Unity 6000.3.28f1, 2026-11-06 — IMP-DATA EditMode, IMP-POOL batchmode `-nographics` PlayMode)의 결과다. (17회차) U4·U6·U10(부분)·U11·U12·U27·U28(부분)은 웨이브 3 IMP-COLLISION 테스트(2026-11-07, Unity 6000.3.28f1 batchmode PlayMode)의 결과다. (18회차) U10은 웨이브 4c PlayMode 회귀 테스트, U18(부분)은 사용자 에디터 Play의 결과다.
