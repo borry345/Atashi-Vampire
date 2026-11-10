@@ -20,6 +20,9 @@ namespace Survivor.Data
         /// Monsters spawned per second (> 0).
         public float SpawnsPerSecond { get; internal set; }
 
+        /// Health multiplier for non-boss monsters spawned in this segment (finite, > 0; 1.0 when omitted or invalid).
+        public float HpMultiplier { get; internal set; } = 1f;
+
         /// Valid weighted entries in file order (non-boss monsters only).
         public IReadOnlyList<SpawnEntryDefinition> Entries { get; internal set; }
     }

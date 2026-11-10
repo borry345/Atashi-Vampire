@@ -308,6 +308,7 @@ namespace Survivor.Data
                     EndSeconds = segment.EndSeconds,
                     EndStep = segment.EndStep,
                     SpawnsPerSecond = segment.SpawnsPerSecond,
+                    HpMultiplier = segment.HpMultiplier,
                     Entries = entries,
                 });
             }

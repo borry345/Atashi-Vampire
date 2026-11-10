@@ -36,6 +36,46 @@ namespace Survivor.Tests.EditMode.Data
             Assert.AreEqual(3, data.Passives.Count);
             Assert.AreEqual(2, data.LevelUpPool.Rules.Count);
             Assert.IsNotNull(data.PlayerStats);
+            CollectionAssert.AreEqual(new[] { 1.0f, 1.5f, 2.2f, 3.0f }, data.SpawnTable.Segments.Select(s => s.HpMultiplier).ToArray(), "5.13.4 hpMultiplier per segment");
+        }
+
+        [Test]
+        public void TACF3_21_ShippedData_BossHasOnlySummon_AndNoEnemyZone()
+        {
+            var (data, report) = GameDataLoader.LoadAll(Application.streamingAssetsPath);
+            Assert.IsTrue(report.IsPlayable, DataTestFixtures.Dump(report));
+            Assert.AreEqual(0, report.Issues.Count, "shipped data loads without warnings\n" + DataTestFixtures.Dump(report));
+
+            Assert.IsTrue(data.TryGetMonster("M4", out MonsterDefinition boss));
+            Assert.AreEqual(1, boss.BossPatterns.Count, "pattern 1 (hazardZone) was removed from the shipped data");
+            Assert.AreEqual(BossPatternKind.Summon, boss.BossPatterns[0].Kind);
+            Assert.IsFalse(data.Monsters.SelectMany(m => m.BossPatterns).Any(p => p.Kind == BossPatternKind.HazardZone));
+
+            IReadOnlyList<MovingObjectSpec> specs = TunnelingInvariantValidator.EnumerateMovingObjects(data);
+            Assert.IsFalse(specs.Any(s => s.Layer == CollisionLayer.EnemyZone), "no enemy zone in the shipped data");
+        }
+
+        [Test]
+        public void TACF3_21_HazardZoneFixture_StillBindsWithoutWarnings()
+        {
+            // The fixture keeps the 5.13.2 hazardZone entry: schema, binder and enumeration stay valid.
+            var (data, report) = DataTestFixtures.Load(DataTestFixtures.ValidTexts());
+            Assert.AreEqual(0, report.Issues.Count, DataTestFixtures.Dump(report));
+            Assert.IsTrue(data.TryGetMonster("M4", out MonsterDefinition boss));
+            Assert.AreEqual(2, boss.BossPatterns.Count);
+            BossPatternDefinition zone = boss.BossPatterns[0];
+            Assert.AreEqual(BossPatternKind.HazardZone, zone.Kind);
+            Assert.AreEqual(3f, zone.ZoneRadius);
+            Assert.AreEqual(120, zone.DurationSteps);
+            Assert.AreEqual(360, zone.CooldownSteps);
+            Assert.AreEqual(15f, zone.Damage);
+            Assert.AreEqual("shape.hazard.red", zone.AssetKey);
+            Assert.AreEqual(BossPatternKind.Summon, boss.BossPatterns[1].Kind);
+
+            MovingObjectSpec spec = TunnelingInvariantValidator.EnumerateMovingObjects(data).Single(s => s.Layer == CollisionLayer.EnemyZone);
+            Assert.AreEqual("M4.bossPatterns[0]", spec.Source);
+            Assert.AreEqual(0f, spec.SpeedPerSecond);
+            Assert.AreEqual(3f, spec.Radius);
         }
 
         [Test]
@@ -50,7 +90,7 @@ namespace Survivor.Tests.EditMode.Data
                 Assert.IsTrue(layers.Contains(layer), layer + " missing");
             }
 
-            // 4 base weapons x 5 levels + 2 evolved, player, gem, 4 monsters + charge + ranged projectile + boss hazard.
+            // Fixture data (keeps the boss hazardZone, TAC-F3-21): 4 base weapons x 5 levels + 2 evolved, player, gem, 4 monsters + charge + ranged projectile + boss hazard.
             Assert.AreEqual(22 + 2 + 4 + 3, specs.Count);
 
             MovingObjectSpec player = specs.First(s => s.Source == "playerStats");

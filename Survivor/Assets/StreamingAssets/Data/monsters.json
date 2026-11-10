@@ -13,7 +13,6 @@
     { "id": "M4", "displayName": "보스", "behavior": "boss", "assetKey": "shape.boss.red",
       "maxHealth": 5000, "moveSpeed": 1.2, "radius": 1.5, "contactDamage": 20,
       "bossPatterns": [
-        { "type": "hazardZone", "cooldownSeconds": 6, "zoneRadius": 3, "durationSeconds": 2, "damage": 15, "assetKey": "shape.hazard.red" },
         { "type": "summon", "cooldownSeconds": 8, "monsterId": "M1", "count": 6, "summonRadius": 3 }
       ] }
   ]
