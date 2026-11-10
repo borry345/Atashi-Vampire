@@ -198,6 +198,71 @@ namespace Survivor.Tests.EditMode.Player
         }
 
         [Test]
+        public void TACF19_15_NullWeaponIdEmptiesThatSlotAndKeepsTheOtherInstances()
+        {
+            _rig = new PlrRig();
+            WeaponTests.QueueLoadout(_rig, ("W1", 2), ("W2", 3), ("W3", 1));
+            _rig.Step();
+            WeaponInstance w1 = _rig.Weapons.Slots[0];
+            WeaponInstance w3 = _rig.Weapons.Slots[2];
+            long w1Next = w1.NextFireStep;
+            long w3Next = w3.NextFireStep;
+            List<EntityHandle> orbs = _rig.Live<OrbitOrb>().ConvertAll(o => o.Id);
+            Assert.AreEqual(3, orbs.Count);
+
+            // Level is ignored for an empty-slot entry (no definition, level or duplicate check among the null entries).
+            WeaponTests.QueueLoadout(_rig, ("W1", 2), ((string)null, 0), ("W3", 4), ((string)null, 99));
+            long s = _rig.Clock.Step;
+            _rig.Step();
+            Assert.AreSame(w1, _rig.Weapons.Slots[0], "slot 0 keeps its instance");
+            Assert.IsNull(_rig.Weapons.Slots[1], "the null entry empties slot 1");
+            Assert.AreSame(w3, _rig.Weapons.Slots[2], "slot 2 keeps its instance and is not pulled forward");
+            Assert.IsNull(_rig.Weapons.Slots[3]);
+            Assert.AreEqual(2, _rig.Weapons.Count);
+            Assert.AreEqual(4, w3.Level);
+            Assert.AreEqual(w1Next, w1.NextFireStep, "kept cooldown");
+            Assert.AreEqual(w3Next, w3.NextFireStep, "kept cooldown");
+            List<SimulationCommand> despawns = _rig.Commands.At(s, SimulationCommandKind.Despawn);
+            Assert.AreEqual(3, despawns.Count, "only the W2 orbs are recycled");
+            for (int i = 0; i < despawns.Count; i++)
+            {
+                Assert.AreEqual(orbs[i], despawns[i].Target, "ascending id");
+                Assert.AreEqual(DespawnReason.Replaced, despawns[i].Reason);
+                Assert.AreEqual(_rig.PlayerId, despawns[i].Source);
+            }
+
+            Assert.AreEqual(0, _rig.Live<OrbitOrb>().Count);
+
+            // Refilling the empty slot creates a new instance there; the other slots still keep theirs.
+            WeaponTests.QueueLoadout(_rig, ("W1", 2), ("W4", 1), ("W3", 4));
+            s = _rig.Clock.Step;
+            _rig.Step();
+            Assert.AreSame(w1, _rig.Weapons.Slots[0]);
+            Assert.AreEqual("W4", _rig.Weapons.Slots[1].Id);
+            Assert.AreEqual(1, _rig.Weapons.Slots[1].SlotIndex);
+            Assert.AreEqual(s, _rig.Weapons.Slots[1].NextFireStep, "first-ownership rule");
+            Assert.AreSame(w3, _rig.Weapons.Slots[2]);
+
+            // The other rules are unchanged: more than four entries throw even with null entries, duplicates among real ids throw.
+            StepContext ctx = _rig.Context();
+            Assert.Throws<ArgumentException>(() => _rig.Applier.SetLoadout(new[]
+            {
+                new WeaponLoadoutEntry("W1", 1), new WeaponLoadoutEntry(null, 0), new WeaponLoadoutEntry(null, 0),
+                new WeaponLoadoutEntry(null, 0), new WeaponLoadoutEntry(null, 0),
+            }, ctx));
+            Assert.Throws<ArgumentException>(() => _rig.Applier.SetLoadout(new[]
+            {
+                new WeaponLoadoutEntry("W1", 1), new WeaponLoadoutEntry(null, 0), new WeaponLoadoutEntry("W1", 2),
+            }, ctx));
+            Assert.Throws<ArgumentException>(() => _rig.Applier.SetLoadout(new[]
+            {
+                new WeaponLoadoutEntry(null, 0), new WeaponLoadoutEntry("W2", 0),
+            }, ctx));
+            Assert.AreSame(w1, _rig.Weapons.Slots[0], "nothing changed after rejected loadouts");
+            Assert.AreEqual("W4", _rig.Weapons.Slots[1].Id);
+        }
+
+        [Test]
         public void SetHealthHandlerClampsAndResetForRunRestoresTheStart()
         {
             _rig = new PlrRig();

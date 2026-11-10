@@ -253,6 +253,73 @@ namespace Survivor.Tests.EditMode.Player
         }
 
         [Test]
+        public void TACF19_18_HomingReAimRecordsTheTargetAndAPooledProjectileStartsWithNone()
+        {
+            _rig = new PlrRig();
+            PlrMonster far = _rig.AddMonster(new Vector2(10f, 0f));
+            QueueLoadout(_rig, ("W4", 1));
+            _rig.Step();
+            PlayerProjectile projectile = _rig.Live<PlayerProjectile>()[0];
+            Assert.AreEqual(default(EntityHandle), projectile.LastTargetId, "no tick in the spawn step");
+            _rig.Step();
+            Assert.AreEqual(far.Id, projectile.LastTargetId);
+            PlrMonster near = _rig.AddMonster(projectile.Position + new Vector2(0f, 1f));
+            _rig.Step();
+            Assert.AreEqual(near.Id, projectile.LastTargetId, "re-aimed at the new nearest monster");
+            near.Hp = 0f;
+            far.Hp = 0f;
+            _rig.Step();
+            Assert.AreEqual(near.Id, projectile.LastTargetId, "a failed re-aim writes nothing (no branch is added)");
+
+            // Consume it, then let W4 fire again: the pooled instance must not inherit the previous flight's target.
+            far.Hp = 1000f;
+            long hitStep = _rig.Clock.Step;
+            _rig.Collisions.Add(hitStep, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, projectile.Id, far.Id);
+            _rig.Step();
+            Assert.AreEqual(0, _rig.Live<PlayerProjectile>().Count);
+            WeaponInstance w4 = _rig.Weapons.Slots[0];
+            while (_rig.Clock.Step < w4.NextFireStep)
+            {
+                _rig.Step();
+            }
+
+            _rig.Step();
+            List<PlayerProjectile> live = _rig.Live<PlayerProjectile>();
+            Assert.AreEqual(1, live.Count);
+            Assert.AreSame(projectile, live[0], "the pool handed back the same instance");
+            Assert.AreEqual(default(EntityHandle), live[0].LastTargetId, "cleared in Initialize before the first Tick");
+            _rig.Step();
+            Assert.AreEqual(far.Id, live[0].LastTargetId);
+        }
+
+        [Test]
+        public void TACF19_18_StraightProjectilesNeverRecordATarget()
+        {
+            foreach (string weaponId in new[] { "W1", "E1" })
+            {
+                _rig?.Destroy();
+                _rig = new PlrRig();
+                _rig.AddMonster(new Vector2(6f, 0f));
+                _rig.AddMonster(new Vector2(0f, 8f));
+                QueueLoadout(_rig, (weaponId, 1));
+                int seen = 0;
+                for (int i = 0; i < 30; i++)
+                {
+                    _rig.Step();
+                    foreach (PlayerProjectile projectile in _rig.Live<PlayerProjectile>())
+                    {
+                        Assert.AreEqual(weaponId, projectile.WeaponId);
+                        Assert.IsFalse(projectile.IsHoming);
+                        Assert.AreEqual(default(EntityHandle), projectile.LastTargetId, weaponId);
+                        seen++;
+                    }
+                }
+
+                Assert.GreaterOrEqual(seen, 30, weaponId + " projectiles were alive and ticking");
+            }
+        }
+
+        [Test]
         public void TACF6_4_OrbsHaveNoLifetimeAndFollowTheStepFormula()
         {
             _rig = new PlrRig();

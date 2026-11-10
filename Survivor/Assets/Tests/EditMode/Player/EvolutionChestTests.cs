@@ -1,13 +1,16 @@
+using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Survivor.Core;
 using Survivor.Data;
 using Survivor.Simulation;
+using Survivor.Tests.EditMode.Monsters;
+using Survivor.Tests.EditMode.Progression;
 using UnityEngine;
 
 namespace Survivor.Tests.EditMode.Player
 {
-    // F7 (TAC-F7-1..3) and chest effects (TAC-F4-4..6, 5c.5 "two chests in one step").
+    // F7 (TAC-F7-1..3), chest effects (TAC-F4-4..6, 5c.5 "two chests in one step") and the chest result log (TAC-F4-9).
     public sealed class EvolutionChestTests
     {
         private static readonly EntityHandle ChestA = new EntityHandle(900, 1);
@@ -241,6 +244,209 @@ namespace Survivor.Tests.EditMode.Player
             _rig.Step();
             Assert.AreEqual(ChestEffect.Healed, _rig.ChestProbe.Effects[0]);
             Assert.AreEqual(10f + 30f - 15f, _rig.Health.Hp, 1e-5f, "heal (Resolve 0) then damage (Resolve 20)");
+        }
+
+        private static void AssertResult(ChestResult result, long sequence, long step, ChestEffect kind, string targetId, int fromLevel,
+                                         int toLevel, float healAmount)
+        {
+            Assert.AreEqual(sequence, result.Sequence, "Sequence");
+            Assert.AreEqual(step, result.Step, "Step");
+            Assert.AreEqual(kind, result.Kind, "Kind");
+            Assert.AreEqual(targetId, result.TargetId, "TargetId");
+            Assert.AreEqual(fromLevel, result.FromLevel, "FromLevel");
+            Assert.AreEqual(toLevel, result.ToLevel, "ToLevel");
+            Assert.AreEqual(healAmount, result.HealAmount, 1e-5f, "HealAmount");
+        }
+
+        [Test]
+        public void TACF4_9_EveryResolveRecordsOneResultWithItsValues()
+        {
+            _rig = new PlrRig();
+            ChestResultLog log = _rig.Applier.ChestResults;
+            Assert.AreEqual(0, log.Count);
+            Assert.AreEqual(0, log.LastSequence);
+
+            // Evolution: (Evolved, result weapon id, 0 -> 1).
+            WeaponTests.QueueLoadout(_rig, ("W1", 5));
+            LevelUp(_rig, new UpgradeOption(UpgradeKind.PassiveNew, "P1"));
+            long s = _rig.Clock.Step;
+            Chest(s, ChestA);
+            _rig.Step();
+            Assert.AreEqual(ChestEffect.Evolved, _rig.ChestProbe.Effects[0]);
+            Assert.AreEqual(1, log.Count);
+            AssertResult(log[0], 1, s, ChestEffect.Evolved, "E1", 0, 1, 0f);
+
+            // Heal (E1 is the only weapon and is not upgradable): HealAmount is the amount actually restored, 0 at full health.
+            _rig.Applier.SetHealth(50f);
+            StepContext ctx = _rig.Context();
+            Assert.AreEqual(ChestEffect.Healed, _rig.Chests.Resolve(_rig.ChestRng, ctx));
+            AssertResult(log[1], 2, ctx.Step, ChestEffect.Healed, null, 0, 0, 30f);
+            Assert.AreEqual(ChestEffect.Healed, _rig.Chests.Resolve(_rig.ChestRng, ctx));
+            AssertResult(log[2], 3, ctx.Step, ChestEffect.Healed, null, 0, 0, 20f);
+            Assert.AreEqual(ChestEffect.Healed, _rig.Chests.Resolve(_rig.ChestRng, ctx));
+            AssertResult(log[3], 4, ctx.Step, ChestEffect.Healed, null, 0, 0, 0f);
+            Assert.AreEqual(100f, _rig.Health.Hp);
+            Assert.AreEqual(4, log.Count);
+            Assert.AreEqual(4, log.LastSequence);
+
+            // Upgrade or 30% heal with two upgradable weapons: the record names the weapon whose level actually changed.
+            _rig.Destroy();
+            _rig = new PlrRig();
+            log = _rig.Applier.ChestResults;
+            WeaponTests.QueueLoadout(_rig, ("W1", 1), ("W2", 1));
+            _rig.Step();
+            var rng = new RngStreams(42UL).Get(RngStream.Chest);
+            int upgrades = 0;
+            int heals = 0;
+            for (int i = 0; i < 40; i++)
+            {
+                _rig.Applier.SetHealth(50f);
+                int w1Before = _rig.Weapons.Slots[0].Level;
+                int w2Before = _rig.Weapons.Slots[1].Level;
+                ctx = _rig.Context();
+                ChestEffect effect = _rig.Chests.Resolve(rng, ctx);
+                Assert.AreEqual(Math.Min(i + 1, ChestResultLog.Capacity), log.Count);
+                ChestResult newest = log[log.Count - 1];
+                if (effect == ChestEffect.Healed)
+                {
+                    heals++;
+                    AssertResult(newest, i + 1, ctx.Step, ChestEffect.Healed, null, 0, 0, 30f);
+                    Assert.AreEqual(w1Before, _rig.Weapons.Slots[0].Level);
+                    Assert.AreEqual(w2Before, _rig.Weapons.Slots[1].Level);
+                    continue;
+                }
+
+                Assert.AreEqual(ChestEffect.WeaponUpgraded, effect);
+                upgrades++;
+                int slot = newest.TargetId == "W1" ? 0 : 1;
+                Assert.AreEqual(slot == 0 ? "W1" : "W2", newest.TargetId);
+                WeaponInstance upgraded = _rig.Weapons.Slots[slot];
+                WeaponInstance other = _rig.Weapons.Slots[1 - slot];
+                AssertResult(newest, i + 1, ctx.Step, ChestEffect.WeaponUpgraded, upgraded.Id, slot == 0 ? w1Before : w2Before,
+                    upgraded.Level, 0f);
+                Assert.AreEqual(newest.FromLevel + 1, newest.ToLevel);
+                Assert.AreEqual(slot == 0 ? w2Before : w1Before, other.Level, "the other weapon is untouched");
+                upgraded.SetLevel(1, 0f);
+            }
+
+            Assert.Greater(upgrades, 0);
+            Assert.Greater(heals, 0);
+        }
+
+        [Test]
+        public void TACF4_9_TheEleventhResultDropsTheOldestAndResetForRunKeepsTheSequence()
+        {
+            _rig = new PlrRig();
+            WeaponTests.QueueLoadout(_rig, ("W1", 5), ("W3", 5));
+            _rig.Step();
+            ChestResultLog log = _rig.Applier.ChestResults;
+            var steps = new List<long>();
+            for (int i = 0; i < 11; i++)
+            {
+                StepContext ctx = _rig.Context();
+                steps.Add(ctx.Step);
+                Assert.AreEqual(ChestEffect.Healed, _rig.Chests.Resolve(_rig.ChestRng, ctx));
+                _rig.Step();
+            }
+
+            Assert.AreEqual(ChestResultLog.Capacity, log.Count);
+            Assert.AreEqual(11, log.LastSequence);
+            for (int i = 0; i < log.Count; i++)
+            {
+                Assert.AreEqual(i + 2, log[i].Sequence, "0 = oldest kept; the first result was dropped");
+                Assert.AreEqual(steps[i + 1], log[i].Step);
+            }
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => { ChestResult unused = log[ChestResultLog.Capacity]; });
+            Assert.Throws<ArgumentOutOfRangeException>(() => { ChestResult unused = log[-1]; });
+
+            _rig.Applier.ResetForRun();
+            Assert.AreSame(log, _rig.Applier.ChestResults);
+            Assert.AreEqual(0, log.Count, "a new run starts with an empty list");
+            Assert.AreEqual(11, log.LastSequence, "Clear keeps the sequence");
+            Assert.Throws<ArgumentOutOfRangeException>(() => { ChestResult unused = log[0]; });
+            _rig.Chests.Resolve(_rig.ChestRng, _rig.Context());
+            Assert.AreEqual(1, log.Count);
+            Assert.AreEqual(12, log[0].Sequence, "the sequence continues across runs");
+            Assert.AreEqual(12, log.LastSequence);
+        }
+
+        [Test]
+        public void TACF4_9_ReadingTheLogChangesNeitherTheChestStreamNorTheHash()
+        {
+            var rigs = new List<FlowEmRig>();
+            try
+            {
+                var effects = new List<ChestEffect>[2];
+                var hashes = new List<ulong>[2];
+                var read = new List<ChestResult>();
+                for (int r = 0; r < 2; r++)
+                {
+                    var rig = new FlowEmRig(start: false) { PolicyFactory = () => new MonEmNoSpawnPolicy() };
+                    rigs.Add(rig);
+                    rig.Rules.WeaponsEnabled = false;
+                    rig.Rules.PlayerTakesDamage = false;
+                    rig.Input.Still = true;
+                    rig.StartRun();
+                    rig.Enqueue(PendingCommand.SetLoadout(new List<WeaponLoadoutEntry>
+                    {
+                        new WeaponLoadoutEntry("W1", 1), new WeaponLoadoutEntry("W2", 1),
+                    }));
+                    rig.Step();
+                    var sink = new List<ChestEffect>();
+                    effects[r] = sink;
+                    hashes[r] = new List<ulong>();
+                    bool reads = r == 0;
+                    for (int i = 0; i < 20; i++)
+                    {
+                        rig.Enqueue(PendingCommand.SetHealth(40f));
+                        rig.ResolveHook.Pending.Add(ctx =>
+                        {
+                            for (int k = 0; k < 3; k++)
+                            {
+                                sink.Add(rig.Chests.Resolve(rig.Rng.Get(RngStream.Chest), ctx));
+                                if (reads)
+                                {
+                                    ChestResultLog log = rig.Applier.ChestResults;
+                                    for (int j = 0; j < log.Count; j++)
+                                    {
+                                        read.Add(log[j]);
+                                    }
+
+                                    Assert.AreEqual(sink.Count, log.LastSequence);
+                                }
+                            }
+                        });
+                        rig.Step();
+                        hashes[r].Add(rig.Hash);
+                    }
+                }
+
+                Assert.Greater(read.Count, 0);
+                Assert.AreEqual(ChestResultLog.Capacity, rigs[0].Applier.ChestResults.Count);
+                CollectionAssert.Contains(effects[0], ChestEffect.WeaponUpgraded);
+                CollectionAssert.Contains(effects[0], ChestEffect.Healed);
+                CollectionAssert.AreEqual(effects[0], effects[1], "same effects");
+                CollectionAssert.AreEqual(hashes[0], hashes[1], "same state hash after every step");
+                for (int slot = 0; slot < GameRules.MaxWeaponSlots; slot++)
+                {
+                    rigs[0].Weapons.TryGetSlot(slot, out WeaponInstance a);
+                    rigs[1].Weapons.TryGetSlot(slot, out WeaponInstance b);
+                    Assert.AreEqual(a?.Id, b?.Id);
+                    Assert.AreEqual(a?.Level, b?.Level);
+                }
+
+                Assert.AreEqual(rigs[0].Health.Hp, rigs[1].Health.Hp);
+                Assert.AreEqual(rigs[1].Rng.Get(RngStream.Chest).NextUInt(), rigs[0].Rng.Get(RngStream.Chest).NextUInt(),
+                    "the next Chest stream value is the same");
+            }
+            finally
+            {
+                foreach (FlowEmRig rig in rigs)
+                {
+                    rig.Dispose();
+                }
+            }
         }
     }
 }

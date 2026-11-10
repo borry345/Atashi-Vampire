@@ -1,12 +1,12 @@
 namespace Survivor.Simulation
 {
-    /// One weapon of a dev loadout (SetLoadout payload element): weapon id and 1-based level.
+    /// One slot of a dev loadout (SetLoadout payload element): weapon id and 1-based level, or a null id for an empty slot.
     public readonly struct WeaponLoadoutEntry
     {
-        /// Weapon definition id.
+        /// Weapon definition id; null means "this slot is empty".
         public readonly string WeaponId;
 
-        /// 1-based weapon level.
+        /// 1-based level; ignored when WeaponId is null.
         public readonly int Level;
 
         /// Creates an entry for weaponId at the 1-based level.
