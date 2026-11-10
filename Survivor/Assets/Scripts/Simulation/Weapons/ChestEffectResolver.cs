@@ -7,7 +7,8 @@ namespace Survivor.Simulation
 {
     /// Decides and applies one chest's effect (TAC-F4-4): (1) the first evolvable weapon evolves, no RNG drawn; (2) otherwise
     /// Chance(ChestUpgradeChance) picks upgrade (NextInt over upgradable owned weapons in slot order; empty list -> heal) or heal.
-    /// Called once per chest, in event order, so an earlier chest's evolution is visible to the next one.
+    /// Called once per chest, in event order, so an earlier chest's evolution is visible to the next one. Each applied effect is
+    /// recorded once in applier.ChestResults right after it is applied (TAC-F4-9); recording draws nothing and changes no effect.
     public sealed class ChestEffectResolver
     {
         private readonly EvolutionService _evolution;
@@ -34,12 +35,14 @@ namespace Survivor.Simulation
             if (_evolution.TryFindFirstEligible(out int evolveSlot, out CombinationRule rule))
             {
                 _applier.ApplyEvolution(evolveSlot, rule, context);
+                _applier.ChestResults.Add(context.Step, ChestEffect.Evolved, rule.ResultWeaponId, 0, 1, 0f);
                 return ChestEffect.Evolved;
             }
 
             if (!chestRng.Chance(GameRules.ChestUpgradeChance))
             {
-                _applier.Heal();
+                float healed = _applier.Heal();
+                _applier.ChestResults.Add(context.Step, ChestEffect.Healed, null, 0, 0, healed);
                 return ChestEffect.Healed;
             }
 
@@ -57,11 +60,16 @@ namespace Survivor.Simulation
 
             if (_upgradable.Count == 0)
             {
-                _applier.Heal();
+                float healed = _applier.Heal();
+                _applier.ChestResults.Add(context.Step, ChestEffect.Healed, null, 0, 0, healed);
                 return ChestEffect.Healed;
             }
 
-            _applier.ApplyChestUpgrade(_upgradable[chestRng.NextInt(_upgradable.Count)]);
+            int upgradeSlot = _upgradable[chestRng.NextInt(_upgradable.Count)];
+            WeaponInstance upgraded = slots[upgradeSlot];
+            int fromLevel = upgraded.Level;
+            _applier.ApplyChestUpgrade(upgradeSlot);
+            _applier.ChestResults.Add(context.Step, ChestEffect.WeaponUpgraded, upgraded.Id, fromLevel, upgraded.Level, 0f);
             return ChestEffect.WeaponUpgraded;
         }
     }

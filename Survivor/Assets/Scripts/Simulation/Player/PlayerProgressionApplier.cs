@@ -35,9 +35,13 @@ namespace Survivor.Simulation
         /// sessions compare it to detect a changed loadout (TAC-F19-5).
         public int ChangeCount { get; private set; }
 
+        /// The latest chest results (TAC-F4-9), written by ChestEffectResolver; emptied by ResetForRun (LastSequence is kept).
+        public ChestResultLog ChestResults { get; } = new ChestResultLog();
+
         /// Run start (RunSession.Reset step 4, after DespawnAll and the player registration): empties weapons and passives, resets
-        /// health to the current MaxHealth and gives the starting weapon at level 1 with NextFireStep = clock.Step (TAC-F2-1).
-        /// Throws InvalidOperationException when player stats or the starting weapon are missing from the current data.
+        /// health to the current MaxHealth, gives the starting weapon at level 1 with NextFireStep = clock.Step (TAC-F2-1) and
+        /// empties ChestResults. Throws InvalidOperationException when player stats or the starting weapon are missing from the
+        /// current data.
         public void ResetForRun()
         {
             GameData data = Data();
@@ -45,6 +49,7 @@ namespace Survivor.Simulation
             _weapons.Clear();
             _passives.Clear();
             _health.ResetForRun(stats.MaxHealth);
+            ChestResults.Clear();
             if (!data.TryGetWeapon(stats.StartingWeaponId, out WeaponDefinition starting))
             {
                 throw new InvalidOperationException("PlayerProgressionApplier: starting weapon '" + stats.StartingWeaponId + "' is not defined.");
@@ -133,14 +138,17 @@ namespace Survivor.Simulation
                 + " at step " + context.Step.ToString(CultureInfo.InvariantCulture) + ".");
         }
 
-        /// R23 heal (chest 2 and level-up Heal).
-        public void Heal()
+        /// R23 heal (chest 2 and level-up Heal); returns the amount actually restored (hp after - hp before, 0 at full health).
+        public float Heal()
         {
+            float before = _health.Hp;
             _health.Heal();
+            return _health.Hp - before;
         }
 
-        /// Dev loadout (Begin, A11): slot order = list order, at most MaxWeaponSlots entries. A weapon that stays in the same slot
-        /// keeps its instance (cooldown, children) and takes the requested level; every other current weapon's children get
+        /// Dev loadout (Begin, A11): slot order = list order, at most MaxWeaponSlots entries; an entry whose WeaponId is null
+        /// leaves that slot empty (no definition, level or duplicate check). A weapon that stays in the same slot keeps its
+        /// instance (cooldown, children) and takes the requested level; every other current weapon's children get
         /// Despawn(Replaced) and every new weapon starts with NextFireStep = context.Step. Validates everything first:
         /// ArgumentNullException for null, ArgumentException for too many entries, unknown ids, duplicates or levels out of range.
         public void SetLoadout(IReadOnlyList<WeaponLoadoutEntry> loadout, in StepContext context)
@@ -160,6 +168,11 @@ namespace Survivor.Simulation
             for (int i = 0; i < loadout.Count; i++)
             {
                 WeaponLoadoutEntry entry = loadout[i];
+                if (entry.WeaponId == null)
+                {
+                    continue;
+                }
+
                 if (!data.TryGetWeapon(entry.WeaponId, out WeaponDefinition definition))
                 {
                     throw new ArgumentException("SetLoadout: weapon '" + entry.WeaponId + "' is not defined.", nameof(loadout));
@@ -186,7 +199,7 @@ namespace Survivor.Simulation
             for (int slot = 0; slot < GameRules.MaxWeaponSlots; slot++)
             {
                 _weapons.TryGetSlot(slot, out WeaponInstance current);
-                bool wanted = slot < loadout.Count;
+                bool wanted = slot < loadout.Count && loadout[slot].WeaponId != null;
                 if (current != null && wanted && string.Equals(current.Id, loadout[slot].WeaponId, StringComparison.Ordinal))
                 {
                     current.SetLevel(loadout[slot].Level, bonus);
@@ -352,6 +365,12 @@ namespace Survivor.Simulation
                 if (i > 0)
                 {
                     builder.Append(", ");
+                }
+
+                if (loadout[i].WeaponId == null)
+                {
+                    builder.Append('-');
+                    continue;
                 }
 
                 builder.Append(loadout[i].WeaponId).Append(':').Append(loadout[i].Level.ToString(CultureInfo.InvariantCulture));

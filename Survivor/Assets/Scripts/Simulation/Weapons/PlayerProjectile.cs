@@ -37,6 +37,9 @@ namespace Survivor.Simulation
         /// Number of monsters hit so far.
         public int HitCount => _hitTargets.Count;
 
+        /// Target of the latest successful homing re-aim (dev visualization); default = none. Non-homing projectiles never write it.
+        public EntityHandle LastTargetId { get; internal set; }
+
         /// Moves one step: homing re-aims at the nearest monster first (TAC-F6-3), then Position += Direction * SpeedPerStep.
         public void Tick(in StepContext context)
         {
@@ -44,6 +47,7 @@ namespace Survivor.Simulation
             Debug.Assert(context.Step > SpawnStep, "PlayerProjectile ticked in its spawn step.");
             if (IsHoming && context.Targets.TryFindNearest(Position, out TargetHit hit))
             {
+                LastTargetId = hit.Id;
                 Vector2 toTarget = hit.Position - Position;
                 if (toTarget.x != 0f || toTarget.y != 0f)
                 {
@@ -63,6 +67,7 @@ namespace Survivor.Simulation
             Direction = direction;
             SpeedPerStep = speedPerStep;
             IsHoming = homing;
+            LastTargetId = default;
             PierceCount = pierceCount < 0 ? 0 : pierceCount;
             _hitTargets.Clear();
             Body.Radius = radius;
