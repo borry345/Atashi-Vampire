@@ -93,7 +93,7 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U7 | **확인됨(10회차 실측, Simulate 안 동기)** — `simulationMode = Script`에서 `Physics2D.Simulate()` 호출 중(또는 직후)에 `OnTriggerEnter2D/Exit2D`가 동기적으로 호출된다 | 엔진판 이벤트가 같은 스텝 번호에 나온다 |
 | U8 | **확인됨(10회차 실측)** — `Physics2D.callbacksOnDisable = false`이면 콜라이더 비활성화 시 Exit 콜백이 나오지 않는다 | "등록 해제 시 Exit 없음" 규칙의 엔진판 일치 |
 | U9 | **확인됨(10회차 실측, 거리 = 반지름 합에서 Enter → 접촉 포함 `≤`)** — Box2D 원-원 겹침의 경계(거리 = 반지름 합)가 자체 판정 `≤`와 같은 쪽으로 판정된다 | E1 경계 사례 |
-| U10 | `Rigidbody2D.MovePosition`은 스윕 이동이고, `transform.position`을 직접 쓰면 다음 시뮬레이션에서 텔레포트로 처리된다. **(17회차) 부분 확인** — 트리거 기준 `MovePosition`은 비스윕이며 다음 `Simulate`에 적용된다(IMP-COLLISION PlayMode). `transform` 직접 쓰기가 텔레포트인지는 미확인(미확정 유지) | 엔진 모드에서 표시 동기화를 생략한다 |
+| U10 | `Rigidbody2D.MovePosition`은 스윕 이동이고, `transform.position`을 직접 쓰면 다음 시뮬레이션에서 텔레포트로 처리된다. **(17회차) 부분 확인** — 트리거 기준 `MovePosition`은 비스윕이며 다음 `Simulate`에 적용된다(IMP-COLLISION PlayMode). ~~`transform` 직접 쓰기가 텔레포트인지는 미확인(미확정 유지)~~ **(18회차) 확인됨** — 엔진 바디의 `transform` 직접 쓰기는 다음 `Simulate`에서 텔레포트로 취급되어 그 스텝의 `MovePosition`이 버려진다(웨이브 4c 결함 B, `EnginePresentationWriteTests`, 5.9 `DrivesTransform`) | 엔진 모드에서 표시 동기화를 생략한다 |
 | U11 | **부분 확인(10회차 실측: `MovePosition` 반영 시점만 — `autoSyncTransforms`와 무관하게 `Simulate` 뒤에만 반영, `rb.position` 직접 대입은 U32. 콜라이더 활성화 직후 `OverlapCircle` 반영은 미확인 → 웨이브 3 IMP-COLLISION EM 테스트로 확인. 11회차 정정)** — `Rigidbody2D.position`을 바꾸거나 콜라이더를 켠 직후 `Physics2D.OverlapCircle`에 반영된다(`autoSyncTransforms`·`SyncTransforms` 영향). **(17회차) 확인됨** — 콜라이더 활성화 직후 `OverlapCircle` 반영을 IMP-COLLISION 테스트로 확인(남은 부분 해소) | `Physics2D` 타깃 공급자 |
 | U12 | 이름 없는 레이어 인덱스(8~17)에 `Physics2D.IgnoreLayerCollision`을 코드로 설정할 수 있다. **(17회차) 확인됨** — 인덱스로 설정 유효, 55쌍 중 9채널만 충돌(IMP-COLLISION PlayMode, `PhysicsSettingsApplier`) | 레이어 충돌 매트릭스를 코드로 설정 |
 | U13 | Windows 플레이어에서 `Application.streamingAssetsPath` + `File.ReadAllText`가 동기로 동작하고, 빌드 폴더 `<Name>_Data/StreamingAssets/`를 편집할 수 있다 | F11 로더, F13 |
@@ -101,7 +101,7 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U15 | `ProfilerRecorder`로 "GC Allocated In Frame" 카운터를 읽을 수 있다 | F10 항목 3 |
 | U16 | Windows 플레이어에서 `Environment.GetCommandLineArgs()`에 `--dev`가 그대로 들어온다 | Q40 활성화 |
 | U17 | Input System 패키지가 활성이고 업데이트 모드가 Dynamic이라 `wasPressedThisFrame`이 `Update`에서 유효하다 | 입력 수집 |
-| U18 | (2회차 수정) 한글 TTF로 만든 TextMeshPro Dynamic Font Asset이 uGUI에서, 같은 TTF의 `Font`가 IMGUI(`GUIStyle.font`)에서 한글을 렌더링한다 | 모든 UI |
+| U18 | (2회차 수정) 한글 TTF로 만든 TextMeshPro Dynamic Font Asset이 uGUI에서, 같은 TTF의 `Font`가 IMGUI(`GUIStyle.font`)에서 한글을 렌더링한다. **(18회차) 부분 확인** — TMP **Static** Font Asset(5b)의 uGUI 한글 렌더링은 사용자 Play로 확인. IMGUI `Font`는 미생성·미확인(미확정 유지) | 모든 UI |
 | U19 | **대체됨(2회차)** — UI Toolkit을 쓰지 않으므로(D25) 무의미하다. U42로 대체 | - |
 | U20 | 런타임에 만든 `Texture2D` 원 스프라이트의 월드 크기를 `sprite.bounds`로 알 수 있다. **(14회차) 확인됨** — IMP-DATA EditMode 테스트에서 `DefaultShapeFactory.Circle` 생성: 64×64 `Texture2D`, 스프라이트 `bounds` 1×1 유닛, 중심 불투명·모서리 투명 | 반지름 → 표시 배율(`bounds.size` 1×1 기준) |
 | U21 | `ObjectPool<T>`의 `maxSize`를 넘겨 반환하면 객체가 파괴되고, `collectionCheck`가 중복 반환을 잡는다. **(14회차) 확인됨** — IMP-POOL PlayMode 관찰: `collectionCheck: true` 중복 반환은 `InvalidOperationException`, `maxSize: 2`에 3개 반환 시 초과분 1개 파괴. 단 **풀에서 나오지 않은 객체의 반환은 `collectionCheck`로도 잡히지 않는다** → 자체 Owner 검사(`PoolInstanceTracker`, 5.6) | 풀 구현 C |
