@@ -8,7 +8,7 @@ spec/의 ID를 그대로 쓴다. 추가·삭제는 없다.
 |---|---|---|---|
 | F1 | 플레이어 이동 | 구현 | IMP-PLAYER (입력 소스: IMP-LOOP, 카메라 스냅: IMP-FLOW) |
 | F2 | 자동 공격 | 구현 | IMP-PLAYER |
-| F3 | 몬스터 | 구현 | IMP-MONSTER |
+| F3 | 몬스터 | 구현 | IMP-MONSTER ((20회차) 구간 체력 배율의 스키마·조회 R31: IMP-DATA) |
 | F4 | 아이템 드랍과 획득 | 구현 | IMP-MONSTER (상자 효과 결정·적용: IMP-PLAYER) |
 | F5 | 레벨업과 선택지 | 구현 | IMP-FLOW (선택 적용: IMP-PLAYER `PlayerProgressionApplier`) |
 | F6 | 무기 시스템 | 구현 | IMP-PLAYER |
@@ -17,7 +17,7 @@ spec/의 ID를 그대로 쓴다. 추가·삭제는 없다.
 | F9 | 오브젝트 풀링 | 구현 + 전략 | IMP-POOL |
 | F10 | 성능 측정과 비교 기록 | 측정 훅 구현 + 사용자 수행 | IMP-DEV (훅) / 사용자 |
 | F11 | 데이터 기반 설계 | 구현 | IMP-DATA |
-| F12 | README | 문서 | doc-writer (3회차: 각 기능 브랜치 머지 전에 구현자 초안을 반영해 같은 머지 커밋에 포함(5c.2a), 웨이브 6은 최종 정리·다이어그램 검증) |
+| F12 | README | 문서 | doc-writer (3회차: 각 기능 브랜치 머지 전에 구현자 초안을 반영해 같은 머지 커밋에 포함(5c.2a), ~~웨이브 6~~ (20회차 번호 이동) 웨이브 7은 최종 정리·다이어그램 검증) |
 | F13 | 빌드와 시연 영상 | 사용자 수행 (빌드 설정 일부 구현) | 사용자 / IMP-FLOW(창 설정 코드) |
 | F14 | 품질 관리 기록 | 사용자 수행 | 사용자 (`docs/devlog.md` 틀: doc-writer, 기록 초안: 5c.2a, (3회차) 기능 브랜치 머지 커밋에 포함) |
 | F15 | 개발 환경과 저장소 | 사용자 수행 | 사용자 (폴더 구조는 5c.1) |
@@ -32,7 +32,7 @@ spec/의 ID를 그대로 쓴다. 추가·삭제는 없다.
 
 ## 4. 기능별 요구사항 및 수용 기준 (Functional Requirements & Acceptance Criteria)
 
-spec/ 3절의 수용 기준((11회차) SPEC 10회차, 정규식 295개(보정 포함 306개), 2026-11-05 기계 집계, spec/README.md 방법 기준)은 그대로 유효하며 여기서 반복하지 않는다. 아래는 그 기준을 이 설계로 구현할 때 추가로 지켜야 하는 **기술 수용 기준(TAC)** 이다. 각 항목은 5절의 계약과 5a의 공유 규칙을 근거로 하며, 테스트 위치를 함께 적었다(EM = EditMode, PM = PlayMode).
+spec/ 3절의 수용 기준(~~(11회차) SPEC 10회차, 정규식 295개(보정 포함 306개), 2026-11-05 기계 집계~~ (20회차) SPEC 11회차, 정규식 312개(보정 포함 323개, PM 브리핑 수치), spec/README.md 방법 기준)은 그대로 유효하며 여기서 반복하지 않는다. 아래는 그 기준을 이 설계로 구현할 때 추가로 지켜야 하는 **기술 수용 기준(TAC)** 이다. 각 항목은 5절의 계약과 5a의 공유 규칙을 근거로 하며, 테스트 위치를 함께 적었다(EM = EditMode, PM = PlayMode).
 
 ### 3.0 F·H·I (공통) 고정 스텝·결정론·ID·피해
 
@@ -80,6 +80,10 @@ spec/ 3절의 수용 기준((11회차) SPEC 10회차, 정규식 295개(보정 �
 - TAC-F3-10: 몬스터 생성·회수는 `EntityLifecycle`만 거친다(5a R11).
 - TAC-F3-11 (2회차 신규): 몬스터의 추적·접근 판단은 `StepContext.PlayerPosition`만 읽는다. Monsters 폴더 코드에 `ITargetProvider` 참조가 없다(grep) (EM).
 - TAC-F3-12 (2회차 신규, 3.0 I): 적 → 플레이어 피해는 `PlayerDamageReceiver`(5.12) 하나가 처리한다. 무적 스텝 수 = `PlayerStats.invulnerabilitySteps`(R1 `SecondsToSteps`)((14회차) 코드 이름 `PlayerStatsDefinition.InvulnerabilitySteps`). 한 스텝에 후보(겹친 몸통 접촉 적, 이번 스텝 Enter한 M3 투사체, 겹친 M4 장판)가 여럿이면 **최대 피해 1회**, 같으면 작은 `EntityHandle`다(몸통 접촉 외 종류까지 같은 규칙을 넓힌 것은 D32). 무적 중 M3 투사체 Enter는 피해 없이 `Despawn(Consumed)` (EM: 400기 겹침에서도 무적 스텝마다 정확히 1회).
+- TAC-F3-13 (20회차 신규, SPEC F11 11회차 62·63행, Q49 ⑥; IMP-DATA): `segments[].hpMultiplier`를 생략한 구간은 `SpawnSegmentDefinition.HpMultiplier == 1.0`이다. 값이 0·음수·숫자 아님(문자열)·null인 구간은 경로 `segments[s].hpMultiplier`의 Warning이 남고 그 구간만 `HpMultiplier == 1.0`이며, 구간 수·나머지 필드·다른 구간의 배율은 그대로이고 `IsPlayable == true`다(Blocking 0건) (EM: `LoadFromTexts` + 문자열 치환 픽스처, 5c.5 관례. NaN·∞는 JSON 표준 리터럴이 없어 픽스처로 만들 수 있는 경우만 — 만들 수 없으면 `FieldReader.Number`의 기존 유한성 검사로 갈음).
+- TAC-F3-14 (20회차 신규, SPEC F3 53행, Q49 ⑧; IMP-DATA): `SpawnTableDefinition.HpMultiplierAt(step)`(R31)는 구간 [7200, 18000) 배율 1.5일 때 7200에서 1.5(시작 포함), 17999에서 1.5, 18000에서 다음 구간 값(끝 제외)이다. 구간 사이 빈틈의 스텝은 직전 구간의 값, 첫 구간 시작 전 스텝은 1.0, 마지막 구간 뒤(36000 이상)는 마지막 구간의 값이다. 같은 입력에 같은 값이고 할당이 없다 (EM: 표 테스트, 빈틈이 있는 테이블과 첫 구간이 0이 아닌 테이블 픽스처).
+- TAC-F3-15 (20회차 신규, SPEC F3 50~52·54행, Q49 ①②⑦; IMP-MONSTER): 배율 1.0/1.5/2.2/3.0 테이블에서 구간 2(스텝 7200 이상 18000 미만)에 스폰된 일반 몬스터는 `MaxHp == Hp == Definition.MaxHealth × 1.5`(허용 오차 1e-5, 반올림 없음 — 정의 체력 5면 7.5)다. 같은 스텝의 개발자 `SpawnMonstersNow`(`Source = None`)로 생성한 몬스터도 같은 배율이다. 보스(`MonsterSpawner` 등장·`SpawnBossNow`)와 보스 패턴 ② 소환분은 `MaxHp == Definition.MaxHealth`(×1.0)다. 구간 1에 스폰돼 살아 있는 몬스터는 스텝이 구간 2로 넘어가도 `MaxHp`·`Hp`가 바뀌지 않는다(피해 전) (EM: 시뮬레이션만으로 된다 — `MonEmRig` 계열 리그, 시간 점프 대신 시계를 구간 2 스텝에서 시작하거나 `SpawnMonsters` 명령을 그 스텝에 넣는다).
+- TAC-F3-16 (20회차 신규, SPEC F3 55행; IMP-MONSTER): 같은 시드·같은 데이터(배율 1.0이 아닌 구간 포함)·같은 입력으로 구간 2를 지나는 시나리오를 두 번 돌리면 `SimulationStateHash`(몬스터 `Hp` 포함, 5.16)가 같다 — 배율은 RNG를 쓰지 않으므로 별도 장치 없이 TAC-0-4의 결정론 기준에 들어간다 (EM 또는 PM: 시뮬레이션 리그로 되면 EM. 7200스텝을 돌기 싫으면 구간 경계를 앞당긴 테스트 테이블을 쓴다).
 
 ### F4. 아이템 드랍과 획득
 
@@ -141,6 +145,8 @@ spec/ 3절의 수용 기준((11회차) SPEC 10회차, 정규식 295개(보정 �
 - TAC-F8-11 (2회차, F1에서 이동): 반복 배경 `BackgroundTiler`(IMP-FLOW)는 `LateUpdate`(실행 순서 100, `CameraFollow` 뒤)에서 카메라 위치를 셀 크기 배수로 스냅해 따라가는 Tiled `SpriteRenderer`다 [실측 U29].
 - TAC-F8-12 (2회차 신규): 타이틀·일시정지·결과 메뉴는 uGUI `Button`과 `EventSystem` 탐색(방향키, Enter = Submit)으로 키보드·마우스 모두 같은 콜백을 부른다. ESC는 `UiInputHandler.Update`가 처리한다 [실측 U42] (PM).
 - TAC-F8-13 (2회차 신규): 보스전에 시간 제한 코드가 없다.
+- TAC-F8-14 (20회차 신규, SPEC F8 11회차 12~14행, Q49 ③⑧; IMP-FLOW): `HudLoadoutFormatter`(5.17.1)는 무기 줄 `"<표시 이름> Lv <n>"`, 진화 무기(`EvolvedOnly`) `"<표시 이름> (진화)"`(레벨 없음), 패시브 줄을 무기 줄 아래에, 마지막 줄 `"몬스터 체력 ×1.5"`(`F1`, `InvariantCulture` — 현재 스레드 문화권을 `de-DE` 등 쉼표 소수점으로 바꿔도 점)를 만든다. 빈 슬롯은 줄이 없고, 무기·패시브가 하나도 없으면 배율 줄 하나만 남는다. 배율 1이면 `"몬스터 체력 ×1.0"`, 2.25면 `"×2.3"`(F1 반올림은 표시에만) (EM).
+- TAC-F8-15 (20회차 신규, SPEC F8 11회차 14~17행; IMP-FLOW): 판 시작 첫 프레임에 `HudView.LoadoutText`가 시작 무기 `"<표시 이름> Lv 1"`과 배율 줄을 갖는다. 시작 무기를 강화하는 레벨업 선택을 적용하면 다음 프레임의 `LoadoutText`에 `"Lv 2"`가 있다. 상자 강화·진화나 개발자 `SetLoadout`으로 보유가 바뀌어도 다음 프레임에 반영된다(`PlayerProgressionApplier.ChangeCount` 기준, 5.17.1). 스폰 구간 경계를 넘으면(시간 점프 또는 구간을 앞당긴 테스트 데이터) 다음 프레임의 배율 줄이 새 값이고, 마지막 구간 뒤에도 줄이 남아 마지막 구간 값이다. 패널은 화면 왼쪽 아래이며 기존 네 줄과 겹치지 않는다. 패널 갱신은 상태 해시를 바꾸지 않는다(패널 표시 여부와 무관하게 같은 시드·입력의 해시가 같다, SPEC F8 16행) (PM).
 
 ### F9. 오브젝트 풀링
 
@@ -209,7 +215,7 @@ spec/ 3절의 수용 기준((11회차) SPEC 10회차, 정규식 295개(보정 �
 
 ### F19. 개발자 모드
 
-- TAC-F19-1 (2회차 재작성): `DevModeEntry`(Dev)의 `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]` 메서드가 `DevModeActivation.IsRequested(Environment.GetCommandLineArgs())`를 정확히 1회 호출한다. 거짓이면 즉시 반환하고 `Survivor.Dev`의 어떤 `MonoBehaviour`도 만들지 않는다. 참이면 `GameBootstrap.Current`(App)의 `IDevModeHost`에 붙는다. App을 포함한 어떤 게임 어셈블리도 Dev를 참조하지 않는다 [실측 U16·U40] (EM: asmdef 참조 표 테스트 / PM: 인자 없는 실행에서 Dev 타입 인스턴스 0개).
+- TAC-F19-1 (2회차 재작성): `DevModeEntry`(Dev)의 `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]` 메서드가 `DevModeActivation.IsRequested(Environment.GetCommandLineArgs())`를 정확히 1회 호출한다. 거짓이면 즉시 반환하고 `Survivor.Dev`의 어떤 `MonoBehaviour`도 만들지 않는다. 참이면 ~~`GameBootstrap.Current`(App)의~~ (19회차 정정, PM [기본값] — 정적 `Current`는 코드에 없고 추가하지 않는다) `Object.FindAnyObjectByType<GameBootstrap>()`로 얻은 `IDevModeHost`에 붙는다(null이면 로그 1줄 뒤 붙지 않음, 5.15 `DevModeEntry`). App을 포함한 어떤 게임 어셈블리도 Dev를 참조하지 않는다 [실측 U16·U40] (EM: asmdef 참조 표 테스트 / PM: 인자 없는 실행에서 Dev 타입 인스턴스 0개).
 - TAC-F19-2: 개발자 모드는 값과 객체를 주입하는 방식으로만 개입한다: `SimulationRules` 필드, `IInputSource` 교체(`AutoPathInputSource`), `ISpawnPolicy` 교체(`DevSpawnPolicy`), 다음 판 충돌 전략 데코레이터(`LoggingCollisionStrategy`), `StrategySelection`, `PendingCommandQueue` 명령, `Time.timeScale`. (11회차) `SpawnBossNow`는 `MonsterSpawner.BossSpawnedThisRun`이 참이면 거부된다: `PendingCommandQueue`가 Begin에서 이 속성으로 판정해 명령을 소비하고 보스 생성 명령을 넣지 않으며, `DevController`는 명령을 넣기 전에 `IDevModeHost.BossSpawnedThisRun`(App이 같은 속성을 그대로 돌려줌)을 읽어 오버레이에 "보스는 판당 1기"를 표시한다(5.15, 5.12.1) (EM: 보스 생성 뒤 `SpawnBossNow` → 활성 보스 수 1 유지).
 - TAC-F19-3 (3회차 수정): 자동 종료는 `SimulationRules.StopAtStep`(기본 `long.MaxValue`)으로 한다. 시계는 End에서 `Step >= StopAtStep`이 되면 게이트를 닫는다(5.3과 같은 `>=` 판정). 개발자 모드의 `Update`가 이를 감지해 결과를 출력하고 `Application.Quit()`(에디터에서는 플레이 중지)를 호출한다 (PM: 정확히 N스텝). (8회차, SPEC F19 8회차) 시간 점프는 **앞으로만** 허용한다: `DevController`는 목표 스텝 < 현재 `clock.Step`이면 `RequestJump`를 부르지 않고 오버레이에 거부를 표시한다. `SimulationClock.RequestJump`는 방어로 `targetStep < Step`이면 `ArgumentOutOfRangeException`을 던진다(5.3) (EM).
 - TAC-F19-4 (2회차 수정, B): 시각화는 `DevVisualizer`가 `RenderPipelineManager.endCameraRendering`에 등록한 콜백의 GL 선으로 그린다(URP라 `OnRenderObject` 대신) [실측 U33]. 시각화가 전부 꺼지면 콜백을 **해제**하고 컴포넌트를 `enabled = false`로 둔다(호출 비용 0).
@@ -220,6 +226,9 @@ spec/ 3절의 수용 기준((11회차) SPEC 10회차, 정규식 295개(보정 �
 - TAC-F19-9 (2회차 신규): 측정 시작 시 `QualitySettings.vSyncCount = 0`, `Application.targetFrameRate = -1`을 설정하고, 스크립팅 백엔드(컴파일 심볼 `ENABLE_MONO`/`ENABLE_IL2CPP`)와 `GarbageCollector.isIncremental`을 읽어 헤더에 쓴다. 끝나면 이전 값으로 되돌린다 [실측 U39].
 - TAC-F19-10 (2회차 신규): F1 키 감시는 `DevModeRoot.Update`에만 있고, `DevModeRoot`는 활성일 때만 존재한다.
 - TAC-F19-11 (2회차 신규, SPEC F19 4회차): 개발자 모드 끔(인자 없음) 빌드와 `SURVIVOR_NO_DEV` 빌드의 F10 수치 비교 1회가 가능하다. 두 빌드 모두 같은 일반 플레이 경로이므로 비교는 외부 Profiler로 사용자가 한다(측정 세션은 Dev 기능이라 코드 제거 빌드에 없다) (사용자 수행).
+- TAC-F19-12 (20회차 신규, SPEC F19 11회차 28·64·65행; IMP-DEV 웨이브 5a): `DevStatusFormatter.Format`(5.15.4)은 `DevStatusInput`으로부터 5.15.4 표의 줄을 그 순서로 만든다 — 시간·스텝, 시드, 생존 몬스터 수·활성 젬 수, 전략 4종(열거형 이름), 배속·실제 배속, 체력 배율, 보유 무기(진화 무기는 `(evolved)`, 레벨 없음)·보유 패시브와 레벨. 고정 레이블은 영어(한글 문자가 고정 레이블에 없다 — 출력에서 표시 이름을 뺀 부분에 U+AC00~U+D7A3이 없음), 숫자는 문화권을 `de-DE`로 바꿔도 점 소수점이다. `HpMultiplier == null`이면 배율 줄이 정확히 `"HP mult: n/a"`다. `linesOut`은 호출마다 비운 뒤 채운다 (EM, `Tests.Dev`).
+- TAC-F19-13 (20회차 신규, SPEC F19 11회차 55·64행; IMP-DEV 웨이브 5a): `--dev` 활성에서 F1로 오버레이를 열면 현황 패널이 함께 보이고 체력 배율 줄은 `"HP mult: n/a"`다. 오버레이를 닫으면 `DevOverlay.enabled == false`라 패널 수집·문자열 생성이 일어나지 않는다. 패널을 열고 닫는 것이 상태 해시를 바꾸지 않는다(같은 시드·입력에서 열고 닫은 판과 안 연 판의 해시 일치). 측정 시작 가드는 패널 표시 여부를 보지 않고, 측정 시작 때 패널은 오버레이와 함께 숨겨진다 (PM).
+- TAC-F19-14 (20회차 신규, SPEC F19 58·64행; IMP-DEV 웨이브 6 — `HpMultiplierAt` 머지 뒤): 현황 패널 배율 줄이 `"HP mult: x"` + R31 값(`F1`)이고, 같은 프레임의 HUD 배율 줄(TAC-F8-14)과 같은 값이다(구간 밖 스텝 포함). 측정 CSV 헤더 `hpMultipliers`가 구간 순서의 `;` 목록(예 `1.0;1.5;2.2;3.0`, InvariantCulture)이다(5.15.3) (EM: 포매터·헤더 문자열 / PM: HUD와 같은 값).
 
 ---
 

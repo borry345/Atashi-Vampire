@@ -2,7 +2,7 @@
 
 ## 5a. 공유 규칙 표 (Shared Rules)
 
-각 규칙에는 소유 함수가 하나씩 있고, 다른 계층은 그 함수를 호출만 한다. 다시 구현하면 리뷰에서 반려한다. (2회차 정정) 소유 파일은 대부분 `Assets/Scripts/Core/`(IMP-CORE)이고, 예외는 **R11(Simulation, IMP-LOOP)**, **R14(Strategies/Spatial, IMP-SPATIAL)**, **R21(Data, IMP-DATA)**, **R27·R28(Dev, IMP-DEV)**, **R29(Simulation/Progression, IMP-FLOW)** 여섯 개다.
+각 규칙에는 소유 함수가 하나씩 있고, 다른 계층은 그 함수를 호출만 한다. 다시 구현하면 리뷰에서 반려한다. (2회차 정정) 소유 파일은 대부분 `Assets/Scripts/Core/`(IMP-CORE)이고, 예외는 **R11(Simulation, IMP-LOOP)**, **R14(Strategies/Spatial, IMP-SPATIAL)**, **R21(Data, IMP-DATA)**, **R27·R28(Dev, IMP-DEV)**, **R29(Simulation/Progression, IMP-FLOW)** 여섯 개다. (20회차) **R31(Data, IMP-DATA)**이 더해져 일곱 개다.
 
 | # | 규칙 | 단위·의미 (정확히) | 소유 함수 | 사용자 |
 |---|---|---|---|---|
@@ -36,6 +36,7 @@
 | R28 | CSV 형식 (2회차 신규) | UTF-8 BOM(새 파일만), 줄 끝 `\r\n`, 숫자 `ToString("R" 또는 지정 형식, CultureInfo.InvariantCulture)`, 불리언 `true`/`false`, 쉼표·따옴표·줄바꿈 포함 값은 큰따옴표로 감싸고 내부 `"`는 `""` | `CsvWriter` (Dev) | `MeasurementCsvExporter`, `CollisionEventLog` |
 | R29 | 레벨업 입력 수락 (2회차 신규) | 회차 ID 일치 && 미제출 && `frame > OpenedFrame` && 인덱스 0~2 → 수락(이후 같은 회차 전부 거부) | `LevelUpSession.TrySubmit` (Simulation/Progression, IMP-FLOW) | `UiInputHandler`(키), `LevelUpView`(클릭·Enter) |
 | R30 | Unity 레이어 대응 (2회차 신규) | Unity 레이어 인덱스 = `8 + (int)CollisionLayer`(8~17). 레이어 매트릭스는 R5 채널 9개만 켠다. (13회차, 구현 확정) 시작값은 `CollisionLayerMapping.FirstUnityLayer = 8`(const). `MaskOf(layer)` = `1 << UnityLayerOf(layer)`(그 레이어 **하나의 비트**). 정의되지 않은 레이어는 `ArgumentOutOfRangeException` | `CollisionLayerMapping.UnityLayerOf(CollisionLayer)`, `CollisionLayerMapping.MaskOf(CollisionLayer)` | `PhysicsSettingsApplier`, `CollisionTemplateDecorator`, `Physics2DTargetProvider` |
+| R31 | 스폰 구간 체력 배율 조회 (20회차 신규, SPEC F3·F8·F19 11회차, Q49 ⑧) | 입력 = 스텝 번호(`long`). `StartStep ≤ step < EndStep`인 구간이 있으면 그 구간의 `HpMultiplier`, 없으면 `StartStep ≤ step`인 구간 중 가장 늦게 시작한 구간의 `HpMultiplier`(구간 사이 빈틈·마지막 구간 뒤), 그것도 없으면 1.0. 결과는 무차원 `float`이고 반올림하지 않는다. 몬스터 체력 적용(정의 체력 × 배율, 보스·보스 소환분은 1.0)은 소비자 쪽 규칙이며 5.12.1 `Monster`가 정한다. **표시**(HUD "×1.5", 현황 패널)는 각 표시자가 이 값을 `ToString("F1", CultureInfo.InvariantCulture)`로 찍는다 — 형식은 표시 계층의 것이고 값은 이 함수에서만 나온다 | `SpawnTableDefinition.HpMultiplierAt(long step)` (Data, IMP-DATA) | `MonsterSpawner`·`MonsterCommandHandler`(MONSTER, 스폰 스텝 `context.Step`), `GameFlowController`(FLOW, HUD — `Clock.Step`), 개발자 현황 패널·측정 CSV(DEV). `TableSpawnPolicy.FindSegment`는 "스폰을 낼 구간"이라 구간 밖에서 null이며 이 규칙이 아니다(5.13.4) |
 
 ---
 
