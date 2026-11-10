@@ -27,6 +27,7 @@ namespace Survivor.Simulation
                 {
                     return;
                 }
+                weapon.LastTargetId = hit.Id;
 
                 position = hit.Position;
             }

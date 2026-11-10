@@ -1,0 +1,24 @@
+{
+    "name": "Survivor.Dev",
+    "rootNamespace": "Survivor.Dev",
+    "references": [
+        "Survivor.Core",
+        "Survivor.Data",
+        "Survivor.Simulation",
+        "Survivor.Strategies",
+        "Survivor.App",
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Core.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "!SURVIVOR_NO_DEV"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
