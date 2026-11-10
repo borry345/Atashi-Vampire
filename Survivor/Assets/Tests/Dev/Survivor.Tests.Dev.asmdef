@@ -1,0 +1,29 @@
+{
+    "name": "Survivor.Tests.Dev",
+    "rootNamespace": "Survivor.Tests.Dev",
+    "references": [
+        "Survivor.Core",
+        "Survivor.Data",
+        "Survivor.Simulation",
+        "Survivor.Strategies",
+        "Survivor.UI",
+        "Survivor.App",
+        "Survivor.Dev",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "!SURVIVOR_NO_DEV"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -20,6 +20,7 @@ namespace Survivor.Simulation
             {
                 return;
             }
+            weapon.LastTargetId = hit.Id;
 
             WeaponLevelDefinition level = weapon.LevelDefinition;
             Vector2 aim = ToUnit(MoveMath.DirectionOrDefault(hit.Position - context.PlayerPosition));

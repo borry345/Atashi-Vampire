@@ -53,5 +53,8 @@ namespace Survivor.App
 
         /// Raised when a run ends by death or clear (after the best record was handled).
         event Action<RunOutcome> RunEnded;
+        int LastFrameSteps { get; }    // Steps run in the latest frame (SimulationFrameCounter.LastFrameSteps).
+        int ActiveGemCount { get; }    // Live experience gems (PickupRegistry.ActiveGemCount).
+        int LiveMonsterCount { get; }  // Live monsters, boss included (MonsterRegistry.Count).
     }
 }

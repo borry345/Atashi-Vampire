@@ -42,6 +42,7 @@ namespace Survivor.Simulation
 
         /// First step at which the weapon may fire again (TAC-F2-2); also hashed by the state hash (5.16).
         public long NextFireStep { get; internal set; }
+        public EntityHandle LastTargetId { get; internal set; }   // Target of the latest successful nearest-target query (dev visualization); default = none.
 
         /// Persistent-hit tracker (orbit and zone weapons); null for projectile weapons.
         public ContactDamageTracker Tracker { get; }
