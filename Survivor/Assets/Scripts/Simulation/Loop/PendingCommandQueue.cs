@@ -9,7 +9,7 @@ namespace Survivor.Simulation
     /// Spawn requests become SimulationCommands (Source = None) for this step's Lifecycle; player/flow kinds go to registered handlers.
     public sealed class PendingCommandQueue : IStepPhaseHandler
     {
-        private const int KindCount = (int)PendingCommandKind.SetDespawnDistance + 1;
+        private const int KindCount = (int)PendingCommandKind.SetSpawnsEnabled + 1;
 
         private readonly TargetProviderSlot _targets;
         private readonly GameDataRegistry _data;
@@ -32,11 +32,12 @@ namespace Survivor.Simulation
         /// Commands waiting for the next Begin.
         public int PendingCount => _queued.Count;
 
-        /// True for the kinds whose handler an owner registers (SetLoadout, SetHealth, AddXp, LevelUpNow).
+        /// True for the kinds whose handler an owner registers (SetLoadout, SetHealth, AddXp, LevelUpNow, SetSpawnsEnabled).
         public static bool IsOwnerHandled(PendingCommandKind kind)
         {
             return kind == PendingCommandKind.SetLoadout || kind == PendingCommandKind.SetHealth
-                || kind == PendingCommandKind.AddXp || kind == PendingCommandKind.LevelUpNow;
+                || kind == PendingCommandKind.AddXp || kind == PendingCommandKind.LevelUpNow
+                || kind == PendingCommandKind.SetSpawnsEnabled;
         }
 
         /// Registers the handler of an owner-handled kind. Throws ArgumentException for a built-in kind, InvalidOperationException
@@ -50,7 +51,7 @@ namespace Survivor.Simulation
 
             if (!IsOwnerHandled(kind))
             {
-                throw new ArgumentException("PendingCommandQueue applies " + kind + " itself; only SetLoadout, SetHealth, AddXp and LevelUpNow take handlers.",
+                throw new ArgumentException("PendingCommandQueue applies " + kind + " itself; only SetLoadout, SetHealth, AddXp, LevelUpNow and SetSpawnsEnabled take handlers.",
                     nameof(kind));
             }
 

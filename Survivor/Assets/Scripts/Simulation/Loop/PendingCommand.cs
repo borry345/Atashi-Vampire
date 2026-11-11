@@ -14,7 +14,7 @@ namespace Survivor.Simulation
         /// Monster definition id (SpawnMonstersNow, SpawnBossNow).
         public readonly string DefinitionId;
 
-        /// Monster count (SpawnMonstersNow) or XP amount (AddXp).
+        /// Monster count (SpawnMonstersNow), XP amount (AddXp) or 1 = on / 0 = off (SetSpawnsEnabled).
         public readonly int Count;
 
         /// Spawn center (SpawnMonstersNow, SpawnBossNow, SpawnChestNow).
@@ -125,6 +125,12 @@ namespace Survivor.Simulation
             }
 
             return new PendingCommand(PendingCommandKind.SwitchTargetProvider, targetSwitch: command);
+        }
+
+        /// Dev: turn the bound policy's normal spawns on or off from the next step (MonsterSpawner.HandleSetSpawnsEnabled).
+        public static PendingCommand SetSpawnsEnabled(bool enabled)
+        {
+            return new PendingCommand(PendingCommandKind.SetSpawnsEnabled, count: enabled ? 1 : 0);
         }
 
         /// Dev: override the despawn distance (R26); must be positive and finite (ArgumentOutOfRangeException).
