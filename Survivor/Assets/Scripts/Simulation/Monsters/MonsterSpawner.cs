@@ -36,13 +36,35 @@ namespace Survivor.Simulation
         /// Policy bound for the current run.
         public ISpawnPolicy Policy => _policy;
 
-        /// Run start (RunSession.Reset): binds the run's policy (table or dev override) and clears the per-run boss flag and
-        /// boss warning. Throws ArgumentNullException for null.
+        /// False skips only the policy's normal spawns (table and dev hold); the boss arrival and SpawnMonsters commands
+        /// (summons, dev spawns) are unaffected. True at every Bind; changed by the SetSpawnsEnabled pending command.
+        public bool SpawnsEnabled { get; private set; } = true;
+
+        // Player body radius of this run (R32 contact stop), read once in Bind; MonsterCommandHandler passes it on too.
+        internal float PlayerRadius { get; private set; }
+
+        /// Run start (RunSession.Reset): binds the run's policy (table or dev override), clears the per-run boss flag and
+        /// boss warning, turns normal spawns on and reads the player body radius. Throws ArgumentNullException for null.
         public void Bind(ISpawnPolicy policy)
         {
             _policy = policy ?? throw new ArgumentNullException(nameof(policy));
             BossSpawnedThisRun = false;
             _bossWarningLogged = false;
+            SpawnsEnabled = true;
+            PlayerRadius = _data.Current?.PlayerStats?.Radius ?? 0f;
+        }
+
+        /// PendingCommandQueue owner handler of SetSpawnsEnabled (Count 1 = on, 0 = off); logs one Info line when the value changes.
+        public void HandleSetSpawnsEnabled(PendingCommand command, StepContext context)
+        {
+            bool enabled = command.Count != 0;
+            if (enabled == SpawnsEnabled)
+            {
+                return;
+            }
+
+            SpawnsEnabled = enabled;
+            LoopLog.Info("Normal spawns " + (enabled ? "on" : "off") + " from step " + context.Step.ToString(CultureInfo.InvariantCulture) + ".");
         }
 
         /// Lifecycle: normal spawns in request order while live < cap (the rest of the step is dropped without drawing angles),
@@ -62,24 +84,29 @@ namespace Survivor.Simulation
 
             DeterministicRng spawnRng = _rng.Get(RngStream.Spawn);
             _requests.Clear();
-            _policy.CollectSpawns(context, LiveNonBossCount, spawnRng, _requests);
-            for (int i = 0; i < _requests.Count; i++)
+            if (SpawnsEnabled)
             {
-                if (LiveNonBossCount >= context.Rules.MonsterCap)
+                _policy.CollectSpawns(context, LiveNonBossCount, spawnRng, _requests);
+                float hpMultiplier = data.SpawnTable?.HpMultiplierAt(context.Step) ?? 1f;
+                for (int i = 0; i < _requests.Count; i++)
                 {
-                    break;
+                    if (LiveNonBossCount >= context.Rules.MonsterCap)
+                    {
+                        break;
+                    }
+
+                    // A dev policy may name a monster the current data does not have; such a request is skipped without a draw.
+                    if (!data.TryGetMonster(_requests[i], out MonsterDefinition definition))
+                    {
+                        continue;
+                    }
+
+                    SpawnOnCircle(definition, hpMultiplier, context, spawnRng);
                 }
 
-                // A dev policy may name a monster the current data does not have; such a request is skipped without a draw.
-                if (!data.TryGetMonster(_requests[i], out MonsterDefinition definition))
-                {
-                    continue;
-                }
-
-                SpawnOnCircle(definition, context, spawnRng);
+                _requests.Clear();
             }
 
-            _requests.Clear();
             if (!BossSpawnedThisRun && _policy.BossSpawnDue(context.Step))
             {
                 SpawnBoss(data, context, spawnRng);
@@ -106,15 +133,18 @@ namespace Survivor.Simulation
                 return;
             }
 
-            Monster spawned = SpawnOnCircle(boss, context, spawnRng);
+            Monster spawned = SpawnOnCircle(boss, 1f, context, spawnRng);
             LoopLog.Info("Boss spawned: " + boss.Id + " id=" + spawned.Id + " step=" + context.Step.ToString(CultureInfo.InvariantCulture) + ".");
         }
 
-        private Monster SpawnOnCircle(MonsterDefinition definition, in StepContext context, DeterministicRng spawnRng)
+        // hpMultiplier: R31 value of the spawn step (Initialize ignores it for a boss, so the boss arrival passes 1).
+        private Monster SpawnOnCircle(MonsterDefinition definition, float hpMultiplier, in StepContext context, DeterministicRng spawnRng)
         {
             bool isBoss = definition.Behavior == MonsterBehavior.Boss;
+            float playerRadius = PlayerRadius;
             var position = SpawnGeometry.PointOnCircle(context.PlayerPosition, GameRules.SpawnRadius, spawnRng.NextFloat01());
-            Monster monster = _lifecycle.Spawn<Monster>(EntityCategory.Monster, position, 0, m => m.Initialize(definition, isBoss));
+            Monster monster = _lifecycle.Spawn<Monster>(EntityCategory.Monster, position, 0,
+                m => m.Initialize(definition, isBoss, hpMultiplier, playerRadius));
             if (isBoss)
             {
                 BossSpawnedThisRun = true;

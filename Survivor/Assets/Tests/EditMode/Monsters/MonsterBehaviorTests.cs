@@ -7,10 +7,16 @@ using UnityEngine;
 
 namespace Survivor.Tests.EditMode.Monsters
 {
-    /// Monster entity contract and the four behaviors (TAC-F3-1, F3-7, F3-8, F3-9, F16-6, F17-1, 0-6, 0-8; 5.12 boundary interfaces).
+    /// Monster entity contract and the four behaviors (TAC-F3-1, F3-7, F3-8, F3-9, F3-21, F16-6, F17-1, 0-6, 0-8; 5.12 boundary interfaces).
     public sealed class MonsterBehaviorTests
     {
         private const float Eps = 1e-4f;
+
+        // TAC-F3-21: the shipped M4 has no hazard zone; this fixture puts the removed pattern back in front of the summon so the
+        // zone code path stays tested (pattern 0 = zone, pattern 1 = summon).
+        private const string ZonePattern =
+            "{ \"type\": \"hazardZone\", \"cooldownSeconds\": 6, \"zoneRadius\": 3, \"durationSeconds\": 2, \"damage\": 15, \"assetKey\": \"shape.hazard.red\" },";
+
         private MonEmRig _rig;
 
         [TearDown]
@@ -224,9 +230,11 @@ namespace Survivor.Tests.EditMode.Monsters
         }
 
         [Test]
-        public void Boss_UsesBothPatternsOnIndependentCooldowns()
+        public void Boss_ZoneFixture_UsesBothPatternsOnIndependentCooldowns()
         {
-            _rig = new MonEmRig();
+            (GameData data, DataValidationReport report) = MonEmData.Load((DataFileKind.Monsters, "\"bossPatterns\": [", "\"bossPatterns\": [ " + ZonePattern));
+            Assert.AreEqual(0, report.WarningCount, "TAC-F3-21: a hazardZone entry still binds without warnings");
+            _rig = new MonEmRig(data, report);
             Monster boss = _rig.SpawnMonster("M4", new Vector2(10f, 0f));
             BossPatternDefinition zonePattern = boss.Definition.BossPatterns[0];
             BossPatternDefinition summonPattern = boss.Definition.BossPatterns[1];
@@ -271,6 +279,37 @@ namespace Survivor.Tests.EditMode.Monsters
         }
 
         [Test]
+        public void Boss_RealData_OnlySummons_NoHazardZoneOverSeveralCooldowns()
+        {
+            _rig = new MonEmRig();
+            Monster boss = _rig.SpawnMonster("M4", new Vector2(10f, 0f));
+            Assert.AreEqual(1, boss.Definition.BossPatterns.Count, "TAC-F3-21: the shipped M4 has one pattern");
+            BossPatternDefinition summonPattern = boss.Definition.BossPatterns[0];
+            Assert.AreEqual(BossPatternKind.Summon, summonPattern.Kind);
+            _rig.Player = new Vector2(0f, 1f);
+
+            _rig.Step();
+            long useStep = _rig.Clock.Step - 1;
+            Assert.AreEqual(1 + summonPattern.Count, _rig.Live<Monster>().Count, "the summon (index 0) is used on the first Tick");
+            Assert.AreEqual(useStep + summonPattern.CooldownSteps, boss.State.NextPatternStep(0));
+
+            _rig.Step(3 * summonPattern.CooldownSteps);
+            Assert.AreEqual(useStep + 4 * summonPattern.CooldownSteps, boss.State.NextPatternStep(0), "three more summons on the cooldown");
+            Assert.AreEqual(1 + 4 * summonPattern.Count, _rig.Live<Monster>().Count);
+            int zones = 0;
+            foreach (SimEntity spawned in _rig.SpawnedLog)
+            {
+                if (spawned.Category == EntityCategory.EnemyZone)
+                {
+                    zones++;
+                }
+            }
+
+            Assert.AreEqual(0, zones, "TAC-F3-21: no EnemyHazardZone from the shipped boss");
+            Assert.AreEqual(0, _rig.MonsterCommands.DroppedCommandCount);
+        }
+
+        [Test]
         public void Boss_SummonRefusedByCap_StillSpendsCooldown_AndDrawsNoAngle()
         {
             _rig = new MonEmRig();
@@ -281,7 +320,8 @@ namespace Survivor.Tests.EditMode.Monsters
             _rig.Step();
             long useStep = _rig.Clock.Step - 1;
             Assert.AreEqual(1, _rig.Live<Monster>().Count, "TAC-F3-9: all summons refused at the cap");
-            Assert.AreEqual(useStep + boss.Definition.BossPatterns[1].CooldownSteps, boss.State.NextPatternStep(1),
+            Assert.AreEqual(BossPatternKind.Summon, boss.Definition.BossPatterns[0].Kind);
+            Assert.AreEqual(useStep + boss.Definition.BossPatterns[0].CooldownSteps, boss.State.NextPatternStep(0),
                 "the summon command was issued, so the cooldown is spent");
             Assert.AreEqual(reference.NextUInt(), _rig.Rng.Get(RngStream.Summon).NextUInt(), "refused summons consume no Summon draws");
         }
@@ -327,6 +367,7 @@ namespace Survivor.Tests.EditMode.Monsters
             _rig.Step();
             Assert.IsNull(boss.Definition, "OnReleased cleared the definition");
             Assert.IsFalse(boss.IsBoss);
+            Assert.AreEqual(0f, boss.MaxHp, "OnReleased cleared MaxHp");
 
             Monster reused = _rig.SpawnMonster("M1", new Vector2(5f, 0f));
             Assert.AreSame(boss, reused, "the pool handed back the same instance");

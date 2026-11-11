@@ -345,7 +345,7 @@ namespace Survivor.Tests.EditMode.Monsters
             _rig.Enqueue(new SimulationCommand(SimulationCommandKind.SpawnEnemyZone, EntityHandle.None, definitionId: "M4", slotIndex: 1));
             _rig.Step();
             Assert.AreEqual(0, _rig.Lifecycle.ActiveCount);
-            Assert.AreEqual(3, _rig.MonsterCommands.DroppedCommandCount, "unknown id, M1 has no projectile, pattern 1 is not a zone");
+            Assert.AreEqual(3, _rig.MonsterCommands.DroppedCommandCount, "unknown id, M1 has no projectile, the shipped M4 has no pattern 1");
         }
 
         [Test]

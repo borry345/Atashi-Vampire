@@ -11,6 +11,7 @@ namespace Survivor.Simulation
     public sealed class Monster : SimEntity, IUpdatable, IDamageable, IContactDamageSource
     {
         private readonly MonsterBehaviorState _state = new MonsterBehaviorState();
+        private float _playerRadius;
 
         /// Definition captured at spawn; hot reload does not affect a live monster (5c.3 #10).
         public MonsterDefinition Definition { get; private set; }
@@ -18,8 +19,11 @@ namespace Survivor.Simulation
         /// True for the boss (excluded from the cap and the despawn rule, always large).
         public bool IsBoss { get; private set; }
 
-        /// Current health; starts at Definition.MaxHealth.
+        /// Current health; starts at MaxHp.
         public float Hp { get; private set; }
+
+        /// Health at spawn: Definition.MaxHealth, times the spawn step's R31 multiplier unless boss. Fixed while alive.
+        public float MaxHp { get; private set; }
 
         /// Step in which health reached 0, or -1 while alive.
         public long DiedAtStep { get; private set; } = -1;
@@ -39,12 +43,26 @@ namespace Survivor.Simulation
         /// Body contact damage from the definition.
         public float ContactDamage => Definition.ContactDamage;
 
-        // Spawn initialize callback: definition, boss flag, body size (R25) and behavior state.
-        internal void Initialize(MonsterDefinition definition, bool isBoss)
+        // Spawn initialize callback: definition, boss flag, health (R31 multiplier, ignored for the boss), body size (R25),
+        // the run's player body radius (R32 contact stop) and behavior state. A non-boss multiplier that is not finite and
+        // positive throws ArgumentOutOfRangeException.
+        internal void Initialize(MonsterDefinition definition, bool isBoss, float hpMultiplier, float playerRadius)
         {
-            Definition = definition ?? throw new ArgumentNullException(nameof(definition));
+            if (definition == null)
+            {
+                throw new ArgumentNullException(nameof(definition));
+            }
+
+            if (!isBoss && (!(hpMultiplier > 0f) || float.IsInfinity(hpMultiplier)))
+            {
+                throw new ArgumentOutOfRangeException(nameof(hpMultiplier), hpMultiplier, "Health multiplier must be a finite, positive number.");
+            }
+
+            Definition = definition;
             IsBoss = isBoss;
-            Hp = definition.MaxHealth;
+            MaxHp = isBoss ? definition.MaxHealth : definition.MaxHealth * hpMultiplier;
+            Hp = MaxHp;
+            _playerRadius = playerRadius;
             DiedAtStep = -1;
             KillConfirmed = false;
             Body.Radius = definition.Radius;
@@ -86,7 +104,7 @@ namespace Survivor.Simulation
             switch (Definition.Behavior)
             {
                 case MonsterBehavior.Chaser:
-                    Position = StepMove.Toward(Position, context.PlayerPosition, Definition.MoveSpeedPerStep);
+                    MoveTo(StepMove.Toward(Position, context.PlayerPosition, Definition.MoveSpeedPerStep), context);
                     break;
                 case MonsterBehavior.Charger:
                     TickCharger(context);
@@ -108,9 +126,17 @@ namespace Survivor.Simulation
             Definition = null;
             IsBoss = false;
             Hp = 0f;
+            MaxHp = 0f;
+            _playerRadius = 0f;
             DiedAtStep = -1;
             KillConfirmed = false;
             _state.Reset(0, 0);
+        }
+
+        // R32: every move of every behavior stops at the contact distance to the player (state transitions are unaffected).
+        private void MoveTo(Vector2 next, in StepContext context)
+        {
+            Position = StepMove.MoveStopAtContact(Position, next - Position, context.PlayerPosition, Body.Radius, _playerRadius);
         }
 
         // TAC-F3-7: Approach -> Charge (DurationSteps, fixed direction) -> Cooldown (CooldownSteps, chasing) -> Approach.
@@ -142,11 +168,11 @@ namespace Survivor.Simulation
 
             if (_state.Phase == MonsterBehaviorState.ChargePhase.Charge)
             {
-                Position += _state.ChargeDirection * charge.ChargeSpeedPerStep;
+                MoveTo(Position + _state.ChargeDirection * charge.ChargeSpeedPerStep, context);
             }
             else
             {
-                Position = StepMove.Toward(Position, context.PlayerPosition, Definition.MoveSpeedPerStep);
+                MoveTo(StepMove.Toward(Position, context.PlayerPosition, Definition.MoveSpeedPerStep), context);
             }
         }
 
@@ -157,7 +183,7 @@ namespace Survivor.Simulation
             float range = ranged.AttackRange;
             if ((context.PlayerPosition - Position).sqrMagnitude > range * range)
             {
-                Position = StepMove.Toward(Position, context.PlayerPosition, Definition.MoveSpeedPerStep);
+                MoveTo(StepMove.Toward(Position, context.PlayerPosition, Definition.MoveSpeedPerStep), context);
                 return;
             }
 
@@ -173,7 +199,7 @@ namespace Survivor.Simulation
         // whether or not the summon is later refused by the cap.
         private void TickBoss(in StepContext context)
         {
-            Position = StepMove.Toward(Position, context.PlayerPosition, Definition.MoveSpeedPerStep);
+            MoveTo(StepMove.Toward(Position, context.PlayerPosition, Definition.MoveSpeedPerStep), context);
             IReadOnlyList<BossPatternDefinition> patterns = Definition.BossPatterns;
             for (int i = 0; i < _state.PatternCount; i++)
             {

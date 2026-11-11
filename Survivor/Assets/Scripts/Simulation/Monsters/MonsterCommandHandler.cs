@@ -90,6 +90,10 @@ namespace Survivor.Simulation
             }
 
             bool isBoss = definition.Behavior == MonsterBehavior.Boss;
+            // R31 multiplier of this step, except for a boss's summons (x1.0); a dev command has Source = None.
+            bool bossSummon = _lifecycle.TryGet(command.Source, out SimEntity source) && source is Monster summoner && summoner.IsBoss;
+            float hpMultiplier = bossSummon ? 1f : (data.SpawnTable?.HpMultiplierAt(context.Step) ?? 1f);
+            float playerRadius = _spawner.PlayerRadius;
             DeterministicRng summonRng = _rng.Get(RngStream.Summon);
             for (int i = 0; i < command.Count; i++)
             {
@@ -102,7 +106,7 @@ namespace Survivor.Simulation
                 Vector2 position = command.Radius > 0f
                     ? SpawnGeometry.PointOnCircle(command.Position, command.Radius, summonRng.NextFloat01())
                     : command.Position;
-                _lifecycle.Spawn<Monster>(EntityCategory.Monster, position, 0, m => m.Initialize(definition, isBoss));
+                _lifecycle.Spawn<Monster>(EntityCategory.Monster, position, 0, m => m.Initialize(definition, isBoss, hpMultiplier, playerRadius));
                 if (isBoss)
                 {
                     _spawner.MarkBossSpawned();
