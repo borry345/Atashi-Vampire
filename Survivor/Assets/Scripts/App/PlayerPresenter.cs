@@ -1,4 +1,5 @@
 using System;
+using Survivor.Core;
 using Survivor.Data;
 using Survivor.Simulation;
 using UnityEngine;
@@ -45,7 +46,7 @@ namespace Survivor.App
                 t.position = new Vector3(p.x, p.y, t.position.z);
             }
 
-            float diameter = _player.Body.Radius > 0f ? _player.Body.Radius * 2f : 1f;
+            float diameter = _player.Body.Radius > 0f ? _player.Body.Radius * 2f * GameRules.BodyVisualScale : 1f;
             _visual.localScale = new Vector3(diameter, diameter, 1f);
         }
     }

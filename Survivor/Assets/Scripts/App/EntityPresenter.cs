@@ -62,6 +62,21 @@ namespace Survivor.App
             return radius * 2f;
         }
 
+        /// Display-only radius scale of a category (5.17.2): areas (orbit orbs, player and enemy zones) are drawn at their hit radius,
+        /// body-type entities at GameRules.BodyVisualScale. Hit radii are never changed.
+        internal static float VisualScaleOf(EntityCategory category)
+        {
+            switch (category)
+            {
+                case EntityCategory.PlayerOrb:
+                case EntityCategory.PlayerZone:
+                case EntityCategory.EnemyZone:
+                    return 1f;
+                default:
+                    return GameRules.BodyVisualScale;
+            }
+        }
+
         /// Asset key of a weapon id in data; "" when the id, the weapon or the data is missing.
         internal static string WeaponKeyOf(string weaponId, GameData data)
         {
@@ -162,7 +177,7 @@ namespace Survivor.App
             spriteRenderer.sprite = visual.Sprite != null ? visual.Sprite : DefaultShapeFactory.Circle;
             spriteRenderer.color = visual.Color;
             spriteRenderer.sortingOrder = SortingOrderOf(entity.Category);
-            float diameter = DiameterOf(entity.Body.Radius);
+            float diameter = DiameterOf(entity.Body.Radius) * VisualScaleOf(entity.Category);
             child.localScale = new Vector3(diameter, diameter, 1f);
         }
 
@@ -184,7 +199,7 @@ namespace Survivor.App
                     continue;
                 }
 
-                float diameter = DiameterOf(entity.Body.Radius);
+                float diameter = DiameterOf(entity.Body.Radius) * VisualScaleOf(entity.Category);
                 if (child.localScale.x != diameter)
                 {
                     child.localScale = new Vector3(diameter, diameter, 1f);

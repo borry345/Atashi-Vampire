@@ -10,7 +10,7 @@ using UnityEngine.TestTools;
 namespace Survivor.Tests.PlayMode.Flow
 {
     /// Entity visuals (wave 4d): every live entity carries a child "Visual" with a sprite, the registry tint of its asset key,
-    /// its category's sorting order and a scale of twice the body radius, while the host keeps scale 1 (and, under engine
+    /// its category's sorting order and a scale of twice the body radius times VisualScaleOf (wave 6b), while the host keeps scale 1 (and, under engine
     /// collision, a collider radius equal to the body radius). Without a registry every key falls back to magenta. Batch play
     /// mode has no graphics, so component state stands in for "visible".
     public sealed class FlowVisualTests : FlowPmFixture
@@ -68,8 +68,8 @@ namespace Survivor.Tests.PlayMode.Flow
                 }
 
                 Assert.AreEqual(EntityPresenter.SortingOrderOf(entity.Category), spriteRenderer.sortingOrder, what + " sorting order");
-                float diameter = entity.Body.Radius * 2f;
-                Assert.AreEqual(new Vector3(diameter, diameter, 1f), visual.localScale, what + " visual scale = 2r");
+                float diameter = entity.Body.Radius * 2f * EntityPresenter.VisualScaleOf(entity.Category);
+                Assert.AreEqual(new Vector3(diameter, diameter, 1f), visual.localScale, what + " visual scale = 2r x VisualScaleOf (TAC-F8-16)");
                 Assert.AreEqual(Vector3.zero, visual.localPosition, what + " visual sits on the host");
                 Assert.AreEqual(Vector3.one, entity.transform.localScale, what + " host scale stays 1");
                 if (engineCollision)
@@ -84,6 +84,10 @@ namespace Survivor.Tests.PlayMode.Flow
             }
 
             Assert.IsTrue(seen.ContainsKey(EntityCategory.Monster), "at least one monster spawned");
+            Transform playerVisual = Host.PlayerHost.transform.Find("Player.Visual");
+            Assert.IsNotNull(playerVisual, "player circle");
+            float playerDiameter = Host.Player.Body.Radius * 2f * GameRules.BodyVisualScale;
+            Assert.AreEqual(new Vector3(playerDiameter, playerDiameter, 1f), playerVisual.localScale, "player circle = 2r x 1.25 (TAC-F8-16)");
             foreach (KeyValuePair<EntityCategory, int> pair in seen)
             {
                 TestContext.Out.WriteLine(pair.Key + " x" + pair.Value);

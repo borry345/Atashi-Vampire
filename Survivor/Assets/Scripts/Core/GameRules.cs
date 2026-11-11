@@ -47,5 +47,8 @@ namespace Survivor.Core
 
         /// FPS threshold used to find the monster count limit in measurements.
         public const float MonsterLimitFpsThreshold = 55f;
+
+        /// Display-only radius scale of body-type entities (monsters, projectiles, pickups, player); never read by hit tests.
+        public const float BodyVisualScale = 1.25f;
     }
 }

@@ -91,7 +91,8 @@ namespace Survivor.Tests.PlayMode.Flow
         public IEnumerator PendingQueue_FourOwnerKindsAreRegistered()
         {
             yield return LoadMain();
-            var kinds = new[] { PendingCommandKind.SetLoadout, PendingCommandKind.SetHealth, PendingCommandKind.AddXp, PendingCommandKind.LevelUpNow };
+            var kinds = new[] { PendingCommandKind.SetLoadout, PendingCommandKind.SetHealth, PendingCommandKind.AddXp, PendingCommandKind.LevelUpNow,
+                PendingCommandKind.SetSpawnsEnabled };
             foreach (PendingCommandKind kind in kinds)
             {
                 Assert.IsTrue(PendingCommandQueue.IsOwnerHandled(kind));
