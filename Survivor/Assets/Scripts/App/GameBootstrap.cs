@@ -371,6 +371,7 @@ namespace Survivor.App
             float viewHeight = GameRules.CameraOrthographicSize * 2f;
             background.AddComponent<BackgroundTiler>().Initialize(_camera.transform, new Vector2(viewHeight * 16f / 9f, viewHeight));
             _playerHost.AddComponent<PlayerPresenter>().Initialize(_player);
+            _playerHost.AddComponent<OrbitRingPresenter>().Initialize(_weapons);
         }
 
         // Overlay canvas, EventSystem with the Input System UI module, six views, keyboard shortcuts, then the flow (TAC-F8-7, F8-12).

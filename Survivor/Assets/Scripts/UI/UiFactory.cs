@@ -100,6 +100,19 @@ namespace Survivor.UI
             return label;
         }
 
+        /// TMP text anchored to the parent's bottom-left corner at offset (x right, y up), aligned bottom-left so added lines grow
+        /// upward, for the HUD loadout panel (5.17.1).
+        public static TextMeshProUGUI CreateBottomLeftText(Transform parent, string name, float fontSize, Vector2 size, Vector2 offset)
+        {
+            TextMeshProUGUI label = CreateText(parent, name, string.Empty, fontSize, TextAlignmentOptions.BottomLeft, size, Vector2.zero);
+            RectTransform rect = label.rectTransform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.zero;
+            rect.pivot = Vector2.zero;
+            rect.anchoredPosition = offset;
+            return label;
+        }
+
         /// Button of size at anchoredPosition with a centered label; onClick is the single callback for mouse click and
         /// EventSystem Submit (Enter), TAC-F8-12. Null onClick throws ArgumentNullException.
         public static Button CreateButton(Transform parent, string name, string label, Vector2 size, Vector2 anchoredPosition, Action onClick)

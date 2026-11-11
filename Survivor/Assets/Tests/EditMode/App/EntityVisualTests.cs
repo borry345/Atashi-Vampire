@@ -48,6 +48,27 @@ namespace Survivor.Tests.EditMode.App
             Assert.AreEqual(expected, EntityPresenter.DiameterOf(radius));
         }
 
+        // TAC-F8-16: body-type categories are drawn at GameRules.BodyVisualScale, areas at their hit radius.
+        [TestCase(EntityCategory.Monster, GameRules.BodyVisualScale)]
+        [TestCase(EntityCategory.PlayerProjectile, GameRules.BodyVisualScale)]
+        [TestCase(EntityCategory.EnemyProjectile, GameRules.BodyVisualScale)]
+        [TestCase(EntityCategory.Gem, GameRules.BodyVisualScale)]
+        [TestCase(EntityCategory.Chest, GameRules.BodyVisualScale)]
+        [TestCase(EntityCategory.PlayerOrb, 1f)]
+        [TestCase(EntityCategory.PlayerZone, 1f)]
+        [TestCase(EntityCategory.EnemyZone, 1f)]
+        public void VisualScaleOf_Table(EntityCategory category, float expected)
+        {
+            Assert.AreEqual(expected, EntityPresenter.VisualScaleOf(category));
+        }
+
+        [Test]
+        public void VisualScale_BodyScaleIs125_AndTheTableCoversEveryCategory()
+        {
+            Assert.AreEqual(1.25f, GameRules.BodyVisualScale);
+            Assert.AreEqual(8, System.Enum.GetValues(typeof(EntityCategory)).Length, "VisualScaleOf_Table lists every category");
+        }
+
         [Test]
         public void WeaponKeyOf_LooksUpTheWeaponAssetKey()
         {

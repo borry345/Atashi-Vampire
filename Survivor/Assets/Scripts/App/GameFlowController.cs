@@ -361,6 +361,8 @@ namespace Survivor.App
             int level = session.Experience.Level;
             int required = data != null && data.PlayerStats != null ? XpCurve.RequiredForNext(level, data.PlayerStats.XpCurve) : 0;
             _hud.Refresh(_host.Clock.Step, level, session.Health.Hp, session.Health.MaxHp, session.Experience.Xp, required);
+            float hpMultiplier = data?.SpawnTable?.HpMultiplierAt(_host.Clock.Step) ?? 1f;
+            _hud.RefreshLoadout(_host.Applier.ChangeCount, session.Weapons.Slots, session.Passives.Slots, hpMultiplier);
         }
 
         private static string Describe(in UpgradeOption option, GameData data, RunSession session)
