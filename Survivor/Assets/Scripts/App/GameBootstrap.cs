@@ -115,6 +115,7 @@ namespace Survivor.App
         public int LastFrameSteps => _frameCounter.LastFrameSteps;     // Steps run in the latest frame (dev actual speed).
         public int ActiveGemCount => _pickupRegistry.ActiveGemCount;   // Live experience gems (dev status, CSV).
         public int LiveMonsterCount => _registry.Count;                // Live monsters, boss included (dev status, CSV).
+        public ChestResultLog ChestResults => _applier.ChestResults;   // Latest chest results (dev command log).
 
         /// Flow controller (screen state).
         public GameFlowController Flow => _flow;

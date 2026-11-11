@@ -56,5 +56,6 @@ namespace Survivor.App
         int LastFrameSteps { get; }    // Steps run in the latest frame (SimulationFrameCounter.LastFrameSteps).
         int ActiveGemCount { get; }    // Live experience gems (PickupRegistry.ActiveGemCount).
         int LiveMonsterCount { get; }  // Live monsters, boss included (MonsterRegistry.Count).
+        ChestResultLog ChestResults { get; }  // Latest chest results (PlayerProgressionApplier.ChestResults; dev command log).
     }
 }
