@@ -21,6 +21,7 @@ namespace Survivor.Dev
         private static readonly Color SpawnColor = new Color(0.3f, 1f, 0.3f, 0.8f);
         private static readonly Color DespawnColor = new Color(1f, 0.5f, 0.1f, 0.8f);
 
+        private readonly List<Vector2> _targetLines = new List<Vector2>(64);
         private IDevModeHost _host;
         private DevController _controller;
         private Material _material;
@@ -45,7 +46,8 @@ namespace Survivor.Dev
             set { _showRadii = value; Refresh(); }
         }
 
-        /// Line from the player to each weapon's last chosen target.
+        /// Line from the player to each weapon's last chosen target, plus one from each homing projectile to the target it is
+        /// tracking now (5.15.5).
         public bool ShowTargets
         {
             get => _showTargets;
@@ -158,7 +160,7 @@ namespace Survivor.Dev
 
             if (_showTargets)
             {
-                DrawTargets(session, player);
+                DrawTargets(session, player, _targetLines);
             }
 
             if (_showSpawnRings)
@@ -229,10 +231,22 @@ namespace Survivor.Dev
             }
         }
 
-        private static void DrawTargets(RunSession session, Vector2 player)
+        private static void DrawTargets(RunSession session, Vector2 player, List<Vector2> lines)
         {
-            IReadOnlyList<WeaponInstance> slots = session.Weapons.Slots;
+            CollectTargetLines(session, player, lines);
             GL.Color(TargetColor);
+            for (int i = 0; i + 1 < lines.Count; i += 2)
+            {
+                Segment(lines[i], lines[i + 1]);
+            }
+        }
+
+        // Target line end points in pairs (cleared first): player -> each weapon's live last target, then each live homing
+        // projectile -> its live tracked target (5.15.5; E1/W1 projectiles are not homing, so they draw none). Also the test hook.
+        internal static void CollectTargetLines(RunSession session, Vector2 player, List<Vector2> linesOut)
+        {
+            linesOut.Clear();
+            IReadOnlyList<WeaponInstance> slots = session.Weapons.Slots;
             for (int i = 0; i < slots.Count; i++)
             {
                 WeaponInstance weapon = slots[i];
@@ -241,8 +255,19 @@ namespace Survivor.Dev
                     continue;
                 }
 
-                GL.Vertex3(player.x, player.y, 0f);
-                GL.Vertex3(target.Position.x, target.Position.y, 0f);
+                linesOut.Add(player);
+                linesOut.Add(target.Position);
+            }
+
+            IReadOnlyList<SimEntity> entities = session.Lifecycle.ActiveEntities;
+            for (int i = 0; i < entities.Count; i++)
+            {
+                if (entities[i] is PlayerProjectile projectile && projectile.IsHoming && projectile.LastTargetId.IsValid
+                    && session.Lifecycle.TryGet(projectile.LastTargetId, out SimEntity tracked))
+                {
+                    linesOut.Add(projectile.Position);
+                    linesOut.Add(tracked.Position);
+                }
             }
         }
 

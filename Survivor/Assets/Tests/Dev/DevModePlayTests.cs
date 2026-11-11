@@ -13,8 +13,9 @@ using Object = UnityEngine.Object;
 
 namespace Survivor.Tests.Dev
 {
-    /// Dev mode on the real Main.unity (TAC-F19-1..4, 6, 13, 5.15): attach/no-attach, overlay and status panel, time controls,
-    /// state and enemy controls, LastTargetId, visualizer callback, and the F19 determinism criterion.
+    /// Dev mode on the real Main.unity (TAC-F19-1..4, 6, 13..19, 5.15): attach/no-attach, overlay and status panel, time
+    /// controls, state and enemy controls, LastTargetId, visualizer callback, the wave 6b conveniences (loadout 0..5, spawn
+    /// toggle, zoom, homing target lines, command log) and the F19 determinism criterion.
     public sealed class DevModePlayTests : DevPmFixture
     {
         private DevModeRoot _root;
@@ -66,7 +67,8 @@ namespace Survivor.Tests.Dev
             Assert.Greater(_root.Overlay.ActualSpeed, 0.5f, "actual speed sampled while open");
             var lines = new List<string>();
             _root.Overlay.BuildStatusLines(lines);
-            Assert.AreEqual("HP mult: n/a", lines[5]);
+            Assert.AreEqual("HP mult: x" + R31Text(), lines[5], "R31 value of the current step (TAC-F19-14)");
+            Assert.AreEqual("HP mult: x1.0", lines[5]);
             StringAssert.StartsWith("Time 00:", lines[0]);
             StringAssert.StartsWith("Seed 4242 (fixed)", lines[1]);
             StringAssert.StartsWith("Pool CustomPool  Target SpatialHash  Tick CentralTick  Collision SelfSquaredDistance", lines[3]);
@@ -180,33 +182,56 @@ namespace Survivor.Tests.Dev
         }
 
         [UnityTest]
-        public IEnumerator SetLoadout_SetsLevels_AndShowsEvolved()
+        public IEnumerator SetLoadout_RefusalsQueueNothing()
         {
             yield return AttachAndStart();
             Assert.IsFalse(Controller.TrySetLoadout(new[] { new WeaponLoadoutEntry("W1", 99) }));
+            Assert.AreEqual("W1 has levels 0..5.", Controller.LastMessage);
             Assert.IsFalse(Controller.TrySetLoadout(new[] { new WeaponLoadoutEntry("W1", 1), new WeaponLoadoutEntry("W1", 2) }));
             Assert.IsFalse(Controller.TrySetLoadout(new[] { new WeaponLoadoutEntry("NOPE", 1) }));
+            Assert.IsFalse(Controller.TrySetLoadout(new[] { new WeaponLoadoutEntry("E1", 1) }));
+            Assert.AreEqual("E1 is an evolved weapon; evolution is the only way to get it.", Controller.LastMessage);
+            Assert.IsFalse(Controller.TrySetLoadout(new[] { new WeaponLoadoutEntry("W1", 0) }));
+            Assert.AreEqual("Loadout would leave no weapon.", Controller.LastMessage);
+            StringAssert.EndsWith(" Loadout: refused - Loadout would leave no weapon.", Controller.CommandLog.NewestFirst(0));
             Assert.AreEqual(0, Host.Commands.PendingCount);
-            Assert.IsTrue(Controller.TrySetLoadout(new[]
-            {
-                new WeaponLoadoutEntry("W1", 3), new WeaponLoadoutEntry("W3", 5), new WeaponLoadoutEntry("E1", 1),
-            }));
-            long at = Host.Clock.Step;
-            yield return WaitFor(() => Host.Clock.Step >= at + 2, "applied");
+            Assert.AreEqual("W1", Host.Session.Weapons.Slots[0].Id, "the loadout is unchanged");
+        }
+
+        [UnityTest]
+        public IEnumerator SetLoadout_KeepsInstances_RemovesOrbs_FillsTheLowestEmptySlot()
+        {
+            // TAC-F19-15 (PM). No monsters, so W1 never fires and its NextFireStep only changes with a new instance.
+            yield return AttachAndStart(configure: c => Assert.IsTrue(c.TryConfigureSpawns(true, null, 0)));
+            yield return WaitFor(() => Host.Clock.Step >= 3, "step 3");
             IReadOnlyList<WeaponInstance> slots = Host.Session.Weapons.Slots;
-            Assert.AreEqual("W1", slots[0].Id);
-            Assert.AreEqual(3, slots[0].Level);
-            Assert.AreEqual("W3", slots[1].Id);
-            Assert.AreEqual(5, slots[1].Level);
-            Assert.AreEqual("E1", slots[2].Id);
+            WeaponInstance w1 = slots[0];
+            long w1Next = w1.NextFireStep;
+
+            Assert.IsTrue(Controller.TrySetLoadout(Loadout(("W1", 1), ("W2", 3))));
+            yield return WaitFor(() => slots[1] != null && CountOrbs() == 3, "W2 Lv 3 with 3 orbs", 300);
+            WeaponInstance w2 = slots[1];
+            Assert.AreSame(w1, slots[0], "W1 kept its instance");
+            Assert.AreEqual(w1Next, w1.NextFireStep);
+
+            Assert.IsTrue(Controller.TrySetLoadout(Loadout(("W1", 1), ("W2", 1))));
+            yield return WaitFor(() => w2.Level == 1 && CountOrbs() == 2, "W2 Lv 1: the surplus orb is collected", 300);
+            Assert.AreSame(w2, slots[1], "lowering the level keeps the instance");
+
+            Assert.IsTrue(Controller.TrySetLoadout(Loadout(("W1", 1), ("W2", 0), ("W3", 2))));
+            yield return WaitFor(() => slots[1] != null && slots[1].Id == "W3", "W3 in slot 1", 300);
+            Assert.AreSame(w1, slots[0], "W1 kept its instance");
+            Assert.AreEqual(w1Next, w1.NextFireStep, "W1 cooldown untouched");
+            Assert.AreEqual(2, slots[1].Level);
+            Assert.IsNull(slots[2]);
             Assert.IsNull(slots[3]);
+            Assert.AreEqual(0, CountOrbs(), "W2 removed with its orbs");
             var lines = new List<string>();
             _root.Overlay.BuildStatusLines(lines);
             int weapons = lines.IndexOf("Weapons:");
-            Assert.AreEqual("  " + slots[0].Definition.DisplayName + " Lv 3", lines[weapons + 1]);
-            Assert.AreEqual("  " + slots[1].Definition.DisplayName + " Lv 5", lines[weapons + 2]);
-            Assert.AreEqual("  " + slots[2].Definition.DisplayName + " (evolved)", lines[weapons + 3]);
-            Assert.AreEqual("Passives:", lines[weapons + 4]);
+            Assert.AreEqual("  " + w1.Definition.DisplayName + " Lv 1", lines[weapons + 1]);
+            Assert.AreEqual("  " + slots[1].Definition.DisplayName + " Lv 2", lines[weapons + 2]);
+            Assert.AreEqual("Passives:", lines[weapons + 3]);
         }
 
         [UnityTest]
@@ -283,6 +308,175 @@ namespace Survivor.Tests.Dev
             Assert.Greater(firstLive, 0);
         }
 
+        [UnityTest]
+        public IEnumerator StatusPanel_HpMultiplierIsR31()
+        {
+            // TAC-F19-14 (value part; the HUD comparison waits for the FLOW panel).
+            yield return AttachAndStart(configure: c => Assert.IsTrue(c.TryConfigureSpawns(true, null, 0)));
+            var lines = new List<string>();
+            foreach ((long target, string expected) in new[] { (7300L, "x1.5"), (19000L, "x2.2"), (40000L, "x3.0") })
+            {
+                Assert.IsTrue(Controller.TryJumpToStep(target));
+                yield return WaitFor(() => Host.Clock.Step > target, "jump to " + target);
+                _root.Overlay.BuildStatusLines(lines);
+                Assert.AreEqual("HP mult: x" + R31Text(), lines[5]);
+                Assert.AreEqual("HP mult: " + expected, lines[5], "step " + Host.Clock.Step);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator SpawnToggle_RefusedOutsideARun_StopsAndResumesTableSpawns()
+        {
+            // TAC-F19-16.
+            yield return LoadMain();
+            _root = DevModeEntry.Attach(Host);
+            Assert.IsFalse(Controller.IsRunActive);
+            Assert.IsFalse(Controller.TrySetSpawnsEnabled(false));
+            Assert.AreEqual("Spawn toggle needs a run in progress.", Controller.LastMessage);
+            Assert.AreEqual(0, Host.Commands.PendingCount);
+            Assert.IsTrue(Controller.SpawnsEnabled);
+            Controller.SetFixedSeed(4242UL);
+            Controller.SetInvulnerable(true);
+            Controller.SetLevelUpEnabled(false);
+            Controller.SetWeaponsEnabled(false);
+            ISpawnPolicy policy = Host.SpawnPolicyOverride;
+            Assert.IsTrue(Controller.TryStartNewRun());
+            yield return WaitFor(() => Host.Clock.Step >= 130 && LiveNonBossMonsters() > 0, "table spawns", 600);
+
+            Assert.IsTrue(Controller.TrySetSpawnsEnabled(false));
+            Assert.AreEqual(1, Host.Commands.PendingCount, "one SetSpawnsEnabled command");
+            Assert.IsFalse(Controller.SpawnsEnabled);
+            long at = Host.Clock.Step;
+            yield return WaitFor(() => Host.Clock.Step >= at + 2, "applied");
+            int held = LiveNonBossMonsters();
+            yield return WaitFor(() => Host.Clock.Step >= at + 180, "three seconds");
+            Assert.AreEqual(held, LiveNonBossMonsters(), "no table spawns while off");
+            Assert.AreSame(policy, Host.SpawnPolicyOverride, "the next-run spawn policy is untouched");
+
+            Assert.IsTrue(Controller.TrySetSpawnsEnabled(true));
+            Assert.IsTrue(Controller.SpawnsEnabled);
+            yield return WaitFor(() => LiveNonBossMonsters() > held, "table spawns again", 600);
+
+            Assert.IsTrue(Controller.TrySetSpawnsEnabled(false));
+            Host.Flow.TogglePause();
+            Assert.IsTrue(Controller.TryStartNewRun());
+            Assert.IsTrue(Controller.SpawnsEnabled, "every run starts with spawns on");
+            Assert.AreSame(policy, Host.SpawnPolicyOverride);
+        }
+
+        [UnityTest]
+        public IEnumerator Zoom_ClampsResetsAndReturnsToNineOnDetach()
+        {
+            // TAC-F19-17 (PM).
+            yield return AttachAndStart();
+            Camera camera = Camera.main;
+            Assert.IsNotNull(camera);
+            Assert.AreEqual(9f, camera.orthographicSize);
+            Assert.IsTrue(Controller.TrySetZoom(12f));
+            Assert.AreEqual(12f, camera.orthographicSize);
+            Assert.AreEqual("Zoom 12.", Controller.LastMessage);
+            Controller.ResetZoom();
+            Assert.AreEqual(9f, camera.orthographicSize);
+            Assert.IsTrue(Controller.TrySetZoom(1f));
+            Assert.AreEqual(4.5f, camera.orthographicSize);
+            Assert.IsTrue(Controller.TrySetZoom(30f));
+            Assert.AreEqual(27f, camera.orthographicSize);
+            Assert.IsTrue(Controller.TrySetZoom(float.NaN));
+            Assert.AreEqual(9f, camera.orthographicSize);
+
+            Assert.IsTrue(Controller.TrySetZoom(20f));
+            Host.Flow.TogglePause();
+            Assert.IsTrue(Controller.TryStartNewRun());
+            yield return null;
+            Assert.AreEqual(20f, camera.orthographicSize, "a run reset keeps the zoom");
+
+            DevModeEntry.Detach();
+            yield return null;
+            Assert.AreEqual(9f, camera.orthographicSize, "leaving dev mode restores 9");
+        }
+
+        [UnityTest]
+        public IEnumerator TargetLines_HomingProjectilesOnly()
+        {
+            // TAC-F19-18 (drawing part): one extra line per live homing projectile with a live target; none for W1.
+            yield return AttachAndStart(configure: c => Assert.IsTrue(c.TryConfigureSpawns(true, null, 0)));
+            yield return WaitFor(() => Host.Clock.Step >= 3, "step 3");
+            Assert.IsTrue(Controller.TrySetLoadout(Loadout(("W1", 0), ("W4", 1))));
+            yield return WaitFor(() => Host.Session.Weapons.Slots[0] != null && Host.Session.Weapons.Slots[0].Id == "W4", "W4 in slot 0", 300);
+            Assert.IsTrue(Controller.TrySpawnMonstersNow("M1", 20));
+            yield return WaitFor(() => HomingLines() >= 1, "a homing projectile tracking a live monster", 1200);
+            var lines = new List<Vector2>();
+            DevVisualizer.CollectTargetLines(Host.Session, Host.Session.Player.Position, lines);
+            Assert.AreEqual(2 * (WeaponLines() + HomingLines()), lines.Count, "player->target per weapon + projectile->target per homing projectile");
+
+            Assert.IsTrue(Controller.TrySetLoadout(Loadout(("W1", 1), ("W4", 0))));
+            Assert.IsTrue(Controller.TrySpawnMonstersNow("M1", 20));
+            yield return WaitFor(() => CountProjectiles(true) == 0 && CountProjectiles(false) > 0, "only W1 projectiles in flight", 1200);
+            DevVisualizer.CollectTargetLines(Host.Session, Host.Session.Player.Position, lines);
+            Assert.AreEqual(2 * WeaponLines(), lines.Count, "no projectile lines for W1");
+            foreach (SimEntity entity in Host.Session.Lifecycle.ActiveEntities)
+            {
+                if (entity is PlayerProjectile projectile)
+                {
+                    Assert.IsFalse(projectile.LastTargetId.IsValid, "W1 projectiles never track");
+                }
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator CommandLog_OneLinePerAction_ChestLinesOnce_KeptAcrossRuns()
+        {
+            // TAC-F19-19 (PM).
+            yield return LoadMain();
+            _root = DevModeEntry.Attach(Host);
+            DevCommandLog log = Controller.CommandLog;
+            Assert.AreEqual(0, Controller.RunNumber);
+            Controller.SetFixedSeed(4242UL);
+            Assert.AreEqual("#0 0 FixedSeed: Seed for the next run: 4242.", log.NewestFirst(0));
+            Controller.SetInvulnerable(true);
+            Controller.SetLevelUpEnabled(false);
+            Assert.IsTrue(Controller.TryConfigureSpawns(true, null, 0));
+            Assert.AreEqual(4, log.Count);
+            Host.InputOverride = new MoveRightInput();
+            Assert.IsTrue(Controller.TryStartNewRun());
+            Assert.AreEqual(1, Controller.RunNumber);
+            Assert.AreEqual("#1 0 StartNewRun: New run started.", log.NewestFirst(0));
+            yield return WaitFor(() => Host.Clock.Step >= 5, "step 5");
+
+            long step = Host.Clock.Step;
+            Assert.IsFalse(Controller.TrySetHealth(float.NaN));
+            Assert.AreEqual("#1 " + step + " Health: refused - Health must be a finite number.", log.NewestFirst(0));
+            Controller.SetTimeScale(1f);
+            Assert.AreEqual("#1 " + step + " TimeScale: Time scale x1.00.", log.NewestFirst(0));
+            Assert.AreEqual("Time scale x1.00.", Controller.LastMessage);
+            Assert.IsTrue(Controller.TrySpawnChestNow());
+            Assert.AreEqual("#1 " + step + " SpawnChestNow: Chest queued.", log.NewestFirst(0));
+            Assert.AreEqual(8, log.Count);
+
+            yield return WaitFor(() => Host.ChestResults.LastSequence >= 1, "the chest opened", 600);
+            ChestResult result = Host.ChestResults[Host.ChestResults.Count - 1];
+            Assert.IsTrue(Controller.TryLevelUpNow(), "a command right after the chest result");
+            yield return null;
+            string chestLine = DevController.FormatLine(1, result.Step, "Chest", DevController.ChestText(in result, Host.Data.Current));
+            Assert.AreEqual(1, CountLines(log, chestLine), "chest line added once");
+            Assert.AreEqual(1, CountLines(log, " Chest: "), "one chest line");
+            Assert.Greater(IndexOf(log, " LevelUpNow: "), -1);
+            Assert.Greater(IndexOf(log, " SpawnChestNow: "), IndexOf(log, " Chest: "), "the chest line is newer than the chest command");
+            Assert.Greater(IndexOf(log, " Chest: "), IndexOf(log, " LevelUpNow: "), "the result happened before the later command");
+            AssertStepsNonDecreasing(log);
+            yield return WaitFor(() => Host.Clock.Step >= result.Step + 10, "ten more steps");
+            Assert.AreEqual(1, CountLines(log, " Chest: "), "no duplicate after more polls");
+
+            Host.Flow.TogglePause();
+            Assert.IsTrue(Controller.TryStartNewRun());
+            Assert.AreEqual(2, Controller.RunNumber);
+            Assert.AreEqual("#2 0 StartNewRun: New run started.", log.NewestFirst(0));
+            Assert.AreEqual(1, CountLines(log, chestLine), "the last run's lines stay");
+            Assert.AreEqual(0, Host.ChestResults.Count, "the simulation list was cleared by the new run");
+            yield return Frames(3);
+            Assert.AreEqual(1, CountLines(log, " Chest: "), "a cleared list adds nothing");
+        }
+
         private IEnumerator DeterministicRun(bool toggleOverlay, Action<ulong, int> result)
         {
             yield return LoadMain();
@@ -305,6 +499,9 @@ namespace Survivor.Tests.Dev
                 {
                     _root.ToggleOverlay();
                     opened = true;
+                    Assert.IsTrue(c.TrySetZoom(20f));
+                    _root.Visualizer.ShowTargets = true;
+                    c.NoteVisualization("ShowTargets", true);
                 }
 
                 if (toggleOverlay && opened && _root.Overlay.enabled && Host.Clock.Step >= 300)
@@ -333,6 +530,124 @@ namespace Survivor.Tests.Dev
             yield return null;
         }
 
+        private static IReadOnlyList<WeaponLoadoutEntry> Loadout(params (string id, int level)[] entries)
+        {
+            var loadout = new List<WeaponLoadoutEntry>(entries.Length);
+            foreach ((string id, int level) in entries)
+            {
+                loadout.Add(new WeaponLoadoutEntry(id, level));
+            }
+
+            return loadout;
+        }
+
+        private string R31Text()
+        {
+            return Host.Data.Current.SpawnTable.HpMultiplierAt(Host.Clock.Step).ToString("F1", CultureInfo.InvariantCulture);
+        }
+
+        private int CountOrbs()
+        {
+            int count = 0;
+            foreach (SimEntity entity in Host.Session.Lifecycle.ActiveEntities)
+            {
+                if (entity is OrbitOrb)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private int CountProjectiles(bool homing)
+        {
+            int count = 0;
+            foreach (SimEntity entity in Host.Session.Lifecycle.ActiveEntities)
+            {
+                if (entity is PlayerProjectile projectile && projectile.IsHoming == homing)
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        // Live homing projectiles whose tracked target is alive (expected projectile -> target lines).
+        private int HomingLines()
+        {
+            int count = 0;
+            foreach (SimEntity entity in Host.Session.Lifecycle.ActiveEntities)
+            {
+                if (entity is PlayerProjectile projectile && projectile.IsHoming && projectile.LastTargetId.IsValid
+                    && Host.Session.Lifecycle.TryGet(projectile.LastTargetId, out _))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        // Weapons whose last target is alive (expected player -> target lines).
+        private int WeaponLines()
+        {
+            int count = 0;
+            foreach (WeaponInstance weapon in Host.Session.Weapons.Slots)
+            {
+                if (weapon != null && weapon.LastTargetId.IsValid && Host.Session.Lifecycle.TryGet(weapon.LastTargetId, out _))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        private static int CountLines(DevCommandLog log, string part)
+        {
+            int count = 0;
+            for (int i = 0; i < log.Count; i++)
+            {
+                if (log.NewestFirst(i).Contains(part))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        // Newest-first index of the first line containing part, -1 when none.
+        private static int IndexOf(DevCommandLog log, string part)
+        {
+            for (int i = 0; i < log.Count; i++)
+            {
+                if (log.NewestFirst(i).Contains(part))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        // Oldest to newest, the (run, step) pairs never go back (commands and chest results interleave in step order).
+        private static void AssertStepsNonDecreasing(DevCommandLog log)
+        {
+            long previousRun = -1, previousStep = -1;
+            for (int i = log.Count - 1; i >= 0; i--)
+            {
+                string[] parts = log.NewestFirst(i).Split(' ');
+                long run = long.Parse(parts[0].Substring(1), CultureInfo.InvariantCulture);
+                long step = long.Parse(parts[1], CultureInfo.InvariantCulture);
+                Assert.IsTrue(run > previousRun || (run == previousRun && step >= previousStep), "order at: " + log.NewestFirst(i));
+                previousRun = run;
+                previousStep = step;
+            }
+        }
+
         private int LiveNonBossMonsters()
         {
             int count = 0;
@@ -350,6 +665,15 @@ namespace Survivor.Tests.Dev
         private EntityCategory? MonsterCategoryOf(EntityHandle id)
         {
             return Host.Session.Lifecycle.TryGet(id, out SimEntity entity) ? entity.Category : (EntityCategory?)null;
+        }
+
+        // Moves right at the default speed (reaches a chest queued at the player + (3, 0)).
+        private sealed class MoveRightInput : IInputSource
+        {
+            public MoveCommand ReadMove(long step, Vector2 currentPosition)
+            {
+                return new MoveCommand(Vector2.right);
+            }
         }
 
         private static IEnumerator Frames(int count)

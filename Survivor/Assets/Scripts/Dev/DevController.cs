@@ -10,8 +10,9 @@ using UnityEngine;
 namespace Survivor.Dev
 {
     /// Turns overlay actions into IDevModeHost calls (5.15, TAC-F19-2): SimulationRules fields, next-run overrides (selection,
-    /// input, spawn policy, seed), pending commands and Time.timeScale only. Every Try* method validates first, so no command
-    /// that would throw at Begin is ever queued, and leaves a one-line result in LastMessage for the overlay.
+    /// input, spawn policy, seed), pending commands, Time.timeScale and the camera zoom only. Every Try* method validates first,
+    /// so no command that would throw at Begin is ever queued; every user action leaves its result in LastMessage and one line
+    /// in CommandLog, which also collects the chest results (5.15.5).
     public sealed class DevController : IDisposable
     {
         /// Offset from the player of SpawnBossNow / SpawnChestNow (PM default).
@@ -25,6 +26,9 @@ namespace Survivor.Dev
         private int _seenCloseSequence;
         private long _seenStep;
         private float? _pendingDespawnDistance;
+        private readonly DevCommandLog _commandLog = new DevCommandLog();
+        private int _runNumber;
+        private long _lastChestSequence;
 
         /// Binds to host (null throws ArgumentNullException); flow (null allowed only for hosts without a screen flow) gates
         /// the run-state checks. Subscribes to RunEnded to reset the time scale.
@@ -43,8 +47,20 @@ namespace Survivor.Dev
         /// Host this controller drives.
         public IDevModeHost Host => _host;
 
-        /// Result of the latest action ("" before the first one).
+        /// Smallest / largest camera orthographic size dev mode allows (display only; 9 stays GameRules.CameraOrthographicSize).
+        public const float MinZoom = 4.5f, MaxZoom = 27f;
+
+        /// Result of the latest action ("" before the first one); the command log keeps the latest lines.
         public string LastMessage { get; private set; } = string.Empty;
+
+        /// Latest command-log lines (user actions and chest results) for the session; a run reset never clears it.
+        public DevCommandLog CommandLog => _commandLog;
+
+        /// 1-based run number within the session (0 before the first run); +1 at every run reset dev mode notices.
+        public int RunNumber => _runNumber;
+
+        /// Table spawns state dev last queued in this run (true at every run reset); may lead the real switch by one step.
+        public bool SpawnsEnabled { get; private set; } = true;
 
         /// Strategy selection the current run started with (target: see CurrentTarget).
         public StrategySelection RunSelection => _runSelection;
@@ -83,6 +99,12 @@ namespace Survivor.Dev
             return float.IsNaN(requested) ? 1f : Mathf.Clamp(requested, GameRules.MinTimeScale, GameRules.MaxTimeScale);
         }
 
+        /// Zoom clamp: NaN (unparsable input) gives GameRules.CameraOrthographicSize, else [MinZoom, MaxZoom].
+        public static float ClampZoom(float requested)
+        {
+            return float.IsNaN(requested) ? GameRules.CameraOrthographicSize : Mathf.Clamp(requested, MinZoom, MaxZoom);
+        }
+
         /// D9: maximumDeltaTime that keeps at most MaxCatchUpSteps steps per frame at timeScale (0.05 / timeScale).
         public static float MaxDeltaTimeFor(float timeScale)
         {
@@ -93,6 +115,7 @@ namespace Survivor.Dev
         /// seed mode and to queue a despawn distance chosen while no run existed.
         public void Poll()
         {
+            PullChestResults();
             SimulationClock clock = _host.Clock;
             bool closed = clock.CloseSequence != _seenCloseSequence;
             bool reset = (closed && clock.CloseReason == GateCloseReason.RunReset) || clock.Step < _seenStep;
@@ -110,7 +133,7 @@ namespace Survivor.Dev
             float scale = ClampTimeScale(requested);
             Time.timeScale = scale;
             Time.maximumDeltaTime = MaxDeltaTimeFor(scale);
-            LastMessage = "Time scale x" + scale.ToString("F2", CultureInfo.InvariantCulture) + ".";
+            Done("TimeScale", "Time scale x" + scale.ToString("F2", CultureInfo.InvariantCulture) + ".");
             return scale;
         }
 
@@ -125,10 +148,11 @@ namespace Survivor.Dev
         /// with the next-run settings. False (with the reason) in any other state.
         public bool TryStartNewRun()
         {
+            PullChestResults();
             FlowState state = State;
             if (_flow == null || !(state == FlowState.Title || state == FlowState.Result || state == FlowState.Paused))
             {
-                return Refuse("New run only from Title, Result or Paused (now " + state + ").");
+                return Refuse("StartNewRun", "New run only from Title, Result or Paused (now " + state + ").");
             }
 
             ResetTimeScale();
@@ -136,11 +160,11 @@ namespace Survivor.Dev
             Poll();
             if (_flow.State != FlowState.Playing)
             {
-                return Refuse("New run refused by the game (data not playable?).");
+                return Refuse("StartNewRun", "New run refused by the game (data not playable?).");
             }
 
             DevLog.Info("New run started by dev mode (seed " + (_host.FixedSeed.HasValue ? "fixed" : "random") + ").");
-            return Done("New run started.");
+            return Done("StartNewRun", "New run started.");
         }
 
         /// Forward-only time jump (TAC-F19-3): a target before Clock.Step is refused here and never reaches the clock.
@@ -148,18 +172,18 @@ namespace Survivor.Dev
         {
             if (!IsRunActive)
             {
-                return Refuse("Jump needs a run in progress.");
+                return Refuse("JumpToStep", "Jump needs a run in progress.");
             }
 
             long now = _host.Clock.Step;
             if (targetStep < now)
             {
-                return Refuse("Jump refused: step " + targetStep.ToString(CultureInfo.InvariantCulture) + " is before the current step "
+                return Refuse("JumpToStep", "Jump refused: step " + targetStep.ToString(CultureInfo.InvariantCulture) + " is before the current step "
                     + now.ToString(CultureInfo.InvariantCulture) + " (forward only).");
             }
 
             _host.Clock.RequestJump(targetStep);
-            return Done("Jump to step " + targetStep.ToString(CultureInfo.InvariantCulture) + " at the next step.");
+            return Done("JumpToStep", "Jump to step " + targetStep.ToString(CultureInfo.InvariantCulture) + " at the next step.");
         }
 
         /// One step (5.3): opens the gate for exactly one step, after which it closes with SingleStepDone. While running it
@@ -168,11 +192,11 @@ namespace Survivor.Dev
         {
             if (State != FlowState.Playing)
             {
-                return Refuse("Step needs Playing (now " + State + ").");
+                return Refuse("StepOnce", "Step needs Playing (now " + State + ").");
             }
 
             _host.Clock.RequestSingleStep();
-            return Done("One step requested.");
+            return Done("StepOnce", "One step requested.");
         }
 
         /// Leaves one-step mode (gate closed with SingleStepDone in Playing) by reopening the gate.
@@ -180,46 +204,46 @@ namespace Survivor.Dev
         {
             if (!IsSingleStepMode)
             {
-                return Refuse("Resume only from one-step mode.");
+                return Refuse("Resume", "Resume only from one-step mode.");
             }
 
             _host.Clock.Open();
-            return Done("Resumed.");
+            return Done("Resume", "Resumed.");
         }
 
         /// Player invulnerability (Rules.PlayerTakesDamage = !on), immediate.
         public void SetInvulnerable(bool on)
         {
             _host.Rules.PlayerTakesDamage = !on;
-            Done("Invulnerable " + OnOff(on) + ".");
+            Done("Invulnerable", "Invulnerable " + OnOff(on) + ".");
         }
 
         /// Weapons on/off (Rules.WeaponsEnabled), immediate; existing orbs and zones stop damaging too (SPEC F19).
         public void SetWeaponsEnabled(bool on)
         {
             _host.Rules.WeaponsEnabled = on;
-            Done("Weapons " + OnOff(on) + ".");
+            Done("WeaponsEnabled", "Weapons " + OnOff(on) + ".");
         }
 
         /// Level-up choices on/off (Rules.LevelUpEnabled), immediate.
         public void SetLevelUpEnabled(bool on)
         {
             _host.Rules.LevelUpEnabled = on;
-            Done("Level-up " + OnOff(on) + ".");
+            Done("LevelUpEnabled", "Level-up " + OnOff(on) + ".");
         }
 
         /// Monster cap lifted (int.MaxValue) or back to the default 400, immediate.
         public void SetMonsterCapLifted(bool lifted)
         {
             _host.Rules.MonsterCap = lifted ? int.MaxValue : GameRules.MonsterCapDefault;
-            Done("Monster cap " + (lifted ? "lifted" : GameRules.MonsterCapDefault.ToString(CultureInfo.InvariantCulture)) + ".");
+            Done("MonsterCapLifted", "Monster cap " + (lifted ? "lifted" : GameRules.MonsterCapDefault.ToString(CultureInfo.InvariantCulture)) + ".");
         }
 
         /// Fixed master seed for the next run (null = a fresh seed per run).
         public void SetFixedSeed(ulong? seed)
         {
             _host.FixedSeed = seed;
-            Done("Seed for the next run: " + (seed.HasValue ? seed.Value.ToString(CultureInfo.InvariantCulture) : "random") + ".");
+            Done("FixedSeed", "Seed for the next run: " + (seed.HasValue ? seed.Value.ToString(CultureInfo.InvariantCulture) : "random") + ".");
         }
 
         /// Auto path input for the next run: a circle of radius through the spawn point (center (-radius, 0), start angle 0) at
@@ -229,16 +253,16 @@ namespace Survivor.Dev
             if (!on)
             {
                 _host.InputOverride = null;
-                return Done("Auto path off (next run).");
+                return Done("AutoPath", "Auto path off (next run).");
             }
 
             if (!IsPositiveFinite(radius) || !IsPositiveFinite(speed))
             {
-                return Refuse("Auto path needs a positive radius and speed.");
+                return Refuse("AutoPath", "Auto path needs a positive radius and speed.");
             }
 
             _host.InputOverride = new AutoPathInputSource(new Vector2(-radius, 0f), radius, speed, 0f);
-            return Done("Auto path r=" + radius.ToString("0.##", CultureInfo.InvariantCulture) + " speed="
+            return Done("AutoPath", "Auto path r=" + radius.ToString("0.##", CultureInfo.InvariantCulture) + " speed="
                 + speed.ToString("0.##", CultureInfo.InvariantCulture) + " (next run).");
         }
 
@@ -247,7 +271,7 @@ namespace Survivor.Dev
         {
             StrategySelection s = _host.NextRunSelection;
             _host.NextRunSelection = new StrategySelection(kind, s.Target, s.Tick, s.Collision, s.EngineDetectionMode, s.SpatialHashCellSize);
-            Done("Pool " + kind + " (next run).");
+            Done("NextPool", "Pool " + kind + " (next run).");
         }
 
         /// Tick strategy of the next run.
@@ -255,7 +279,7 @@ namespace Survivor.Dev
         {
             StrategySelection s = _host.NextRunSelection;
             _host.NextRunSelection = new StrategySelection(s.Pool, s.Target, kind, s.Collision, s.EngineDetectionMode, s.SpatialHashCellSize);
-            Done("Tick " + kind + " (next run).");
+            Done("NextTick", "Tick " + kind + " (next run).");
         }
 
         /// Collision strategy of the next run.
@@ -263,7 +287,7 @@ namespace Survivor.Dev
         {
             StrategySelection s = _host.NextRunSelection;
             _host.NextRunSelection = new StrategySelection(s.Pool, s.Target, s.Tick, kind, s.EngineDetectionMode, s.SpatialHashCellSize);
-            Done("Collision " + kind + " (next run).");
+            Done("NextCollision", "Collision " + kind + " (next run).");
         }
 
         /// Engine collider detection mode (CCD) of the next run.
@@ -271,7 +295,7 @@ namespace Survivor.Dev
         {
             StrategySelection s = _host.NextRunSelection;
             _host.NextRunSelection = new StrategySelection(s.Pool, s.Target, s.Tick, s.Collision, mode, s.SpatialHashCellSize);
-            Done("CCD " + mode + " (next run).");
+            Done("NextCcd", "CCD " + mode + " (next run).");
         }
 
         /// Target provider: kept for the next run and, during a run, switched now (next Begin, TAC-F16-5).
@@ -283,11 +307,11 @@ namespace Survivor.Dev
             {
                 _host.RequestTargetProviderSwitch(kind);
                 _currentTarget = kind;
-                Done("Target " + kind + " (now).");
+                Done("Target", "Target " + kind + " (now).");
                 return;
             }
 
-            Done("Target " + kind + " (next run).");
+            Done("Target", "Target " + kind + " (next run).");
         }
 
         /// Spawn policy of the next run: stop table spawns, rename them to one species, hold N live monsters. All off restores
@@ -298,30 +322,30 @@ namespace Survivor.Dev
             GameData data = _host.Data.Current;
             if (data == null)
             {
-                return Refuse("No data loaded.");
+                return Refuse("ConfigureSpawns", "No data loaded.");
             }
 
             if (holdCount < 0)
             {
-                return Refuse("Hold N must be 0 (off) or positive.");
+                return Refuse("ConfigureSpawns", "Hold N must be 0 (off) or positive.");
             }
 
             string only = string.IsNullOrEmpty(onlySpeciesId) ? null : onlySpeciesId;
             if (only != null && !IsSpawnableMonster(data, only))
             {
-                return Refuse("Unknown or boss monster id '" + only + "'.");
+                return Refuse("ConfigureSpawns", "Unknown or boss monster id '" + only + "'.");
             }
 
             if (!stopSpawns && only == null && holdCount == 0)
             {
                 _host.SpawnPolicyOverride = null;
-                return Done("Spawns: table (next run).");
+                return Done("ConfigureSpawns", "Spawns: table (next run).");
             }
 
             string holdSpecies = only ?? FirstSpawnableMonster(data);
             if (holdCount > 0 && holdSpecies == null)
             {
-                return Refuse("No non-boss monster in the data for hold mode.");
+                return Refuse("ConfigureSpawns", "No non-boss monster in the data for hold mode.");
             }
 
             _host.SpawnPolicyOverride = new DevSpawnPolicy(new TableSpawnPolicy(_host.Data), stopSpawns, only, holdCount, holdSpecies);
@@ -334,7 +358,7 @@ namespace Survivor.Dev
                 }
             }
 
-            return Done("Spawns: " + (stopSpawns ? "stopped" : "table") + (only != null ? ", only " + only : string.Empty)
+            return Done("ConfigureSpawns", "Spawns: " + (stopSpawns ? "stopped" : "table") + (only != null ? ", only " + only : string.Empty)
                 + (holdCount > 0 ? ", hold " + holdCount.ToString(CultureInfo.InvariantCulture) : string.Empty) + " (next run).");
         }
 
@@ -343,16 +367,16 @@ namespace Survivor.Dev
         {
             if (!IsPositiveFinite(distance))
             {
-                return Refuse("D must be positive and finite.");
+                return Refuse("DespawnDistance", "D must be positive and finite.");
             }
 
             if (!IsRunActive)
             {
-                return Refuse("D needs a run in progress.");
+                return Refuse("DespawnDistance", "D needs a run in progress.");
             }
 
             _host.Commands.Enqueue(PendingCommand.SetDespawnDistance(distance));
-            return Done("D = " + distance.ToString("0.##", CultureInfo.InvariantCulture) + ".");
+            return Done("DespawnDistance", "D = " + distance.ToString("0.##", CultureInfo.InvariantCulture) + ".");
         }
 
         /// Spawns count monsters of monsterId on the spawn circle (radius 20) around the player at the next step.
@@ -361,21 +385,21 @@ namespace Survivor.Dev
             GameData data = _host.Data.Current;
             if (!IsRunActive || data == null)
             {
-                return Refuse("Spawn needs a run in progress.");
+                return Refuse("SpawnMonstersNow", "Spawn needs a run in progress.");
             }
 
             if (count <= 0)
             {
-                return Refuse("Spawn count must be positive.");
+                return Refuse("SpawnMonstersNow", "Spawn count must be positive.");
             }
 
             if (string.IsNullOrEmpty(monsterId) || !IsSpawnableMonster(data, monsterId))
             {
-                return Refuse("Unknown or boss monster id '" + monsterId + "' (use Spawn boss for the boss).");
+                return Refuse("SpawnMonstersNow", "Unknown or boss monster id '" + monsterId + "' (use Spawn boss for the boss).");
             }
 
             _host.Commands.Enqueue(PendingCommand.SpawnMonstersNow(monsterId, count, PlayerPosition, GameRules.SpawnRadius, false));
-            return Done("Spawn " + count.ToString(CultureInfo.InvariantCulture) + " x " + monsterId + " queued.");
+            return Done("SpawnMonstersNow", "Spawn " + count.ToString(CultureInfo.InvariantCulture) + " x " + monsterId + " queued.");
         }
 
         /// Boss now at the player + (3, 0); refused with "Boss: one per run" when the boss already spawned (no command queued).
@@ -384,22 +408,22 @@ namespace Survivor.Dev
             GameData data = _host.Data.Current;
             if (!IsRunActive || data == null)
             {
-                return Refuse("Boss needs a run in progress.");
+                return Refuse("SpawnBossNow", "Boss needs a run in progress.");
             }
 
             if (_host.BossSpawnedThisRun)
             {
-                return Refuse("Boss: one per run.");
+                return Refuse("SpawnBossNow", "Boss: one per run.");
             }
 
             string bossId = data.SpawnTable != null ? data.SpawnTable.BossMonsterId : null;
             if (string.IsNullOrEmpty(bossId) || !data.TryGetMonster(bossId, out _))
             {
-                return Refuse("The spawn table has no valid boss.");
+                return Refuse("SpawnBossNow", "The spawn table has no valid boss.");
             }
 
             _host.Commands.Enqueue(PendingCommand.SpawnBossNow(bossId, PlayerPosition + SpawnOffset));
-            return Done("Boss " + bossId + " queued.");
+            return Done("SpawnBossNow", "Boss " + bossId + " queued.");
         }
 
         /// Chest now at the player + (3, 0).
@@ -407,11 +431,11 @@ namespace Survivor.Dev
         {
             if (!IsRunActive)
             {
-                return Refuse("Chest needs a run in progress.");
+                return Refuse("SpawnChestNow", "Chest needs a run in progress.");
             }
 
             _host.Commands.Enqueue(PendingCommand.SpawnChestNow(PlayerPosition + SpawnOffset));
-            return Done("Chest queued.");
+            return Done("SpawnChestNow", "Chest queued.");
         }
 
         /// Player health now (clamped to [0, max] by the player).
@@ -419,16 +443,16 @@ namespace Survivor.Dev
         {
             if (!IsRunActive)
             {
-                return Refuse("Health needs a run in progress.");
+                return Refuse("Health", "Health needs a run in progress.");
             }
 
             if (float.IsNaN(health) || float.IsInfinity(health))
             {
-                return Refuse("Health must be a finite number.");
+                return Refuse("Health", "Health must be a finite number.");
             }
 
             _host.Commands.Enqueue(PendingCommand.SetHealth(health));
-            return Done("Health " + health.ToString("0.##", CultureInfo.InvariantCulture) + " queued.");
+            return Done("Health", "Health " + health.ToString("0.##", CultureInfo.InvariantCulture) + " queued.");
         }
 
         /// Adds xp experience at the next step.
@@ -436,16 +460,16 @@ namespace Survivor.Dev
         {
             if (!IsRunActive)
             {
-                return Refuse("XP needs a run in progress.");
+                return Refuse("AddXp", "XP needs a run in progress.");
             }
 
             if (xp <= 0)
             {
-                return Refuse("XP must be positive.");
+                return Refuse("AddXp", "XP must be positive.");
             }
 
             _host.Commands.Enqueue(PendingCommand.AddXp(xp));
-            return Done("+" + xp.ToString(CultureInfo.InvariantCulture) + " XP queued.");
+            return Done("AddXp", "+" + xp.ToString(CultureInfo.InvariantCulture) + " XP queued.");
         }
 
         /// Adds the experience for the next level at the next step (the level-up round opens when level-up is enabled).
@@ -453,52 +477,87 @@ namespace Survivor.Dev
         {
             if (!IsRunActive)
             {
-                return Refuse("Level up needs a run in progress.");
+                return Refuse("LevelUpNow", "Level up needs a run in progress.");
             }
 
             _host.Commands.Enqueue(PendingCommand.LevelUpNow());
-            return Done("Level up queued.");
+            return Done("LevelUpNow", "Level up queued.");
         }
 
-        /// Replaces the weapons with loadout at the next step (slot order = list order). Refused without a run, with more than
-        /// MaxWeaponSlots entries, an unknown or repeated id, or a level outside the definition's levels.
-        public bool TrySetLoadout(IReadOnlyList<WeaponLoadoutEntry> loadout)
+        /// Plans request with DevLoadoutPlanner (base weapons at levels 0..n, 0 or missing = removed, evolved weapons kept in their
+        /// slot) and queues the planned slot list (SetLoadout) for the next step. Refused without a run or when the planner
+        /// refuses (5.15.5); a refusal queues nothing.
+        public bool TrySetLoadout(IReadOnlyList<WeaponLoadoutEntry> request)
         {
             GameData data = _host.Data.Current;
             if (!IsRunActive || data == null)
             {
-                return Refuse("Loadout needs a run in progress.");
+                return Refuse("Loadout", "Loadout needs a run in progress.");
             }
 
-            if (loadout == null || loadout.Count > GameRules.MaxWeaponSlots)
+            if (request == null)
             {
-                return Refuse("Loadout needs 0.." + GameRules.MaxWeaponSlots.ToString(CultureInfo.InvariantCulture) + " weapons.");
+                return Refuse("Loadout", "Loadout needs a list of weapons.");
             }
 
-            for (int i = 0; i < loadout.Count; i++)
+            WeaponInventory weapons = _host.Session.Weapons;
+            var planned = new List<WeaponLoadoutEntry>(GameRules.MaxWeaponSlots);
+            if (!DevLoadoutPlanner.TryPlan(weapons.Slots, weapons.ConsumedByEvolution, data, request, planned, out string refusal))
             {
-                WeaponLoadoutEntry entry = loadout[i];
-                if (string.IsNullOrEmpty(entry.WeaponId) || !data.TryGetWeapon(entry.WeaponId, out WeaponDefinition definition))
-                {
-                    return Refuse("Unknown weapon '" + entry.WeaponId + "'.");
-                }
+                return Refuse("Loadout", refusal);
+            }
 
-                if (entry.Level < 1 || entry.Level > definition.Levels.Count)
+            int owned = 0;
+            for (int i = 0; i < planned.Count; i++)
+            {
+                if (planned[i].WeaponId != null)
                 {
-                    return Refuse(entry.WeaponId + " has levels 1.." + definition.Levels.Count.ToString(CultureInfo.InvariantCulture) + ".");
-                }
-
-                for (int j = 0; j < i; j++)
-                {
-                    if (string.Equals(loadout[j].WeaponId, entry.WeaponId, StringComparison.Ordinal))
-                    {
-                        return Refuse("Weapon '" + entry.WeaponId + "' appears twice.");
-                    }
+                    owned++;
                 }
             }
 
-            _host.Commands.Enqueue(PendingCommand.SetLoadout(new List<WeaponLoadoutEntry>(loadout)));
-            return Done("Loadout of " + loadout.Count.ToString(CultureInfo.InvariantCulture) + " weapon(s) queued.");
+            _host.Commands.Enqueue(PendingCommand.SetLoadout(planned));
+            return Done("Loadout", "Loadout of " + owned.ToString(CultureInfo.InvariantCulture) + " weapon(s) queued.");
+        }
+
+        /// Table spawns of the current run on or off from the next step (SetSpawnsEnabled command, 5.12.1). Refused without a run
+        /// (the flag is per run and every run starts with spawns on).
+        public bool TrySetSpawnsEnabled(bool enabled)
+        {
+            if (!IsRunActive)
+            {
+                return Refuse("SpawnsEnabled", "Spawn toggle needs a run in progress.");
+            }
+
+            _host.Commands.Enqueue(PendingCommand.SetSpawnsEnabled(enabled));
+            SpawnsEnabled = enabled;
+            return Done("SpawnsEnabled", "Table spawns " + OnOff(enabled) + " from the next step.");
+        }
+
+        /// Camera.main.orthographicSize = ClampZoom(requested) (display only). Refused when there is no main camera.
+        public bool TrySetZoom(float requested)
+        {
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                return Refuse("Zoom", "No main camera.");
+            }
+
+            float size = ClampZoom(requested);
+            camera.orthographicSize = size;
+            return Done("Zoom", "Zoom " + size.ToString("0.##", CultureInfo.InvariantCulture) + ".");
+        }
+
+        /// Camera.main.orthographicSize back to GameRules.CameraOrthographicSize (9); no-op without a camera (logged either way).
+        public void ResetZoom()
+        {
+            if (!ApplyDefaultZoom())
+            {
+                Refuse("ResetZoom", "No main camera.");
+                return;
+            }
+
+            Done("ResetZoom", "Zoom " + GameRules.CameraOrthographicSize.ToString("0.##", CultureInfo.InvariantCulture) + ".");
         }
 
         /// Copies the status panel values from the host (read only); actualSpeed comes from the overlay's one-second window.
@@ -508,20 +567,24 @@ namespace Survivor.Dev
             SimulationClock clock = _host.Clock;
             return new DevStatusInput(clock.Step, session.Rng.MasterSeed, _runSeedFixed, _host.LiveMonsterCount, _host.ActiveGemCount,
                 _runSelection.Pool, _currentTarget, _runSelection.Tick, _runSelection.Collision, _runSelection.EngineDetectionMode,
-                _host.SpatialIndex.CellSize, Time.timeScale, actualSpeed, null, State, clock.IsRunning, clock.CloseReason,
+                _host.SpatialIndex.CellSize, Time.timeScale, actualSpeed,
+                _host.Data.Current?.SpawnTable?.HpMultiplierAt(clock.Step), State, clock.IsRunning, clock.CloseReason,
                 session.Weapons.Slots, session.Passives.Slots);
         }
 
-        /// Unsubscribes from the host.
+        /// Unsubscribes from the host and puts the camera back to the default size (leaving dev mode, 5.15.5).
         public void Dispose()
         {
             _host.RunEnded -= OnRunEnded;
+            ApplyDefaultZoom();
         }
 
         private Vector2 PlayerPosition => _host.Session.Player.Position;
 
         private void OnRunReset()
         {
+            _runNumber++;
+            SpawnsEnabled = true;
             _runSelection = _host.NextRunSelection;
             _currentTarget = _runSelection.Target;
             _runSeedFixed = _host.FixedSeed.HasValue;
@@ -579,15 +642,90 @@ namespace Survivor.Dev
             return on ? "on" : "off";
         }
 
-        private bool Done(string message)
+        // Records a visualization toggle made in the overlay (a user action, so it gets a log line like every other one).
+        internal void NoteVisualization(string option, bool on)
         {
-            LastMessage = message;
+            Done(option, OnOff(on) + ".");
+        }
+
+        // "#<run> <step> <command>: <message>" (5.15.5 default), numbers in InvariantCulture.
+        internal static string FormatLine(int run, long step, string command, string message)
+        {
+            return "#" + run.ToString(CultureInfo.InvariantCulture) + " " + step.ToString(CultureInfo.InvariantCulture) + " " + command
+                + ": " + message;
+        }
+
+        // Chest line text: upgrade "<name> Lv a->b" (U+2192), evolution "<name> (evolved)", heal "Heal +x" (F1); name = the data
+        // display name, or the id when the weapon is not in the data.
+        internal static string ChestText(in ChestResult result, GameData data)
+        {
+            if (result.Kind == ChestEffect.Healed)
+            {
+                return "Heal +" + result.HealAmount.ToString("F1", CultureInfo.InvariantCulture);
+            }
+
+            string name = result.TargetId;
+            if (data != null && result.TargetId != null && data.TryGetWeapon(result.TargetId, out WeaponDefinition definition)
+                && !string.IsNullOrEmpty(definition.DisplayName))
+            {
+                name = definition.DisplayName;
+            }
+
+            return result.Kind == ChestEffect.Evolved
+                ? name + " (evolved)"
+                : name + " Lv " + result.FromLevel.ToString(CultureInfo.InvariantCulture) + "\u2192"
+                    + result.ToLevel.ToString(CultureInfo.InvariantCulture);
+        }
+
+        // Moves chest results newer than the last one seen into the log, oldest first (de-dup key: ChestResult.Sequence). Runs
+        // at the top of Poll (before a run reset clears the list) and before every command line, so a command recorded at
+        // step N comes before the chest results of step N.
+        private void PullChestResults()
+        {
+            ChestResultLog results = _host.ChestResults;
+            if (results == null || results.LastSequence <= _lastChestSequence)
+            {
+                return;
+            }
+
+            GameData data = _host.Data.Current;
+            for (int i = 0; i < results.Count; i++)
+            {
+                ChestResult result = results[i];
+                if (result.Sequence > _lastChestSequence)
+                {
+                    _commandLog.Add(FormatLine(_runNumber, result.Step, "Chest", ChestText(in result, data)));
+                }
+            }
+
+            _lastChestSequence = results.LastSequence;
+        }
+
+        private static bool ApplyDefaultZoom()
+        {
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                return false;
+            }
+
+            camera.orthographicSize = GameRules.CameraOrthographicSize;
             return true;
         }
 
-        private bool Refuse(string message)
+        private bool Done(string command, string message)
         {
+            PullChestResults();
             LastMessage = message;
+            _commandLog.Add(FormatLine(_runNumber, _host.Clock.Step, command, message));
+            return true;
+        }
+
+        private bool Refuse(string command, string message)
+        {
+            PullChestResults();
+            LastMessage = message;
+            _commandLog.Add(FormatLine(_runNumber, _host.Clock.Step, command, "refused - " + message));
             DevLog.Info("Refused: " + message);
             return false;
         }

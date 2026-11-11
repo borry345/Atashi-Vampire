@@ -50,6 +50,7 @@ namespace Survivor.Dev
         private string _scaleText = "1";
         private readonly string[] _loadoutIds = { "W1", "W2", "W3", "W4" };
         private readonly string[] _loadoutLevels = { "5", "5", "5", "5" };
+        private float _zoomDraft = float.NaN;
 
         /// Font the overlay draws with; null means the engine default (SPEC F19 65: allowed, Hangul may not render).
         public Font OverlayFont => _font;
@@ -161,9 +162,10 @@ namespace Survivor.Dev
                 GUILayout.Label(_lines[i], _label);
             }
 
-            if (!string.IsNullOrEmpty(_controller.LastMessage))
+            DevCommandLog log = _controller.CommandLog;
+            for (int i = 0; i < log.Count; i++)
             {
-                GUILayout.Label("> " + _controller.LastMessage, _label);
+                GUILayout.Label(log.NewestFirst(i), _label);
             }
 
             _tab = GUILayout.SelectionGrid(_tab, Tabs, 4);
@@ -247,7 +249,7 @@ namespace Survivor.Dev
                 _controller.SetWeaponsEnabled(weapons);
             }
 
-            GUILayout.Label("Loadout (id, level; empty id = no weapon):");
+            GUILayout.Label("Loadout (id, level 0..5; 0 or empty id = remove):");
             for (int i = 0; i < _loadoutIds.Length; i++)
             {
                 GUILayout.BeginHorizontal();
@@ -319,6 +321,12 @@ namespace Survivor.Dev
             GUILayout.EndHorizontal();
             ISpawnPolicy current = _controller.Host.SpawnPolicyOverride;
             GUILayout.Label("Spawn policy (next run): " + DescribePolicy(current));
+            bool spawnsNow = _controller.SpawnsEnabled;
+            if (GUILayout.Toggle(spawnsNow, "Table spawns now: " + (spawnsNow ? "on" : "off")) != spawnsNow)
+            {
+                _controller.TrySetSpawnsEnabled(!spawnsNow);
+            }
+
             _stopSpawns = GUILayout.Toggle(_stopSpawns, "Stop table spawns");
             GUILayout.BeginHorizontal();
             GUILayout.Label("Only species", GUILayout.Width(90f));
@@ -456,11 +464,73 @@ namespace Survivor.Dev
                 return;
             }
 
-            _visualizer.ShowGrid = GUILayout.Toggle(_visualizer.ShowGrid, "Spatial hash grid + counts"
+            bool grid = GUILayout.Toggle(_visualizer.ShowGrid, "Spatial hash grid + counts"
                 + (_controller.Host.SpatialIndex.Required ? string.Empty : " (index inactive)"));
-            _visualizer.ShowRadii = GUILayout.Toggle(_visualizer.ShowRadii, "Collision radii");
-            _visualizer.ShowTargets = GUILayout.Toggle(_visualizer.ShowTargets, "Weapon -> target lines");
-            _visualizer.ShowSpawnRings = GUILayout.Toggle(_visualizer.ShowSpawnRings, "Spawn (20) / despawn (D) rings");
+            if (grid != _visualizer.ShowGrid)
+            {
+                _visualizer.ShowGrid = grid;
+                _controller.NoteVisualization("ShowGrid", grid);
+            }
+
+            bool radii = GUILayout.Toggle(_visualizer.ShowRadii, "Collision radii");
+            if (radii != _visualizer.ShowRadii)
+            {
+                _visualizer.ShowRadii = radii;
+                _controller.NoteVisualization("ShowRadii", radii);
+            }
+
+            bool targets = GUILayout.Toggle(_visualizer.ShowTargets, "Weapon -> target lines");
+            if (targets != _visualizer.ShowTargets)
+            {
+                _visualizer.ShowTargets = targets;
+                _controller.NoteVisualization("ShowTargets", targets);
+            }
+
+            bool rings = GUILayout.Toggle(_visualizer.ShowSpawnRings, "Spawn (20) / despawn (D) rings");
+            if (rings != _visualizer.ShowSpawnRings)
+            {
+                _visualizer.ShowSpawnRings = rings;
+                _controller.NoteVisualization("ShowSpawnRings", rings);
+            }
+
+            DrawZoom();
+        }
+
+        // Camera zoom (display only): the slider applies on release (one TrySetZoom, one log line per drag), the button resets to 9.
+        private void DrawZoom()
+        {
+            Camera camera = Camera.main;
+            if (camera == null)
+            {
+                GUILayout.Label("Zoom: no main camera.");
+                return;
+            }
+
+            float shown = float.IsNaN(_zoomDraft) ? camera.orthographicSize : _zoomDraft;
+            GUILayout.Label("Zoom (orthographic size " + shown.ToString("0.##", CultureInfo.InvariantCulture) + ", "
+                + DevController.MinZoom.ToString("0.##", CultureInfo.InvariantCulture) + ".."
+                + DevController.MaxZoom.ToString("0.##", CultureInfo.InvariantCulture) + "; display only):");
+            float next = GUILayout.HorizontalSlider(shown, DevController.MinZoom, DevController.MaxZoom);
+            if (next != shown)
+            {
+                _zoomDraft = next;
+            }
+
+            if (!float.IsNaN(_zoomDraft) && GUIUtility.hotControl == 0)
+            {
+                float requested = _zoomDraft;
+                _zoomDraft = float.NaN;
+                if (requested != camera.orthographicSize)
+                {
+                    _controller.TrySetZoom(requested);
+                }
+            }
+
+            if (GUILayout.Button("Reset zoom (9)"))
+            {
+                _zoomDraft = float.NaN;
+                _controller.ResetZoom();
+            }
         }
 
         private static void DrawDataTab()
