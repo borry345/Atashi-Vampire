@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Survivor.Tests.EditMode.Player
 {
-    // F2 (TAC-F2-1..6) and F6 (TAC-F6-1..9), commands and spawn path (5.4, P7).
+    // F2 (TAC-F2-1..6) and F6 (TAC-F6-1..9, 11), commands and spawn path (5.4, P7).
     public sealed class WeaponTests
     {
         private PlrRig _rig;
@@ -515,6 +515,121 @@ namespace Survivor.Tests.EditMode.Player
             _rig.Step();
             Assert.AreEqual(1, second.Hits.Count);
             Assert.AreEqual(0, _rig.Live<PlayerProjectile>().Count, "consumed on hit pierceCount + 1");
+        }
+
+        private static PlayerProjectile FindProjectile(PlrRig rig, EntityHandle id)
+        {
+            foreach (PlayerProjectile projectile in rig.Live<PlayerProjectile>())
+            {
+                if (projectile.Id.Equals(id))
+                {
+                    return projectile;
+                }
+            }
+
+            return null;
+        }
+
+        [Test]
+        public void TACF6_11_SecondProjectileOnAMonsterKilledThisStepPassesThroughAndHitsTheNextLiveOne()
+        {
+            _rig = new PlrRig();
+            PlrMonster m = _rig.AddMonster(new Vector2(5f, 0f), hp: 5f);
+            PlrMonster n = _rig.AddMonster(new Vector2(5f, 0.1f));
+            QueueLoadout(_rig, ("W1", 4));
+            _rig.Step();
+            List<PlayerProjectile> shots = _rig.Live<PlayerProjectile>();
+            Assert.AreEqual(2, shots.Count, "W1 level 4 fires two projectiles");
+            PlayerProjectile p1 = shots[0];
+            PlayerProjectile p2 = shots[1];
+            EntityHandle p1Id = p1.Id;
+            EntityHandle p2Id = p2.Id;
+            float damage = p2.Damage;
+            Assert.Less(p1Id.CompareTo(p2Id), 0);
+            Assert.Greater(p1.Damage, 5f, "one hit kills M");
+
+            // Step 1: p1 kills M; p2 reaches the now dead M - recorded, no damage, not consumed.
+            _rig.Collisions.Add(1, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, p2Id, m.Id);
+            _rig.Collisions.Add(1, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, p1Id, m.Id);
+            _rig.Step();
+            Assert.AreEqual(1, m.Hits.Count, "only p1 damages M");
+            Assert.IsFalse(m.IsAlive);
+            List<SimulationCommand> despawns = _rig.Commands.At(1, SimulationCommandKind.Despawn);
+            Assert.AreEqual(1, despawns.Count, "p2 queues nothing");
+            Assert.AreEqual(p1Id, despawns[0].Target);
+            Assert.AreEqual(DespawnReason.Consumed, despawns[0].Reason);
+            Assert.AreSame(p2, FindProjectile(_rig, p2Id), "p2 is still flying");
+            Assert.IsFalse(p2.IsConsumed);
+            Assert.AreEqual(0, p2.HitCount);
+
+            // Step 2: M was recorded in p2's list, so a later Enter on M is ignored even if M had health again (stand-in revived).
+            m.Hp = 100f;
+            _rig.Collisions.Add(2, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, p2Id, m.Id);
+            _rig.Step();
+            Assert.AreEqual(1, m.Hits.Count, "M is in p2's hit list");
+            Assert.AreEqual(0, _rig.Commands.At(2, SimulationCommandKind.Despawn).Count);
+            Assert.IsFalse(p2.IsConsumed);
+
+            // Step 3: a live monster N takes the hit and p2 is consumed.
+            _rig.Collisions.Add(3, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, p2Id, n.Id);
+            _rig.Step();
+            Assert.AreEqual(1, n.Hits.Count);
+            Assert.AreEqual(damage, n.Hits[0].amount);
+            despawns = _rig.Commands.At(3, SimulationCommandKind.Despawn);
+            Assert.AreEqual(1, despawns.Count);
+            Assert.AreEqual(p2Id, despawns[0].Target);
+            Assert.AreEqual(DespawnReason.Consumed, despawns[0].Reason);
+            Assert.IsNull(FindProjectile(_rig, p2Id));
+        }
+
+        [Test]
+        public void TACF6_11_DeadTargetDoesNotUseThePierceBudget()
+        {
+            _rig = new PlrRig(PlrTestData.With(DataFileKind.Weapons, PlrTestData.WeaponsWithExtras));
+            PlrMonster dead = _rig.AddMonster(new Vector2(5f, 0f), hp: 0f);
+            PlrMonster live = _rig.AddMonster(new Vector2(6f, 0f));
+            PlrMonster next = _rig.AddMonster(new Vector2(9f, 0f));
+            QueueLoadout(_rig, ("PX", 1));
+            _rig.Step();
+            PlayerProjectile shot = _rig.Live<PlayerProjectile>()[0];
+            EntityHandle shotId = shot.Id;
+            Assert.AreEqual(1, shot.PierceCount);
+
+            // Same step: dead (smaller id) then live - the dead Enter is recorded only and leaves the pierce budget alone.
+            _rig.Collisions.Add(1, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, shotId, live.Id);
+            _rig.Collisions.Add(1, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, shotId, dead.Id);
+            _rig.Step();
+            Assert.AreEqual(0, dead.Hits.Count);
+            Assert.AreEqual(1, live.Hits.Count);
+            Assert.AreEqual(1, shot.HitCount, "only the live target counts");
+            Assert.IsFalse(shot.IsConsumed, "pierce 1: one live hit left");
+            Assert.AreSame(shot, FindProjectile(_rig, shotId));
+
+            _rig.Collisions.Add(2, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, shotId, next.Id);
+            _rig.Step();
+            Assert.AreEqual(1, next.Hits.Count);
+            Assert.AreEqual(1, _rig.Commands.At(2, SimulationCommandKind.Despawn).Count);
+            Assert.IsNull(FindProjectile(_rig, shotId), "consumed on the second live hit");
+        }
+
+        [Test]
+        public void TACF6_11_OneProjectileOnADeadSmallerIdAndALiveLargerIdHitsTheLiveOne()
+        {
+            _rig = new PlrRig();
+            PlrMonster dead = _rig.AddMonster(new Vector2(5f, 0f), hp: 0f);
+            PlrMonster live = _rig.AddMonster(new Vector2(5f, 0.1f));
+            _rig.Step();
+            EntityHandle shot = _rig.Live<PlayerProjectile>()[0].Id;
+            Assert.Less(dead.Id.CompareTo(live.Id), 0);
+            _rig.Collisions.Add(1, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, shot, live.Id);
+            _rig.Collisions.Add(1, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, shot, dead.Id);
+            _rig.Step();
+            Assert.AreEqual(0, dead.Hits.Count);
+            Assert.AreEqual(1, live.Hits.Count, "the dead smaller id is passed, the live one is hit");
+            List<SimulationCommand> despawns = _rig.Commands.At(1, SimulationCommandKind.Despawn);
+            Assert.AreEqual(1, despawns.Count);
+            Assert.AreEqual(shot, despawns[0].Target);
+            Assert.AreEqual(0, _rig.Live<PlayerProjectile>().Count);
         }
 
         [Test]

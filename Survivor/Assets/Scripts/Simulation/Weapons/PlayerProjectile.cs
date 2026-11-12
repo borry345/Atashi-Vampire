@@ -9,6 +9,7 @@ namespace Survivor.Simulation
     public sealed class PlayerProjectile : SimEntity, IUpdatable
     {
         private readonly List<EntityHandle> _hitTargets = new List<EntityHandle>();
+        private int _damagingHits;
 
         /// Tick group of player and enemy projectiles.
         public TickGroup Group => TickGroup.Projectiles;
@@ -34,8 +35,8 @@ namespace Survivor.Simulation
         /// Extra monsters the projectile may hit; consumed on hit number PierceCount + 1.
         public int PierceCount { get; private set; }
 
-        /// Number of monsters hit so far.
-        public int HitCount => _hitTargets.Count;
+        /// Number of live monsters damaged so far; Enters on already-dead targets are recorded but not counted (TAC-F6-11).
+        public int HitCount => _damagingHits;
 
         /// Target of the latest successful homing re-aim (dev visualization); default = none. Non-homing projectiles never write it.
         public EntityHandle LastTargetId { get; internal set; }
@@ -70,6 +71,7 @@ namespace Survivor.Simulation
             LastTargetId = default;
             PierceCount = pierceCount < 0 ? 0 : pierceCount;
             _hitTargets.Clear();
+            _damagingHits = 0;
             Body.Radius = radius;
             Body.IsLarge = false;
         }
@@ -86,12 +88,19 @@ namespace Survivor.Simulation
             return true;
         }
 
-        internal bool IsSpent => _hitTargets.Count >= PierceCount + 1;
+        // Counts one hit that damaged a live target; only these use up the pierce budget (TAC-F6-11).
+        internal void CountDamagingHit()
+        {
+            _damagingHits++;
+        }
+
+        internal bool IsSpent => _damagingHits >= PierceCount + 1;
 
         /// Drops per-flight state before the instance returns to the pool.
         protected override void OnReleased()
         {
             _hitTargets.Clear();
+            _damagingHits = 0;
             WeaponId = null;
         }
     }

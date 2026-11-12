@@ -38,6 +38,9 @@ namespace Survivor.Simulation
         /// The latest chest results (TAC-F4-9), written by ChestEffectResolver; emptied by ResetForRun (LastSequence is kept).
         public ChestResultLog ChestResults { get; } = new ChestResultLog();
 
+        // Read by ChestEffectResolver for the passive upgrade candidates (TAC-F4-10); writes still go through this class (A11).
+        internal PassiveInventory Passives => _passives;
+
         /// Run start (RunSession.Reset step 4, after DespawnAll and the player registration): empties weapons and passives, resets
         /// health to the current MaxHealth, gives the starting weapon at level 1 with NextFireStep = clock.Step (TAC-F2-1) and
         /// empties ChestResults. Throws InvalidOperationException when player stats or the starting weapon are missing from the
@@ -106,6 +109,18 @@ namespace Survivor.Simulation
             }
 
             UpgradeWeapon(slotIndex, weapon.Id);
+        }
+
+        /// Chest effect 2 for a passive (TAC-F4-10): upgrades the passive in slotIndex by one level (R22) and refreshes its effects
+        /// like a level-up; InvalidOperationException when the slot is outside [0, MaxPassiveSlots), empty, or not upgradable.
+        public void ApplyChestPassiveUpgrade(int slotIndex)
+        {
+            if (slotIndex < 0 || slotIndex >= GameRules.MaxPassiveSlots || _passives.Slots[slotIndex] == null)
+            {
+                throw new InvalidOperationException("PlayerProgressionApplier.ApplyChestPassiveUpgrade: passive slot " + slotIndex + " is empty.");
+            }
+
+            UpgradePassive(_passives.Slots[slotIndex].Id);
         }
 
         /// Chest effect 1 (Resolve): replaces the weapon in slotIndex with rule's result weapon at level 1, NextFireStep =
@@ -218,6 +233,79 @@ namespace Survivor.Simulation
             LoopLog.Info("Loadout set at step " + context.Step.ToString(CultureInfo.InvariantCulture) + ": " + Describe(loadout) + ".");
         }
 
+        /// Dev passive loadout (Begin, A11, TAC-F19-20): slot order = list order, at most MaxPassiveSlots entries; an entry whose
+        /// PassiveId is null leaves that slot empty, and an all-empty (or empty) list is allowed. A passive that stays in the same
+        /// slot keeps its instance (and its captured definition) and takes the requested level; any other slot gets a new
+        /// instance from the current data. Validates everything first: ArgumentNullException for null, ArgumentException for too
+        /// many entries, unknown ids, duplicates or levels out of range. Refreshes passive effects once and logs one Info line.
+        public void SetPassiveLoadout(IReadOnlyList<PassiveLoadoutEntry> loadout, in StepContext context)
+        {
+            if (loadout == null)
+            {
+                throw new ArgumentNullException(nameof(loadout));
+            }
+
+            if (loadout.Count > GameRules.MaxPassiveSlots)
+            {
+                throw new ArgumentException("SetPassiveLoadout: " + loadout.Count + " passives exceed " + GameRules.MaxPassiveSlots + " slots.", nameof(loadout));
+            }
+
+            GameData data = Data();
+            var definitions = new PassiveDefinition[loadout.Count];
+            for (int i = 0; i < loadout.Count; i++)
+            {
+                PassiveLoadoutEntry entry = loadout[i];
+                if (entry.PassiveId == null)
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < i; j++)
+                {
+                    if (string.Equals(loadout[j].PassiveId, entry.PassiveId, StringComparison.Ordinal))
+                    {
+                        throw new ArgumentException("SetPassiveLoadout: passive '" + entry.PassiveId + "' appears twice.", nameof(loadout));
+                    }
+                }
+
+                // A passive kept in its slot keeps the definition captured when it was acquired (5.14 hot reload rule).
+                PassiveInstance current = _passives.Slots[i];
+                PassiveDefinition definition;
+                if (current != null && string.Equals(current.Id, entry.PassiveId, StringComparison.Ordinal))
+                {
+                    definition = current.Definition;
+                }
+                else if (!data.TryGetPassive(entry.PassiveId, out definition))
+                {
+                    throw new ArgumentException("SetPassiveLoadout: passive '" + entry.PassiveId + "' is not defined.", nameof(loadout));
+                }
+
+                if (entry.Level < 1 || entry.Level > definition.Levels.Count)
+                {
+                    throw new ArgumentException("SetPassiveLoadout: level " + entry.Level + " of " + entry.PassiveId + " is outside 1.."
+                        + definition.Levels.Count + ".", nameof(loadout));
+                }
+
+                definitions[i] = definition;
+            }
+
+            for (int slot = 0; slot < GameRules.MaxPassiveSlots; slot++)
+            {
+                PassiveInstance current = _passives.Slots[slot];
+                bool wanted = slot < loadout.Count && loadout[slot].PassiveId != null;
+                if (current != null && wanted && string.Equals(current.Id, loadout[slot].PassiveId, StringComparison.Ordinal))
+                {
+                    current.Level = loadout[slot].Level;
+                    continue;
+                }
+
+                _passives.SetSlot(slot, wanted ? new PassiveInstance(definitions[slot], loadout[slot].Level) : null);
+            }
+
+            OnPassivesChanged();
+            LoopLog.Info("Passive loadout set at step " + context.Step.ToString(CultureInfo.InvariantCulture) + ": " + Describe(loadout) + ".");
+        }
+
         /// Dev SetHealth (Begin): Hp = hp clamped to [0, MaxHp].
         public void SetHealth(float hp)
         {
@@ -235,6 +323,19 @@ namespace Survivor.Simulation
             }
 
             SetLoadout(loadout, context);
+        }
+
+        /// PendingCommandQueue handler for SetPassiveLoadout (registered by the composition root): Payload must be an
+        /// IReadOnlyList&lt;PassiveLoadoutEntry&gt;, else ArgumentException.
+        public void HandleSetPassiveLoadout(PendingCommand command, StepContext context)
+        {
+            if (!(command.Payload is IReadOnlyList<PassiveLoadoutEntry> loadout))
+            {
+                throw new ArgumentException("SetPassiveLoadout payload must be IReadOnlyList<PassiveLoadoutEntry> (got "
+                    + (command.Payload == null ? "null" : command.Payload.GetType().Name) + ").", nameof(command));
+            }
+
+            SetPassiveLoadout(loadout, context);
         }
 
         /// PendingCommandQueue handler for SetHealth (registered by the composition root): SetHealth(command.Value).
@@ -374,6 +475,28 @@ namespace Survivor.Simulation
                 }
 
                 builder.Append(loadout[i].WeaponId).Append(':').Append(loadout[i].Level.ToString(CultureInfo.InvariantCulture));
+            }
+
+            return builder.Append(']').ToString();
+        }
+
+        private static string Describe(IReadOnlyList<PassiveLoadoutEntry> loadout)
+        {
+            var builder = new StringBuilder("[");
+            for (int i = 0; i < loadout.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(", ");
+                }
+
+                if (loadout[i].PassiveId == null)
+                {
+                    builder.Append('-');
+                    continue;
+                }
+
+                builder.Append(loadout[i].PassiveId).Append(':').Append(loadout[i].Level.ToString(CultureInfo.InvariantCulture));
             }
 
             return builder.Append(']').ToString();

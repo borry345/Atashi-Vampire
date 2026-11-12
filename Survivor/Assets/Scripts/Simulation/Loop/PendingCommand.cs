@@ -29,7 +29,7 @@ namespace Survivor.Simulation
         /// Health value (SetHealth) or despawn distance (SetDespawnDistance).
         public readonly float Value;
 
-        /// Owner-defined payload, e.g. the loadout of SetLoadout (opaque to the queue).
+        /// Owner-defined payload, e.g. the loadout of SetLoadout or SetPassiveLoadout (opaque to the queue).
         public readonly object Payload;
 
         /// New data set (SwapData).
@@ -62,6 +62,12 @@ namespace Survivor.Simulation
         public static PendingCommand SetLoadout(object loadout)
         {
             return new PendingCommand(PendingCommandKind.SetLoadout, payload: loadout);
+        }
+
+        /// Dev: replace the passive loadout; payload is defined by the SetPassiveLoadout handler's owner (PLAYER).
+        public static PendingCommand SetPassiveLoadout(object loadout)
+        {
+            return new PendingCommand(PendingCommandKind.SetPassiveLoadout, payload: loadout);
         }
 
         /// Dev: set the player's health.

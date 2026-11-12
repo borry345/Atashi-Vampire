@@ -10,7 +10,8 @@ using UnityEngine;
 
 namespace Survivor.Tests.EditMode.Player
 {
-    // F7 (TAC-F7-1..3), chest effects (TAC-F4-4..6, 5c.5 "two chests in one step") and the chest result log (TAC-F4-9).
+    // F7 (TAC-F7-1..3), chest effects (TAC-F4-4..6, 5c.5 "two chests in one step"), the chest result log (TAC-F4-9) and the
+    // passive upgrade candidates (TAC-F4-10).
     public sealed class EvolutionChestTests
     {
         private static readonly EntityHandle ChestA = new EntityHandle(900, 1);
@@ -211,12 +212,13 @@ namespace Survivor.Tests.EditMode.Player
             _rig = new PlrRig();
             WeaponTests.QueueLoadout(_rig, ("W1", 5));
             LevelUp(_rig, new UpgradeOption(UpgradeKind.PassiveNew, "P1"));
+            _rig.Passives.Slots[0].Level = 5; // P1 at max: no passive upgrade candidate either (TAC-F4-10)
             s = _rig.Clock.Step;
             Chest(s, ChestA);
             Chest(s, ChestB);
             _rig.Step();
             Assert.AreEqual(ChestEffect.Evolved, _rig.ChestProbe.Effects[0]);
-            Assert.AreEqual(ChestEffect.Healed, _rig.ChestProbe.Effects[1], "E1 is not upgradable, so the 70/30 path heals");
+            Assert.AreEqual(ChestEffect.Healed, _rig.ChestProbe.Effects[1], "E1 and P1 (max) are not upgradable, so the 70/30 path heals");
         }
 
         [Test]
@@ -269,6 +271,7 @@ namespace Survivor.Tests.EditMode.Player
             // Evolution: (Evolved, result weapon id, 0 -> 1).
             WeaponTests.QueueLoadout(_rig, ("W1", 5));
             LevelUp(_rig, new UpgradeOption(UpgradeKind.PassiveNew, "P1"));
+            _rig.Passives.Slots[0].Level = 5; // P1 at max: no passive upgrade candidate either (TAC-F4-10)
             long s = _rig.Clock.Step;
             Chest(s, ChestA);
             _rig.Step();
@@ -276,7 +279,7 @@ namespace Survivor.Tests.EditMode.Player
             Assert.AreEqual(1, log.Count);
             AssertResult(log[0], 1, s, ChestEffect.Evolved, "E1", 0, 1, 0f);
 
-            // Heal (E1 is the only weapon and is not upgradable): HealAmount is the amount actually restored, 0 at full health.
+            // Heal (E1 is the only weapon and P1 is at max, so nothing is upgradable): HealAmount is the amount actually restored, 0 at full health.
             _rig.Applier.SetHealth(50f);
             StepContext ctx = _rig.Context();
             Assert.AreEqual(ChestEffect.Healed, _rig.Chests.Resolve(_rig.ChestRng, ctx));
@@ -331,6 +334,162 @@ namespace Survivor.Tests.EditMode.Player
 
             Assert.Greater(upgrades, 0);
             Assert.Greater(heals, 0);
+        }
+
+        // Applies a passive loadout directly (slot = list position).
+        private static void SetPassives(PlrRig rig, params (string id, int level)[] entries)
+        {
+            var list = new List<PassiveLoadoutEntry>();
+            foreach ((string id, int level) in entries)
+            {
+                list.Add(new PassiveLoadoutEntry(id, level));
+            }
+
+            rig.Applier.SetPassiveLoadout(list, rig.Context());
+        }
+
+        [Test]
+        public void TACF4_10_OnlyAnUpgradablePassiveLeftMeansEveryUpgradeChestRaisesIt()
+        {
+            _rig = new PlrRig();
+            WeaponTests.QueueLoadout(_rig, ("E1", 1), ("W3", 5));
+            _rig.Step();
+            SetPassives(_rig, ("P1", 2));
+            Assert.IsFalse(_rig.Evolution.TryFindFirstEligible(out _, out _));
+            PassiveInstance p1 = _rig.Passives.Slots[0];
+            ChestResultLog log = _rig.Applier.ChestResults;
+            var rng = new RngStreams(11UL).Get(RngStream.Chest);
+            var twin = new RngStreams(11UL).Get(RngStream.Chest);
+            int upgrades = 0;
+            int heals = 0;
+            for (int i = 0; i < 200; i++)
+            {
+                StepContext ctx = _rig.Context();
+                int changes = _rig.Applier.ChangeCount;
+                ChestEffect effect = _rig.Chests.Resolve(rng, ctx);
+                bool upgrade = twin.Chance(GameRules.ChestUpgradeChance);
+                if (!upgrade)
+                {
+                    Assert.AreEqual(ChestEffect.Healed, effect);
+                    Assert.AreEqual(2, p1.Level);
+                    heals++;
+                    continue;
+                }
+
+                // Twin replay of (3): one NextInt call over the single candidate.
+                Assert.AreEqual(0, twin.NextInt(1));
+                Assert.AreEqual(ChestEffect.PassiveUpgraded, effect, "Chance true with only P1 upgradable");
+                Assert.AreEqual(3, p1.Level);
+                Assert.AreEqual(changes + 1, _rig.Applier.ChangeCount);
+                AssertResult(log[log.Count - 1], log.LastSequence, ctx.Step, ChestEffect.PassiveUpgraded, "P1", 2, 3, 0f);
+                upgrades++;
+                p1.Level = 2;
+            }
+
+            Assert.Greater(upgrades, 0);
+            Assert.Greater(heals, 0);
+            Assert.AreEqual(twin.NextUInt(), rng.NextUInt(), "same Chest stream consumption as the twin replay");
+        }
+
+        [Test]
+        public void TACF4_10_EverythingAtMaxStillHeals()
+        {
+            _rig = new PlrRig();
+            WeaponTests.QueueLoadout(_rig, ("W3", 5), ("W4", 5));
+            _rig.Step();
+            SetPassives(_rig, ("P2", 5), ("P1", 5));
+            Assert.IsFalse(_rig.Evolution.TryFindFirstEligible(out _, out _), "P1 is owned but W1 is not");
+            var rng = new RngStreams(7UL).Get(RngStream.Chest);
+            var twin = new RngStreams(7UL).Get(RngStream.Chest);
+            for (int i = 0; i < 50; i++)
+            {
+                Assert.AreEqual(ChestEffect.Healed, _rig.Chests.Resolve(rng, _rig.Context()));
+                twin.Chance(GameRules.ChestUpgradeChance);
+            }
+
+            Assert.AreEqual(5, _rig.Passives.Slots[0].Level);
+            Assert.AreEqual(5, _rig.Passives.Slots[1].Level);
+            Assert.AreEqual(twin.NextUInt(), rng.NextUInt(), "no candidates: only Chance is drawn");
+        }
+
+        [Test]
+        public void TACF4_10_OneWeaponAndOnePassiveSplitTheUpgradesEvenly()
+        {
+            _rig = new PlrRig();
+            SetPassives(_rig, ("P2", 1));
+            WeaponInstance w1 = _rig.Weapons.Slots[0];
+            PassiveInstance p2 = _rig.Passives.Slots[0];
+            var rng = new RngStreams(42UL).Get(RngStream.Chest);
+            var twin = new RngStreams(42UL).Get(RngStream.Chest);
+            int weapon = 0;
+            int passive = 0;
+            for (int i = 0; i < 1000; i++)
+            {
+                ChestEffect effect = _rig.Chests.Resolve(rng, _rig.Context());
+                if (twin.Chance(GameRules.ChestUpgradeChance))
+                {
+                    // Candidate order: weapon slots first, then passive slots.
+                    Assert.AreEqual(twin.NextInt(2) == 0 ? ChestEffect.WeaponUpgraded : ChestEffect.PassiveUpgraded, effect);
+                }
+                else
+                {
+                    Assert.AreEqual(ChestEffect.Healed, effect);
+                }
+
+                if (effect == ChestEffect.WeaponUpgraded)
+                {
+                    weapon++;
+                    Assert.AreEqual(2, w1.Level);
+                    w1.SetLevel(1, 0f);
+                }
+                else if (effect == ChestEffect.PassiveUpgraded)
+                {
+                    passive++;
+                    Assert.AreEqual(2, p2.Level);
+                    p2.Level = 1;
+                }
+            }
+
+            int upgrades = weapon + passive;
+            Assert.Greater(upgrades, 0);
+            Assert.AreEqual(0.5, weapon / (double)upgrades, 0.05);
+            Assert.AreEqual(0.5, passive / (double)upgrades, 0.05);
+            Assert.AreEqual(twin.NextUInt(), rng.NextUInt());
+        }
+
+        [Test]
+        public void TACF4_10_P3FromAChestResizesTheMagnetAtOnce()
+        {
+            _rig = new PlrRig();
+            WeaponTests.QueueLoadout(_rig, ("E1", 1));
+            _rig.Step();
+            SetPassives(_rig, ("P3", 1));
+            Assert.AreEqual(StatMath.ApplyMultiplier(2.0f, 0.10f), _rig.Player.MagnetBody.Radius);
+            var rng = new RngStreams(3UL).Get(RngStream.Chest);
+            ChestEffect effect = ChestEffect.Healed;
+            for (int i = 0; i < 50 && effect != ChestEffect.PassiveUpgraded; i++)
+            {
+                effect = _rig.Chests.Resolve(rng, _rig.Context());
+            }
+
+            Assert.AreEqual(ChestEffect.PassiveUpgraded, effect);
+            Assert.AreEqual(2, _rig.Passives.Slots[0].Level);
+            Assert.AreEqual(StatMath.ApplyMultiplier(2.0f, 0.20f), _rig.Player.MagnetBody.Radius, "refreshed in the same call");
+        }
+
+        [Test]
+        public void ApplyChestPassiveUpgrade_RejectsEmptyOutOfRangeAndMaxSlots()
+        {
+            _rig = new PlrRig();
+            SetPassives(_rig, ("P1", 5), ((string)null, 0), ("P2", 1));
+            Assert.Throws<InvalidOperationException>(() => _rig.Applier.ApplyChestPassiveUpgrade(-1));
+            Assert.Throws<InvalidOperationException>(() => _rig.Applier.ApplyChestPassiveUpgrade(GameRules.MaxPassiveSlots));
+            Assert.Throws<InvalidOperationException>(() => _rig.Applier.ApplyChestPassiveUpgrade(1), "empty slot");
+            Assert.Throws<InvalidOperationException>(() => _rig.Applier.ApplyChestPassiveUpgrade(0), "P1 at max (R22)");
+            int changes = _rig.Applier.ChangeCount;
+            _rig.Applier.ApplyChestPassiveUpgrade(2);
+            Assert.AreEqual(2, _rig.Passives.Slots[2].Level);
+            Assert.AreEqual(changes + 1, _rig.Applier.ChangeCount);
         }
 
         [Test]
