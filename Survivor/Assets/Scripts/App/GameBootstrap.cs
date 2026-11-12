@@ -41,6 +41,7 @@ namespace Survivor.App
         private PrefabCatalog _catalog;
         private EntityLifecycle _lifecycle;
         private MonsterRegistry _registry;
+        private MonsterSeparation _separation;
         private CollisionEventRouter _router;
         private PendingCommandQueue _pending;
         private GameObject _playerHost;
@@ -254,6 +255,7 @@ namespace Survivor.App
             PoolPrewarmCounts.PrewarmAll(initial.Pool, _catalog);
             _targets.Replace(initial.Target);
             _registry = new MonsterRegistry(_lifecycle, _snapshot);
+            _separation = new MonsterSeparation(_registry);
             _router = new CollisionEventRouter(initial.Collision);
             _pending = new PendingCommandQueue(_targets, _data, _rules);
 
@@ -324,6 +326,7 @@ namespace Survivor.App
             _pipeline.AddHandler(SimulationPhase.Begin, 0, _pending);
             _pipeline.AddHandler(SimulationPhase.Begin, 10, _movement);
             _pipeline.AddHandler(SimulationPhase.PlayerMove, 0, _movement);
+            _pipeline.AddHandler(SimulationPhase.BuildIndex, -10, _separation);
             _pipeline.AddHandler(SimulationPhase.BuildIndex, 0, _registry);
             _pipeline.AddHandler(SimulationPhase.BuildIndex, 5, _bodies);
             _pipeline.AddHandler(SimulationPhase.BuildIndex, 10, _index);
