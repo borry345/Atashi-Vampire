@@ -15,7 +15,8 @@ namespace Survivor.Tests.Dev
 {
     /// Dev mode on the real Main.unity (TAC-F19-1..4, 6, 13..19, 5.15): attach/no-attach, overlay and status panel, time
     /// controls, state and enemy controls, LastTargetId, visualizer callback, the wave 6b conveniences (loadout 0..5, spawn
-    /// toggle, zoom, homing target lines, command log) and the F19 determinism criterion.
+    /// toggle, zoom, homing target lines, command log), the wave 7 passive loadout and console window, and the F19 determinism
+    /// criterion.
     public sealed class DevModePlayTests : DevPmFixture
     {
         private DevModeRoot _root;
@@ -477,6 +478,133 @@ namespace Survivor.Tests.Dev
             Assert.AreEqual(1, CountLines(log, " Chest: "), "a cleared list adds nothing");
         }
 
+        [UnityTest]
+        public IEnumerator PassiveLoadout_KeepsTheSlot_RemovesZero_FillsTheLowestEmptySlot_AllZeroAllowed()
+        {
+            // TAC-F19-20 1 and 2 (PM, Dev path).
+            yield return AttachAndStart(configure: c => Assert.IsTrue(c.TryConfigureSpawns(true, null, 0)));
+            IReadOnlyList<PassiveInstance> slots = Host.Session.Passives.Slots;
+            Assert.IsTrue(Controller.TrySetPassiveLoadout(Passives(("P1", 2), ("P2", 1))), Controller.LastMessage);
+            Assert.AreEqual(1, Host.Commands.PendingCount, "one command queued");
+            yield return WaitFor(() => slots[0] != null && slots[1] != null, "P1 and P2 owned", 300);
+            PassiveInstance p1 = slots[0];
+            Assert.AreEqual("P1", p1.Id);
+            Assert.AreEqual(2, p1.Level);
+            Assert.AreEqual("P2", slots[1].Id);
+            Assert.IsNull(slots[2]);
+
+            Assert.IsTrue(Controller.TrySetPassiveLoadout(Passives(("P1", 3), ("P2", 0), ("P3", 1))), Controller.LastMessage);
+            Assert.AreEqual(1, Host.Commands.PendingCount, "one command queued");
+            StringAssert.EndsWith(" PassiveLoadout: Passive loadout of 2 passive(s) queued.", Controller.CommandLog.NewestFirst(0));
+            yield return WaitFor(() => slots[1] != null && slots[1].Id == "P3", "P3 in the slot P2 left", 300);
+            Assert.AreSame(p1, slots[0], "P1 kept its instance and slot");
+            Assert.AreEqual(3, p1.Level);
+            Assert.AreEqual(1, slots[1].Level);
+            Assert.IsNull(slots[2]);
+            yield return null;
+            var lines = new List<string>();
+            _root.Overlay.BuildStatusLines(lines);
+            int passives = lines.IndexOf("Passives:");
+            Assert.Greater(passives, -1);
+            Assert.AreEqual(DevStatusFormatter.PassiveLine(p1.Definition.DisplayName, "P1", 3), lines[passives + 1]);
+            Assert.AreEqual(DevStatusFormatter.PassiveLine(slots[1].Definition.DisplayName, "P3", 1), lines[passives + 2]);
+            Assert.IsTrue(passives + 3 == lines.Count || !lines[passives + 3].StartsWith("  "), "exactly two passive lines");
+
+            Assert.IsTrue(Controller.TrySetPassiveLoadout(Passives(("P1", 0), ("P3", 0))), "all zero is not refused");
+            StringAssert.EndsWith(" PassiveLoadout: Passive loadout of 0 passive(s) queued.", Controller.CommandLog.NewestFirst(0));
+            yield return WaitFor(() => slots[0] == null && slots[1] == null && slots[2] == null, "no passive left", 300);
+            Assert.AreEqual(FlowState.Playing, Host.Flow.State, "the run goes on without passives");
+            Assert.AreEqual("W1", Host.Session.Weapons.Slots[0].Id, "weapons untouched");
+        }
+
+        [UnityTest]
+        public IEnumerator PassiveLoadout_RefusalsQueueNothing_AndNeedARun()
+        {
+            // TAC-F19-20 3 and 4 (PM, Dev path).
+            yield return LoadMain();
+            _root = DevModeEntry.Attach(Host);
+            Assert.IsFalse(Controller.TrySetPassiveLoadout(Passives(("P1", 1))));
+            Assert.AreEqual("Passive loadout needs a run in progress.", Controller.LastMessage);
+            StringAssert.EndsWith(" PassiveLoadout: refused - Passive loadout needs a run in progress.", Controller.CommandLog.NewestFirst(0));
+            Controller.SetInvulnerable(true);
+            Controller.SetLevelUpEnabled(false);
+            Assert.IsTrue(Controller.TryStartNewRun(), Controller.LastMessage);
+            yield return null;
+
+            Assert.IsFalse(Controller.TrySetPassiveLoadout(null));
+            Assert.AreEqual("Passive loadout needs a list of passives.", Controller.LastMessage);
+            Assert.IsFalse(Controller.TrySetPassiveLoadout(Passives(("NOPE", 1))));
+            Assert.AreEqual("Unknown passive 'NOPE'.", Controller.LastMessage);
+            Assert.IsFalse(Controller.TrySetPassiveLoadout(Passives(("P1", 6))));
+            Assert.AreEqual("P1 has levels 0..5.", Controller.LastMessage);
+            Assert.IsFalse(Controller.TrySetPassiveLoadout(Passives(("P1", 1), ("P1", 2))));
+            Assert.AreEqual("Passive 'P1' appears twice.", Controller.LastMessage);
+            StringAssert.EndsWith(" PassiveLoadout: refused - Passive 'P1' appears twice.", Controller.CommandLog.NewestFirst(0));
+            Assert.AreEqual(0, Host.Commands.PendingCount, "no command on refusal");
+            yield return Frames(2);
+            foreach (PassiveInstance passive in Host.Session.Passives.Slots)
+            {
+                Assert.IsNull(passive, "the passives are unchanged");
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator Console_ClosedStillRecords_OpensWithTheLines_HiddenWithTheOverlay()
+        {
+            // TAC-F19-21 (PM; the IMGUI window itself is checked through its line source and its toggle state).
+            yield return LoadMain();
+            _root = DevModeEntry.Attach(Host);
+            DevOverlay overlay = _root.Overlay;
+            Assert.IsFalse(overlay.ConsoleOpen, "the console starts closed");
+            Assert.AreNotEqual(DevOverlay.MainWindowId, DevOverlay.ConsoleWindowId, "separate IMGUI window");
+            Assert.AreEqual("No table spawns (next run, for Hold N)", DevOverlay.NoTableSpawnsLabel);
+            _root.ToggleOverlay();
+            Assert.IsTrue(overlay.enabled);
+
+            // Commands and a chest while the console is closed.
+            DevCommandLog log = Controller.CommandLog;
+            Controller.SetFixedSeed(4242UL);
+            Controller.SetInvulnerable(true);
+            Controller.SetLevelUpEnabled(false);
+            Assert.IsTrue(Controller.TryConfigureSpawns(true, null, 0));
+            Host.InputOverride = new MoveRightInput();
+            Assert.IsTrue(Controller.TryStartNewRun());
+            yield return null;
+            Assert.IsTrue(Controller.TrySpawnChestNow());
+            yield return WaitFor(() => Host.ChestResults.LastSequence >= 1, "the chest opened", 600);
+            yield return null;
+            Assert.IsFalse(overlay.ConsoleOpen);
+            Assert.AreEqual(1, CountLines(log, " Chest: "), "the chest line was recorded while closed");
+            Assert.AreEqual(1, CountLines(log, " SpawnChestNow: "));
+            Assert.AreEqual(1, CountLines(log, " StartNewRun: "));
+
+            overlay.ConsoleOpen = true;
+            var console = new List<string>();
+            DevOverlay.BuildConsoleLines(log, console);
+            Assert.AreEqual(log.Count, console.Count);
+            for (int i = 0; i < log.Count; i++)
+            {
+                Assert.AreEqual(log.NewestFirst(i), console[i], "newest line first");
+            }
+
+            StringAssert.Contains(" Chest: ", console[0], "the latest line is on top");
+            var status = new List<string>();
+            overlay.BuildStatusLines(status);
+            foreach (string line in console)
+            {
+                CollectionAssert.DoesNotContain(status, line, "no log line in the main window");
+            }
+
+            _root.ToggleOverlay();
+            Assert.IsFalse(overlay.enabled, "F1 hides the overlay and with it the console (drawn only in its OnGUI)");
+            Assert.IsTrue(overlay.ConsoleOpen, "the toggle state is kept while hidden");
+            _root.ToggleOverlay();
+            Assert.IsTrue(overlay.enabled);
+            Assert.IsTrue(overlay.ConsoleOpen, "reopening shows the console again");
+            Assert.Throws<ArgumentNullException>(() => DevOverlay.BuildConsoleLines(null, console));
+            Assert.Throws<ArgumentNullException>(() => DevOverlay.BuildConsoleLines(log, null));
+        }
+
         private IEnumerator DeterministicRun(bool toggleOverlay, Action<ulong, int> result)
         {
             yield return LoadMain();
@@ -498,6 +626,7 @@ namespace Survivor.Tests.Dev
                 if (toggleOverlay && !opened && Host.Clock.Step >= 100)
                 {
                     _root.ToggleOverlay();
+                    _root.Overlay.ConsoleOpen = true;
                     opened = true;
                     Assert.IsTrue(c.TrySetZoom(20f));
                     _root.Visualizer.ShowTargets = true;
@@ -536,6 +665,17 @@ namespace Survivor.Tests.Dev
             foreach ((string id, int level) in entries)
             {
                 loadout.Add(new WeaponLoadoutEntry(id, level));
+            }
+
+            return loadout;
+        }
+
+        private static IReadOnlyList<PassiveLoadoutEntry> Passives(params (string id, int level)[] entries)
+        {
+            var loadout = new List<PassiveLoadoutEntry>(entries.Length);
+            foreach ((string id, int level) in entries)
+            {
+                loadout.Add(new PassiveLoadoutEntry(id, level));
             }
 
             return loadout;

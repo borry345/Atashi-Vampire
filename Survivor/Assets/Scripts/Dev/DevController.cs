@@ -520,6 +520,41 @@ namespace Survivor.Dev
             return Done("Loadout", "Loadout of " + owned.ToString(CultureInfo.InvariantCulture) + " weapon(s) queued.");
         }
 
+        /// Plans request with DevPassiveLoadoutPlanner (passives at levels 0..max, 0 or missing = removed, all zero allowed) and
+        /// queues the planned slot list (SetPassiveLoadout) for the next step. Refused without a run or when the planner refuses
+        /// (5.15.5); a refusal queues nothing.
+        public bool TrySetPassiveLoadout(IReadOnlyList<PassiveLoadoutEntry> request)
+        {
+            GameData data = _host.Data.Current;
+            if (!IsRunActive || data == null)
+            {
+                return Refuse("PassiveLoadout", "Passive loadout needs a run in progress.");
+            }
+
+            if (request == null)
+            {
+                return Refuse("PassiveLoadout", "Passive loadout needs a list of passives.");
+            }
+
+            var planned = new List<PassiveLoadoutEntry>(GameRules.MaxPassiveSlots);
+            if (!DevPassiveLoadoutPlanner.TryPlan(_host.Session.Passives.Slots, data, request, planned, out string refusal))
+            {
+                return Refuse("PassiveLoadout", refusal);
+            }
+
+            int owned = 0;
+            for (int i = 0; i < planned.Count; i++)
+            {
+                if (planned[i].PassiveId != null)
+                {
+                    owned++;
+                }
+            }
+
+            _host.Commands.Enqueue(PendingCommand.SetPassiveLoadout(planned));
+            return Done("PassiveLoadout", "Passive loadout of " + owned.ToString(CultureInfo.InvariantCulture) + " passive(s) queued.");
+        }
+
         /// Table spawns of the current run on or off from the next step (SetSpawnsEnabled command, 5.12.1). Refused without a run
         /// (the flag is per run and every run starts with spawns on).
         public bool TrySetSpawnsEnabled(bool enabled)
@@ -655,8 +690,8 @@ namespace Survivor.Dev
                 + ": " + message;
         }
 
-        // Chest line text: upgrade "<name> Lv a->b" (U+2192), evolution "<name> (evolved)", heal "Heal +x" (F1); name = the data
-        // display name, or the id when the weapon is not in the data.
+        // Chest line text: upgrade "<name> Lv a->b" (U+2192; weapon or passive), evolution "<name> (evolved)", heal "Heal +x"
+        // (F1); name = the data display name (passive data for PassiveUpgraded, weapon data otherwise), or the id when missing.
         internal static string ChestText(in ChestResult result, GameData data)
         {
             if (result.Kind == ChestEffect.Healed)
@@ -665,10 +700,22 @@ namespace Survivor.Dev
             }
 
             string name = result.TargetId;
-            if (data != null && result.TargetId != null && data.TryGetWeapon(result.TargetId, out WeaponDefinition definition)
-                && !string.IsNullOrEmpty(definition.DisplayName))
+            string displayName = null;
+            if (data != null && result.TargetId != null)
             {
-                name = definition.DisplayName;
+                if (result.Kind == ChestEffect.PassiveUpgraded)
+                {
+                    displayName = data.TryGetPassive(result.TargetId, out PassiveDefinition passive) ? passive.DisplayName : null;
+                }
+                else
+                {
+                    displayName = data.TryGetWeapon(result.TargetId, out WeaponDefinition weapon) ? weapon.DisplayName : null;
+                }
+            }
+
+            if (!string.IsNullOrEmpty(displayName))
+            {
+                name = displayName;
             }
 
             return result.Kind == ChestEffect.Evolved
