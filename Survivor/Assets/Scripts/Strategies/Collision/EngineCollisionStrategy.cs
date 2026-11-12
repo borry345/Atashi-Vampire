@@ -6,7 +6,8 @@ using UnityEngine;
 namespace Survivor.Strategies
 {
     /// Collision strategy A (F18): Unity Collider2D triggers. CollectEvents syncs every enabled body (MovePosition), runs
-    /// Physics2D.Simulate once and returns the queued trigger callbacks as sorted Enter/Exit events (TAC-F18-4).
+    /// Physics2D.Simulate once and uses the trigger contacts only as candidate pairs; the reported overlap state is the R5
+    /// CircleMath.Overlaps result, so events are the R5 net transitions of the candidates, sorted (TAC-F18-4, R5 gate).
     /// The only caller of Physics2D.Simulate. Bodies must be registered with the synchronizer before this strategy.
     public sealed class EngineCollisionStrategy : ICollisionStrategy
     {
@@ -15,8 +16,14 @@ namespace Survivor.Strategies
         private readonly PhysicsBodySynchronizer _bodies;
         private readonly List<CollisionBody> _registered = new List<CollisionBody>();
         private readonly List<QueuedCallback> _queue = new List<QueuedCallback>();
-        private readonly HashSet<PairSet.Key> _activePairs = new HashSet<PairSet.Key>();
+        // Pairs Box2D currently reports as touching, with both bodies (A = channel A side).
+        private readonly Dictionary<PairSet.Key, BodyPair> _activePairs = new Dictionary<PairSet.Key, BodyPair>();
+        // Pairs whose Enter was reported and whose Exit was not yet (the self strategy's previous-step set).
+        private readonly Dictionary<PairSet.Key, BodyPair> _reportedPairs = new Dictionary<PairSet.Key, BodyPair>();
+        // Step scratch: active pairs + pairs queued this step + reported pairs.
+        private readonly Dictionary<PairSet.Key, BodyPair> _candidates = new Dictionary<PairSet.Key, BodyPair>();
         private readonly Dictionary<PairSet.Key, bool> _touched = new Dictionary<PairSet.Key, bool>();
+        private readonly List<PairSet.Key> _removedKeys = new List<PairSet.Key>();
         private readonly List<CollisionEvent> _events = new List<CollisionEvent>();
         private readonly Predicate<PairSet.Key> _containsRemovedId;
         private EntityHandle _removedId;
@@ -47,6 +54,10 @@ namespace Survivor.Strategies
         /// (Added beyond 5.9) Pairs since construction/Clear that received callbacks in one Simulate without a net state change (typically
         /// Enter then Exit when a body registered this step meets another body's previous position), so no event was reported.
         public int CancelledTransitionCount { get; private set; }
+
+        /// (Added beyond 5.9) (step, pair) occurrences since construction/Clear where Box2D reports the pair as touching but R5 is
+        /// false (Box2D contact tolerance), so the pair is not reported as overlapping in that step.
+        public int BoundaryDeferredCount { get; private set; }
 
         /// Adds body (already registered with the synchronizer) from the next CollectEvents. Throws ArgumentNullException for
         /// null, InvalidOperationException when body is already registered with a strategy or not with the synchronizer.
@@ -101,7 +112,8 @@ namespace Survivor.Strategies
             }
 
             _removedId = body.Id;
-            _activePairs.RemoveWhere(_containsRemovedId);
+            RemovePairsOfRemovedId(_activePairs);
+            RemovePairsOfRemovedId(_reportedPairs);
             _removedId = EntityHandle.None;
         }
 
@@ -117,8 +129,9 @@ namespace Survivor.Strategies
             _bodies.NotifyRadiusChanged(body);
         }
 
-        /// Sync -> Physics2D.Simulate(StepSeconds) -> queued callbacks as events sorted by CollisionEvent.CompareTo, all under
-        /// Survivor.Collision (R16). The list is reused until the next call.
+        /// Sync -> Physics2D.Simulate(StepSeconds) -> fold queued callbacks into the Box2D contact set -> R5 net transitions of
+        /// the candidate pairs as events sorted by CollisionEvent.CompareTo, all under Survivor.Collision (R16). The list is
+        /// reused until the next call.
         public IReadOnlyList<CollisionEvent> CollectEvents(long step)
         {
             using (ProfilerMarkers.Collision.Auto())
@@ -130,22 +143,21 @@ namespace Survivor.Strategies
                 _bodies.SyncAllForSimulation();
                 Physics2D.Simulate(StepMath.StepSeconds);
 
-                // Net transition per pair over this Simulate: one Simulate can report Enter and then Exit for the same pair
-                // when a body registered this step overlaps another body's previous-step position (apparently a contact update
-                // that runs before the move; measured in wave 3). Only the state change from step start to step end is an
-                // event, as in the self strategy. Pairs are independent, so the order across pairs does not matter.
+                // Fold the callbacks into the Box2D contact set. One Simulate can report Enter and then Exit for the same pair
+                // when a body registered this step overlaps another body's previous-step position (measured in wave 3); such a
+                // pair only counts as a cancelled transition at the Box2D level.
                 _touched.Clear();
                 for (int i = 0; i < _queue.Count; i++)
                 {
                     QueuedCallback callback = _queue[i];
                     if (!_touched.ContainsKey(callback.Pair))
                     {
-                        _touched.Add(callback.Pair, _activePairs.Contains(callback.Pair));
+                        _touched.Add(callback.Pair, _activePairs.ContainsKey(callback.Pair));
                     }
 
                     if (callback.Kind == CollisionEventKind.Enter)
                     {
-                        _activePairs.Add(callback.Pair);
+                        _activePairs[callback.Pair] = callback.Bodies;
                     }
                     else
                     {
@@ -155,18 +167,56 @@ namespace Survivor.Strategies
 
                 foreach (KeyValuePair<PairSet.Key, bool> touched in _touched)
                 {
-                    bool activeNow = _activePairs.Contains(touched.Key);
-                    if (activeNow != touched.Value)
-                    {
-                        CollisionEventKind kind = activeNow ? CollisionEventKind.Enter : CollisionEventKind.Exit;
-                        _events.Add(new CollisionEvent(step, kind, touched.Key.Channel, touched.Key.A, touched.Key.B));
-                    }
-                    else
+                    if (_activePairs.ContainsKey(touched.Key) == touched.Value)
                     {
                         CancelledTransitionCount++;
                     }
                 }
 
+                // R5 gate: Box2D only proposes candidates; the reported state is CircleMath.Overlaps with the same function and
+                // argument order as the self strategy (A side first). Reported pairs stay candidates so an Exit is reported in
+                // the step R5 turns false even without a Box2D Exit; queued pairs are judged at their end-of-step positions.
+                _candidates.Clear();
+                foreach (KeyValuePair<PairSet.Key, BodyPair> active in _activePairs)
+                {
+                    _candidates[active.Key] = active.Value;
+                }
+
+                for (int i = 0; i < _queue.Count; i++)
+                {
+                    _candidates[_queue[i].Pair] = _queue[i].Bodies;
+                }
+
+                foreach (KeyValuePair<PairSet.Key, BodyPair> reported in _reportedPairs)
+                {
+                    _candidates[reported.Key] = reported.Value;
+                }
+
+                // Pairs are independent and the events are sorted below, so the iteration order does not matter.
+                foreach (KeyValuePair<PairSet.Key, BodyPair> candidate in _candidates)
+                {
+                    PairSet.Key key = candidate.Key;
+                    BodyPair pair = candidate.Value;
+                    bool exact = CircleMath.Overlaps(pair.A.Position, pair.A.Radius, pair.B.Position, pair.B.Radius);
+                    bool reported = _reportedPairs.ContainsKey(key);
+                    if (exact && !reported)
+                    {
+                        _events.Add(new CollisionEvent(step, CollisionEventKind.Enter, key.Channel, key.A, key.B));
+                        _reportedPairs.Add(key, pair);
+                    }
+                    else if (!exact && reported)
+                    {
+                        _events.Add(new CollisionEvent(step, CollisionEventKind.Exit, key.Channel, key.A, key.B));
+                        _reportedPairs.Remove(key);
+                    }
+
+                    if (!exact && _activePairs.ContainsKey(key))
+                    {
+                        BoundaryDeferredCount++;
+                    }
+                }
+
+                _candidates.Clear();
                 _queue.Clear();
                 _touched.Clear();
                 _events.Sort(EventComparison);
@@ -198,11 +248,14 @@ namespace Survivor.Strategies
 
             _queue.Clear();
             _activePairs.Clear();
+            _reportedPairs.Clear();
+            _candidates.Clear();
             _events.Clear();
             _touched.Clear();
             CallbackCount = 0;
             DroppedCallbackCount = 0;
             CancelledTransitionCount = 0;
+            BoundaryDeferredCount = 0;
         }
 
         /// Called by CollisionBodyLink from OnTriggerEnter2D/Exit2D of self's host.
@@ -226,7 +279,7 @@ namespace Survivor.Strategies
                 return;
             }
 
-            _queue.Add(new QueuedCallback(new PairSet.Key(channel, self.Id, otherBody.Id), kind));
+            _queue.Add(new QueuedCallback(new PairSet.Key(channel, self.Id, otherBody.Id), new BodyPair(self, otherBody), kind));
         }
 
         private bool IsRegisteredHere(CollisionBody body)
@@ -243,15 +296,50 @@ namespace Survivor.Strategies
             }
         }
 
+        private void RemovePairsOfRemovedId(Dictionary<PairSet.Key, BodyPair> pairs)
+        {
+            _removedKeys.Clear();
+            foreach (PairSet.Key key in pairs.Keys)
+            {
+                if (_containsRemovedId(key))
+                {
+                    _removedKeys.Add(key);
+                }
+            }
+
+            for (int i = 0; i < _removedKeys.Count; i++)
+            {
+                pairs.Remove(_removedKeys[i]);
+            }
+
+            _removedKeys.Clear();
+        }
+
         private readonly struct QueuedCallback
         {
             internal readonly PairSet.Key Pair;
+            internal readonly BodyPair Bodies;
             internal readonly CollisionEventKind Kind;
 
-            internal QueuedCallback(PairSet.Key pair, CollisionEventKind kind)
+            internal QueuedCallback(PairSet.Key pair, BodyPair bodies, CollisionEventKind kind)
             {
                 Pair = pair;
+                Bodies = bodies;
                 Kind = kind;
+            }
+        }
+
+        // Both bodies of a pair, A = channel A side. The references come from the trigger callback (CollisionBodyLink.Body and
+        // the synchronizer's collider lookup) and stay registered here because Unregister drops every pair of the removed id.
+        private readonly struct BodyPair
+        {
+            internal readonly CollisionBody A;
+            internal readonly CollisionBody B;
+
+            internal BodyPair(CollisionBody a, CollisionBody b)
+            {
+                A = a;
+                B = b;
             }
         }
     }

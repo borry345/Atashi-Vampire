@@ -220,6 +220,93 @@ namespace Survivor.Tests.PlayMode.Collision
             LogAssert.NoUnexpectedReceived();
         }
 
+        // TAC-F18-9 1-3: projectile A (0,0) r 0.2, monster B on the x axis r 0.5. Just outside the radius sum, R5 is false while
+        // Box2D's overlap tolerance still reports contact; the reported state follows R5 only.
+        [Test]
+        public void R5Gate_BoundaryContact_NoEvent_ThenEnterAtR5_ThenExitWithoutBox2DExit_TAC_F18_9()
+        {
+            CollisionPmWorld world = CollisionPmWorld.Engine(CollisionDetectionMode2D.Discrete);
+            var strategy = (EngineCollisionStrategy)world.Strategy;
+            CollisionBody shot = world.Add(Body(1, CollisionLayer.PlayerProjectile, 0f, 0f, 0.2f));
+            CollisionBody monster = world.Add(Body(2, CollisionLayer.Monster, 3f, 0f, 0.5f));
+            AssertEvents(world.Step(0));
+
+            float inside = 0.7f;
+            Assert.IsTrue(CircleMath.Overlaps(shot.Position, shot.Radius, new Vector2(inside, 0f), monster.Radius), "0.7f is inside R5");
+            float boundary = FirstNonOverlappingX(shot, monster.Radius, inside);
+
+            // 1. Boundary band: Box2D touches (precondition: the deferred counter grows), R5 is false -> no event.
+            monster.Position = new Vector2(boundary, 0f);
+            int deferredBefore = strategy.BoundaryDeferredCount;
+            AssertEvents(world.Step(1));
+            Assert.AreEqual(deferredBefore + 1, strategy.BoundaryDeferredCount, $"precondition: Box2D reports contact at x = {boundary:R}");
+            Assert.That(strategy.CallbackCount, Is.EqualTo(2), "Box2D Enter to both hosts");
+
+            // 2. R5 becomes true while Box2D stays in contact (no callback): Enter exactly once, channel 0, A = projectile.
+            monster.Position = new Vector2(inside, 0f);
+            List<CollisionEvent> entered = world.Step(2);
+            AssertEvents(entered, Ev(2, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, shot, monster));
+            Assert.AreEqual(0, (byte)entered[0].Channel);
+            Assert.AreEqual(0, strategy.CallbackCount, "no Box2D callback in this step");
+            AssertEvents(world.Step(3));
+
+            // 3. Back into the band: Box2D still touches (no Exit callback) but R5 is false -> Exit in this step.
+            monster.Position = new Vector2(boundary, 0f);
+            deferredBefore = strategy.BoundaryDeferredCount;
+            AssertEvents(world.Step(4), Ev(4, CollisionEventKind.Exit, CollisionChannel.PlayerProjectileVsMonster, shot, monster));
+            Assert.AreEqual(0, strategy.CallbackCount, "no Box2D Exit callback");
+            Assert.AreEqual(deferredBefore + 1, strategy.BoundaryDeferredCount);
+
+            world.Remove(shot);
+            world.Remove(monster);
+            strategy.Clear();
+            Assert.AreEqual(0, strategy.BoundaryDeferredCount, "Clear resets the counter");
+        }
+
+        // TAC-F18-9 4: a reported pair stays a candidate after Box2D reports Exit, and Exit is reported only when R5 turns false.
+        // No natural placement makes Box2D narrower than R5, so the test shrinks the monster's collider behind the strategy's back
+        // (the body radius, which R5 reads, is unchanged, so the synchronizer does not restore the collider).
+        [Test]
+        public void R5Gate_Box2DExitWhileR5StillTrue_NoExitUntilR5False_TAC_F18_9()
+        {
+            CollisionPmWorld world = CollisionPmWorld.Engine(CollisionDetectionMode2D.Discrete);
+            var strategy = (EngineCollisionStrategy)world.Strategy;
+            CollisionBody shot = world.Add(Body(1, CollisionLayer.PlayerProjectile, 0f, 0f, 0.2f));
+            CollisionBody monster = world.Add(Body(2, CollisionLayer.Monster, 0.6f, 0f, 0.5f));
+            AssertEvents(world.Step(0), Ev(0, CollisionEventKind.Enter, CollisionChannel.PlayerProjectileVsMonster, shot, monster));
+
+            monster.Host.GetComponent<CircleCollider2D>().radius = 0.3f;
+            AssertEvents(world.Step(1));
+            Assert.AreEqual(2, strategy.CallbackCount, "Box2D Exit to both hosts while R5 (0.6 <= 0.7) is still true");
+            AssertEvents(world.Step(2));
+
+            monster.Position = new Vector2(0.75f, 0f);
+            AssertEvents(world.Step(3), Ev(3, CollisionEventKind.Exit, CollisionChannel.PlayerProjectileVsMonster, shot, monster));
+            Assert.AreEqual(0, strategy.CallbackCount, "Exit comes from R5, not from a Box2D callback");
+        }
+
+        private static float FirstNonOverlappingX(CollisionBody a, float radius, float from)
+        {
+            float x = from;
+            for (int i = 0; i < 64; i++)
+            {
+                x = NextUp(x);
+                if (!CircleMath.Overlaps(a.Position, a.Radius, new Vector2(x, 0f), radius))
+                {
+                    return x;
+                }
+            }
+
+            Assert.Fail($"no non-overlapping x within 64 ulps above {from:R}");
+            return x;
+        }
+
+        private static float NextUp(float x)
+        {
+            int bits = BitConverter.ToInt32(BitConverter.GetBytes(x), 0);
+            return BitConverter.ToSingle(BitConverter.GetBytes(bits + 1), 0);
+        }
+
         private static List<string> RunOrder(bool reverse)
         {
             CollisionPmWorld world = CollisionPmWorld.Engine(CollisionDetectionMode2D.Discrete);
