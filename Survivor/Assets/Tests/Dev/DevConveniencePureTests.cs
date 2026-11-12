@@ -6,17 +6,22 @@ using Survivor.Data;
 using Survivor.Dev;
 using Survivor.Simulation;
 using UnityEngine;
+using PSlot = Survivor.Dev.DevPassiveLoadoutPlanner.PlannerSlot;
 using Slot = Survivor.Dev.DevLoadoutPlanner.PlannerSlot;
 
 namespace Survivor.Tests.Dev
 {
     /// Plain C# checks of the wave 6b dev conveniences (5.15.5): DevLoadoutPlanner rules over the real data (TAC-F19-15),
-    /// ClampZoom (TAC-F19-17), DevCommandLog ring and the command / chest line format (TAC-F19-19).
+    /// ClampZoom (TAC-F19-17), DevCommandLog ring and the command / chest line format (TAC-F19-19), and the wave 7
+    /// DevPassiveLoadoutPlanner rules (TAC-F19-20) and passive chest line (TAC-F19-19).
     public sealed class DevConveniencePureTests
     {
         // Hangul display names as escapes (file encoding independent): "투사체", "연사 투사체".
         private const string W1Name = "\uD22C\uC0AC\uCCB4";
         private const string E1Name = "\uC5F0\uC0AC \uD22C\uC0AC\uCCB4";
+
+        // P1 display name as escapes.
+        private const string P1Name = "\uACF5\uACA9 \uC18D\uB3C4";
 
         private static readonly string[] NoneConsumed = new string[0];
         private GameData _data;
@@ -180,6 +185,126 @@ namespace Survivor.Tests.Dev
             Assert.AreEqual("Heal +0.0", DevController.ChestText(new ChestResult(4, 70, ChestEffect.Healed, null, 0, 0, 0f), _data));
             Assert.AreEqual("W9 Lv 1\u21922", DevController.ChestText(new ChestResult(5, 80, ChestEffect.WeaponUpgraded, "W9", 1, 2, 0f), _data),
                 "id when the weapon is not in the data");
+        }
+
+        [Test]
+        public void ChestText_PassiveUpgradeUsesThePassiveName()
+        {
+            Assert.AreEqual(P1Name + " Lv 1\u21922", DevController.ChestText(new ChestResult(6, 90, ChestEffect.PassiveUpgraded, "P1", 1, 2, 0f), _data));
+            Assert.AreEqual("P9 Lv 2\u21923", DevController.ChestText(new ChestResult(7, 90, ChestEffect.PassiveUpgraded, "P9", 2, 3, 0f), _data),
+                "id when the passive is not in the data");
+            Assert.AreEqual("W1 Lv 2\u21923", DevController.ChestText(new ChestResult(8, 90, ChestEffect.PassiveUpgraded, "W1", 2, 3, 0f), _data),
+                "a passive result never takes a weapon name");
+        }
+
+        [Test]
+        public void PassivePlan_KeepsTheSlot_ZeroRemoves_NewFillsTheLowestEmptySlot()
+        {
+            // TAC-F19-20 1: [P1, P2, -] with P1:3, P2:0, P3:1 -> [P1:3, P3:1, -] (P3 takes the slot P2 left).
+            PSlot[] two = PSlots(Owned("P1", 2), Owned("P2", 1));
+            AssertPassivePlan(two, PRequest(("P1", 3), ("P2", 0), ("P3", 1)), ("P1", 3), ("P3", 1), null);
+
+            // A passive missing from the request leaves; new ones fill the lowest empty slots in request order.
+            PSlot[] middle = PSlots(default, Owned("P2", 1));
+            AssertPassivePlan(middle, PRequest(("P2", 4), ("P3", 2), ("P1", 1)), ("P3", 2), ("P2", 4), ("P1", 1));
+            AssertPassivePlan(middle, PRequest(("P1", 5)), ("P1", 5), null, null);
+        }
+
+        [Test]
+        public void PassivePlan_AllZeroIsAllowed()
+        {
+            // TAC-F19-20 2: unlike weapons, no passive at all is a valid loadout.
+            PSlot[] three = PSlots(Owned("P1", 1), Owned("P2", 1), Owned("P3", 1));
+            AssertPassivePlan(three, PRequest(("P1", 0), ("P2", 0), ("P3", 0)), null, null, null);
+            AssertPassivePlan(three, PRequest(), null, null, null);
+            AssertPassivePlan(PSlots(), PRequest(("P2", 0)), null, null, null);
+        }
+
+        [Test]
+        public void PassivePlan_RefusesUnknownIdsLevelsAndRepeats()
+        {
+            PSlot[] one = PSlots(Owned("P1", 1));
+            AssertPassiveRefused(one, PRequest(("NOPE", 1)), "Unknown passive 'NOPE'.");
+            AssertPassiveRefused(one, PRequest(("", 1)), "Unknown passive ''.");
+            AssertPassiveRefused(one, PRequest((null, 1)), "Unknown passive ''.");
+            AssertPassiveRefused(one, PRequest(("W1", 1)), "Unknown passive 'W1'.");
+            AssertPassiveRefused(one, PRequest(("P1", 6)), "P1 has levels 0..5.");
+            AssertPassiveRefused(one, PRequest(("P2", 6)), "P2 has levels 0..5.");
+            AssertPassiveRefused(one, PRequest(("P1", -1)), "P1 has levels 0..5.");
+            AssertPassiveRefused(one, PRequest(("P1", 1), ("P1", 2)), "Passive 'P1' appears twice.");
+        }
+
+        [Test]
+        public void PassivePlan_OwnedPassiveUsesItsInstanceLevelCount()
+        {
+            // A held passive keeps the definition captured at acquisition (here 3 levels), the range PLAYER checks.
+            PSlot[] held = PSlots(new PSlot("P1", 2, 3));
+            AssertPassiveRefused(held, PRequest(("P1", 4)), "P1 has levels 0..3.");
+            AssertPassivePlan(held, PRequest(("P1", 3)), ("P1", 3), null, null);
+            AssertPassivePlan(held, PRequest(("P1", 3), ("P2", 5)), ("P1", 3), ("P2", 5), null);
+        }
+
+        [Test]
+        public void PassivePlan_NullArgumentsThrow()
+        {
+            var output = new List<PassiveLoadoutEntry>();
+            IReadOnlyList<PassiveLoadoutEntry> request = PRequest(("P1", 1));
+            PSlot[] none = PSlots();
+            Assert.Throws<ArgumentNullException>(() => DevPassiveLoadoutPlanner.TryPlan((IReadOnlyList<PassiveInstance>)null, _data, request, output, out _));
+            Assert.Throws<ArgumentNullException>(() => DevPassiveLoadoutPlanner.TryPlan(none, null, request, output, out _));
+            Assert.Throws<ArgumentNullException>(() => DevPassiveLoadoutPlanner.TryPlan(none, _data, null, output, out _));
+            Assert.Throws<ArgumentNullException>(() => DevPassiveLoadoutPlanner.TryPlan(none, _data, request, null, out _));
+        }
+
+        private void AssertPassivePlan(PSlot[] current, IReadOnlyList<PassiveLoadoutEntry> request, params (string id, int level)?[] expected)
+        {
+            var output = new List<PassiveLoadoutEntry> { new PassiveLoadoutEntry("stale", 1) };
+            Assert.IsTrue(DevPassiveLoadoutPlanner.TryPlan(current, _data, request, output, out string refusal), refusal);
+            Assert.IsNull(refusal);
+            Assert.AreEqual(GameRules.MaxPassiveSlots, output.Count, "one entry per slot");
+            for (int s = 0; s < GameRules.MaxPassiveSlots; s++)
+            {
+                if (expected[s] == null)
+                {
+                    Assert.IsNull(output[s].PassiveId, "slot " + s + " empty");
+                    continue;
+                }
+
+                Assert.AreEqual(expected[s].Value.id, output[s].PassiveId, "slot " + s + " id");
+                Assert.AreEqual(expected[s].Value.level, output[s].Level, "slot " + s + " level");
+            }
+        }
+
+        private void AssertPassiveRefused(PSlot[] current, IReadOnlyList<PassiveLoadoutEntry> request, string reason)
+        {
+            var output = new List<PassiveLoadoutEntry> { new PassiveLoadoutEntry("stale", 1) };
+            Assert.IsFalse(DevPassiveLoadoutPlanner.TryPlan(current, _data, request, output, out string refusal));
+            Assert.AreEqual(reason, refusal);
+            Assert.AreEqual(0, output.Count, "no plan on refusal");
+        }
+
+        private static PSlot[] PSlots(params PSlot[] used)
+        {
+            var slots = new PSlot[GameRules.MaxPassiveSlots];
+            Array.Copy(used, slots, used.Length);
+            return slots;
+        }
+
+        // An owned passive of the shipped data (five levels).
+        private static PSlot Owned(string id, int level)
+        {
+            return new PSlot(id, level, 5);
+        }
+
+        private static IReadOnlyList<PassiveLoadoutEntry> PRequest(params (string id, int level)[] entries)
+        {
+            var request = new List<PassiveLoadoutEntry>(entries.Length);
+            foreach ((string id, int level) in entries)
+            {
+                request.Add(new PassiveLoadoutEntry(id, level));
+            }
+
+            return request;
         }
 
         private void AssertPlan(Slot[] current, IReadOnlyList<string> consumed, IReadOnlyList<WeaponLoadoutEntry> request,

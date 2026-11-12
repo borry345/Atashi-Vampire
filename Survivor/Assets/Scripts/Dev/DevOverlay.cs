@@ -18,6 +18,15 @@ namespace Survivor.Dev
         /// Overlay font size in points.
         public const int FontSize = 14;
 
+        /// Label of the next-run "no table spawns" checkbox (part of the next-run spawn policy, for Hold N; 5.15.5).
+        internal const string NoTableSpawnsLabel = "No table spawns (next run, for Hold N)";
+
+        /// IMGUI window id of the main overlay window.
+        internal const int MainWindowId = 0x5D3F;
+
+        /// IMGUI window id of the command log console window (differs from the main window).
+        internal const int ConsoleWindowId = 0x5D40;
+
         private const int SampleCapacity = 512;
         private static readonly string[] Tabs = { "Run", "Player", "Enemies", "Time", "Strategy", "Visual", "Data (5b)" };
 
@@ -32,6 +41,8 @@ namespace Survivor.Dev
         private Font _font;
         private GUIStyle _label;
         private Rect _window = new Rect(10f, 10f, 460f, 680f);
+        private Rect _consoleWindow = new Rect(480f, 10f, 560f, 260f);
+        private bool _consoleOpen;
         private Vector2 _scroll;
         private int _tab;
 
@@ -50,7 +61,17 @@ namespace Survivor.Dev
         private string _scaleText = "1";
         private readonly string[] _loadoutIds = { "W1", "W2", "W3", "W4" };
         private readonly string[] _loadoutLevels = { "5", "5", "5", "5" };
+        private readonly string[] _passiveIds = { "P1", "P2", "P3" };
+        private readonly string[] _passiveLevels = { "0", "0", "0" };
         private float _zoomDraft = float.NaN;
+
+        /// Whether the command log console window is open (the "Log" toggle; test hook). A component field, so hiding and
+        /// reopening the overlay keeps it; the log keeps recording while the console is closed (5.15.5, TAC-F19-21).
+        internal bool ConsoleOpen
+        {
+            get => _consoleOpen;
+            set => _consoleOpen = value;
+        }
 
         /// Font the overlay draws with; null means the engine default (SPEC F19 65: allowed, Hangul may not render).
         public Font OverlayFont => _font;
@@ -145,7 +166,12 @@ namespace Survivor.Dev
                 GUI.skin.font = _font;
             }
 
-            _window = GUILayout.Window(0x5D3F, _window, DrawWindow, "Dev mode (F1)");
+            _window = GUILayout.Window(MainWindowId, _window, DrawWindow, "Dev mode (F1)");
+            if (_consoleOpen)
+            {
+                _consoleWindow = GUILayout.Window(ConsoleWindowId, _consoleWindow, DrawConsoleWindow, "Command log");
+            }
+
             if (_visualizer != null && _visualizer.enabled)
             {
                 _visualizer.DrawLabels(_label);
@@ -162,10 +188,9 @@ namespace Survivor.Dev
                 GUILayout.Label(_lines[i], _label);
             }
 
-            DevCommandLog log = _controller.CommandLog;
-            for (int i = 0; i < log.Count; i++)
+            if (GUILayout.Button(_consoleOpen ? "Log (hide)" : "Log"))
             {
-                GUILayout.Label(log.NewestFirst(i), _label);
+                _consoleOpen = !_consoleOpen;
             }
 
             _tab = GUILayout.SelectionGrid(_tab, Tabs, 4);
@@ -183,6 +208,38 @@ namespace Survivor.Dev
 
             GUILayout.EndScrollView();
             GUI.DragWindow(new Rect(0f, 0f, 10000f, 20f));
+        }
+
+        // Console window: the command log, newest line first, fixed size, dragged by its title bar.
+        private void DrawConsoleWindow(int id)
+        {
+            BuildConsoleLines(_controller.CommandLog, _lines);
+            for (int i = 0; i < _lines.Count; i++)
+            {
+                GUILayout.Label(_lines[i], _label);
+            }
+
+            GUI.DragWindow(new Rect(0f, 0f, 10000f, 20f));
+        }
+
+        // Console lines in draw order (newest first); used by DrawConsoleWindow and the tests. Null arguments throw.
+        internal static void BuildConsoleLines(DevCommandLog log, List<string> linesOut)
+        {
+            if (log == null)
+            {
+                throw new ArgumentNullException(nameof(log));
+            }
+
+            if (linesOut == null)
+            {
+                throw new ArgumentNullException(nameof(linesOut));
+            }
+
+            linesOut.Clear();
+            for (int i = 0; i < log.Count; i++)
+            {
+                linesOut.Add(log.NewestFirst(i));
+            }
         }
 
         private void DrawRunTab()
@@ -272,6 +329,29 @@ namespace Survivor.Dev
                 _controller.TrySetLoadout(loadout);
             }
 
+            GUILayout.Label("Passives (id, level 0..max; 0 or empty id = remove):");
+            for (int i = 0; i < _passiveIds.Length; i++)
+            {
+                GUILayout.BeginHorizontal();
+                _passiveIds[i] = GUILayout.TextField(_passiveIds[i], GUILayout.Width(80f));
+                _passiveLevels[i] = GUILayout.TextField(_passiveLevels[i], GUILayout.Width(40f));
+                GUILayout.EndHorizontal();
+            }
+
+            if (GUILayout.Button("Set passives now"))
+            {
+                var passives = new List<PassiveLoadoutEntry>(_passiveIds.Length);
+                for (int i = 0; i < _passiveIds.Length; i++)
+                {
+                    if (!string.IsNullOrEmpty(_passiveIds[i]))
+                    {
+                        passives.Add(new PassiveLoadoutEntry(_passiveIds[i].Trim(), ParseInt(_passiveLevels[i])));
+                    }
+                }
+
+                _controller.TrySetPassiveLoadout(passives);
+            }
+
             GUILayout.BeginHorizontal();
             _healthText = GUILayout.TextField(_healthText, GUILayout.Width(80f));
             if (GUILayout.Button("Set health"))
@@ -327,7 +407,7 @@ namespace Survivor.Dev
                 _controller.TrySetSpawnsEnabled(!spawnsNow);
             }
 
-            _stopSpawns = GUILayout.Toggle(_stopSpawns, "Stop table spawns");
+            _stopSpawns = GUILayout.Toggle(_stopSpawns, NoTableSpawnsLabel);
             GUILayout.BeginHorizontal();
             GUILayout.Label("Only species", GUILayout.Width(90f));
             _onlySpeciesText = GUILayout.TextField(_onlySpeciesText, GUILayout.Width(60f));
