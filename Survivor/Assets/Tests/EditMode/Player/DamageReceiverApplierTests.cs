@@ -262,6 +262,119 @@ namespace Survivor.Tests.EditMode.Player
             Assert.AreEqual("W4", _rig.Weapons.Slots[1].Id);
         }
 
+        private static List<PassiveLoadoutEntry> Passives(params (string id, int level)[] entries)
+        {
+            var list = new List<PassiveLoadoutEntry>();
+            foreach ((string id, int level) in entries)
+            {
+                list.Add(new PassiveLoadoutEntry(id, level));
+            }
+
+            return list;
+        }
+
+        // Queues the passive loadout as the pending command handler would apply it in the next Begin.
+        private static void QueuePassives(PlrRig rig, params (string id, int level)[] entries)
+        {
+            List<PassiveLoadoutEntry> list = Passives(entries);
+            rig.BeginHook.Pending.Add(ctx => rig.Applier.HandleSetPassiveLoadout(PendingCommand.SetPassiveLoadout(list), ctx));
+        }
+
+        [Test]
+        public void TACF19_20_PassiveLoadoutKeepsSameSlotInstancesAndFillsTheListedSlots()
+        {
+            _rig = new PlrRig();
+            QueuePassives(_rig, ("P1", 1), ("P2", 2));
+            _rig.Step();
+            PassiveInstance p1 = _rig.Passives.Slots[0];
+            Assert.AreEqual("P1", p1.Id);
+            Assert.AreEqual("P2", _rig.Passives.Slots[1].Id);
+            Assert.AreEqual(2, _rig.Passives.Slots[1].Level);
+            WeaponInstance w1 = _rig.Weapons.Slots[0];
+
+            // The dev planner sends [P1:3, P3:1, -] for "P1 3, P2 0, P3 1": P3 takes the slot P2 left (frontmost empty slot).
+            int changes = _rig.Applier.ChangeCount;
+            QueuePassives(_rig, ("P1", 3), ("P3", 1), ((string)null, 0));
+            _rig.Step();
+            Assert.AreSame(p1, _rig.Passives.Slots[0], "same slot, same id: the instance is kept");
+            Assert.AreEqual(3, p1.Level);
+            Assert.AreEqual("P3", _rig.Passives.Slots[1].Id);
+            Assert.AreEqual(1, _rig.Passives.Slots[1].Level);
+            Assert.IsNull(_rig.Passives.Slots[2]);
+            Assert.IsFalse(_rig.Passives.Owns("P2"));
+            Assert.AreEqual(changes + 1, _rig.Applier.ChangeCount, "one change per loadout");
+            Assert.AreEqual(StatMath.ApplyMultiplier(2.0f, 0.10f), _rig.Player.MagnetBody.Radius, "P3 resizes the magnet at once (R13)");
+            Assert.AreSame(w1, _rig.Weapons.Slots[0], "SetPassiveLoadout leaves the weapons alone");
+            Assert.AreEqual(1, _rig.Weapons.Count);
+
+            // P3 level change in the same step: magnet = pickupRadius x (1 + P3).
+            StepContext ctx = _rig.Context();
+            _rig.Applier.SetPassiveLoadout(Passives(("P1", 3), ("P3", 4)), ctx);
+            Assert.AreEqual(StatMath.ApplyMultiplier(2.0f, 0.40f), _rig.Player.MagnetBody.Radius);
+
+            // SetLoadout leaves the passives alone.
+            WeaponTests.QueueLoadout(_rig, ("W2", 1));
+            _rig.Step();
+            Assert.AreSame(p1, _rig.Passives.Slots[0]);
+            Assert.AreEqual(4, _rig.Passives.Slots[1].Level);
+
+            // All empty (or an empty list) is accepted: no passives at all.
+            QueuePassives(_rig, ((string)null, 0), ((string)null, 0), ((string)null, 0));
+            _rig.Step();
+            Assert.AreEqual(0, _rig.Passives.Count);
+            Assert.AreEqual(2.0f, _rig.Player.MagnetBody.Radius);
+            Assert.DoesNotThrow(() => _rig.Applier.SetPassiveLoadout(new List<PassiveLoadoutEntry>(), _rig.Context()));
+            Assert.AreEqual(0, _rig.Passives.Count);
+        }
+
+        [Test]
+        public void TACF19_20_InvalidPassiveLoadoutsThrowAndChangeNothing()
+        {
+            _rig = new PlrRig();
+            StepContext ctx = _rig.Context();
+            _rig.Applier.SetPassiveLoadout(Passives(("P1", 2), ("P2", 1)), ctx);
+            PassiveInstance p1 = _rig.Passives.Slots[0];
+            PassiveInstance p2 = _rig.Passives.Slots[1];
+            int changes = _rig.Applier.ChangeCount;
+
+            Assert.Throws<ArgumentNullException>(() => _rig.Applier.SetPassiveLoadout(null, ctx));
+            Assert.Throws<ArgumentException>(() => _rig.Applier.SetPassiveLoadout(Passives(("P1", 1), ("P2", 1), ("P3", 1), ((string)null, 0)), ctx),
+                "more than three entries");
+            Assert.Throws<ArgumentException>(() => _rig.Applier.SetPassiveLoadout(Passives(("P1", 3), ("NOPE", 1)), ctx), "unknown id");
+            Assert.Throws<ArgumentException>(() => _rig.Applier.SetPassiveLoadout(Passives(("P1", 6)), ctx), "level above the kept instance's range");
+            Assert.Throws<ArgumentException>(() => _rig.Applier.SetPassiveLoadout(Passives(("P1", 3), ("P3", 0)), ctx), "level 0 of a new passive");
+            Assert.Throws<ArgumentException>(() => _rig.Applier.SetPassiveLoadout(Passives(("P1", 3), ((string)null, 0), ("P1", 2)), ctx), "duplicate");
+            Assert.Throws<ArgumentException>(() => _rig.Applier.HandleSetPassiveLoadout(PendingCommand.SetPassiveLoadout("P1"), ctx), "wrong payload");
+            Assert.Throws<ArgumentException>(() => _rig.Applier.HandleSetPassiveLoadout(PendingCommand.SetPassiveLoadout(null), ctx), "null payload");
+
+            Assert.AreSame(p1, _rig.Passives.Slots[0]);
+            Assert.AreSame(p2, _rig.Passives.Slots[1]);
+            Assert.AreEqual(2, p1.Level);
+            Assert.AreEqual(1, p2.Level);
+            Assert.IsNull(_rig.Passives.Slots[2]);
+            Assert.AreEqual(changes, _rig.Applier.ChangeCount, "nothing changed after rejected loadouts");
+        }
+
+        [Test]
+        public void TACF19_20_SetPassiveLoadoutIsKindElevenAndOwnerHandled()
+        {
+            Assert.AreEqual(11, (int)PendingCommandKind.SetPassiveLoadout);
+            Assert.IsTrue(PendingCommandQueue.IsOwnerHandled(PendingCommandKind.SetPassiveLoadout));
+            var list = Passives(("P1", 1));
+            PendingCommand command = PendingCommand.SetPassiveLoadout(list);
+            Assert.AreEqual(PendingCommandKind.SetPassiveLoadout, command.Kind);
+            Assert.AreSame(list, command.Payload);
+        }
+
+        [Test]
+        public void TACF19_20_SamePassiveCommandAtTheSameStepGivesTheSameRun()
+        {
+            string first = RunScenario(passiveLoadoutAt: 30);
+            string second = RunScenario(passiveLoadoutAt: 30);
+            Assert.AreEqual(first, second);
+            Assert.AreNotEqual(RunScenario(), first, "P1/P2 change the cooldowns and the movement");
+        }
+
         [Test]
         public void SetHealthHandlerClampsAndResetForRunRestoresTheStart()
         {
@@ -313,7 +426,7 @@ namespace Survivor.Tests.EditMode.Player
             Assert.AreEqual(first, second);
         }
 
-        private static string RunScenario()
+        private static string RunScenario(int passiveLoadoutAt = -1)
         {
             var rig = new PlrRig();
             try
@@ -325,7 +438,16 @@ namespace Survivor.Tests.EditMode.Player
 
                 WeaponTests.QueueLoadout(rig, ("W1", 4), ("W2", 3), ("W3", 2), ("W4", 5));
                 rig.Input.Next = new MoveCommand(MoveMath.ToUnitDirection(1, 1));
-                rig.Steps(240);
+                if (passiveLoadoutAt >= 0)
+                {
+                    rig.Steps(passiveLoadoutAt);
+                    QueuePassives(rig, ("P1", 3), ("P2", 5), ("P3", 1));
+                    rig.Steps(240 - passiveLoadoutAt);
+                }
+                else
+                {
+                    rig.Steps(240);
+                }
                 var text = new System.Text.StringBuilder();
                 foreach ((long step, SimulationPhase phase, SimulationCommand c) in rig.Commands.Log)
                 {

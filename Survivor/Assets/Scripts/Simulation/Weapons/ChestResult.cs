@@ -10,16 +10,16 @@ namespace Survivor.Simulation
         /// context.Step of the Resolve that applied the effect.
         public readonly long Step;
 
-        /// Effect kind (unchanged ChestEffect enum).
+        /// Effect kind.
         public readonly ChestEffect Kind;
 
-        /// Evolved: the result weapon id; WeaponUpgraded: the upgraded weapon id; Healed: null.
+        /// Evolved: the result weapon id; WeaponUpgraded: the upgraded weapon id; PassiveUpgraded: the passive id; Healed: null.
         public readonly string TargetId;
 
-        /// WeaponUpgraded: level before the upgrade; Evolved / Healed: 0.
+        /// WeaponUpgraded / PassiveUpgraded: level before the upgrade; Evolved / Healed: 0.
         public readonly int FromLevel;
 
-        /// WeaponUpgraded: level after the upgrade; Evolved: 1 (the new instance); Healed: 0.
+        /// WeaponUpgraded / PassiveUpgraded: level after the upgrade; Evolved: 1 (the new instance); Healed: 0.
         public readonly int ToLevel;
 
         /// Healed: hp after - hp before (>= 0, 0 at full health); otherwise 0.

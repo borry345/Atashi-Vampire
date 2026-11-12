@@ -318,6 +318,7 @@ namespace Survivor.App
             _pending.RegisterHandler(PendingCommandKind.AddXp, _experience.HandleAddXp);
             _pending.RegisterHandler(PendingCommandKind.LevelUpNow, _experience.HandleLevelUpNow);
             _pending.RegisterHandler(PendingCommandKind.SetSpawnsEnabled, _spawner.HandleSetSpawnsEnabled);
+            _pending.RegisterHandler(PendingCommandKind.SetPassiveLoadout, _applier.HandleSetPassiveLoadout);
             _pending.BossSpawnedThisRun = () => _spawner.BossSpawnedThisRun;
 
             // Phase handlers in the 5c.3 #9 orders.

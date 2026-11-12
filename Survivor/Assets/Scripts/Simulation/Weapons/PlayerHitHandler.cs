@@ -6,7 +6,8 @@ namespace Survivor.Simulation
 {
     /// Weapon-side collision events (5.9), registered by the composition root on channels 0, 1 and 2.
     /// Channel 0 Enter: one-shot projectile hit - damage, and on hit number PierceCount + 1 MarkConsumed + Despawn(Consumed)
-    /// (TAC-F6-9); events of a consumed projectile are ignored. Channels 1/2 Enter/Exit: the owning weapon instance's tracker
+    /// (TAC-F6-9); events of a consumed projectile are ignored. A target already dead at Enter is recorded only - no damage,
+    /// no pierce use, the projectile flies on (TAC-F6-11). Channels 1/2 Enter/Exit: the owning weapon instance's tracker
     /// OnEnter/OnExit (TAC-F6-6); orbs/zones whose weapon was replaced are ignored.
     public sealed class PlayerHitHandler : ICollisionEventHandler
     {
@@ -51,7 +52,13 @@ namespace Survivor.Simulation
                 return;
             }
 
+            if (!target.IsAlive)
+            {
+                return;
+            }
+
             target.ApplyDamage(projectile.Damage, context.Step);
+            projectile.CountDamagingHit();
             if (projectile.IsSpent)
             {
                 projectile.MarkConsumed();

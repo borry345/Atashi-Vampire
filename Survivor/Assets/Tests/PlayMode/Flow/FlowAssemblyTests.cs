@@ -92,7 +92,7 @@ namespace Survivor.Tests.PlayMode.Flow
         {
             yield return LoadMain();
             var kinds = new[] { PendingCommandKind.SetLoadout, PendingCommandKind.SetHealth, PendingCommandKind.AddXp, PendingCommandKind.LevelUpNow,
-                PendingCommandKind.SetSpawnsEnabled };
+                PendingCommandKind.SetSpawnsEnabled, PendingCommandKind.SetPassiveLoadout };
             foreach (PendingCommandKind kind in kinds)
             {
                 Assert.IsTrue(PendingCommandQueue.IsOwnerHandled(kind));
@@ -103,7 +103,8 @@ namespace Survivor.Tests.PlayMode.Flow
             Assert.DoesNotThrow(() => Host.Commands.Enqueue(PendingCommand.SetHealth(50f)));
             Assert.DoesNotThrow(() => Host.Commands.Enqueue(PendingCommand.AddXp(1)));
             Assert.DoesNotThrow(() => Host.Commands.Enqueue(PendingCommand.LevelUpNow()));
-            Assert.AreEqual(4, Host.Commands.PendingCount);
+            Assert.DoesNotThrow(() => Host.Commands.Enqueue(PendingCommand.SetPassiveLoadout(new[] { new PassiveLoadoutEntry("P1", 1) })));
+            Assert.AreEqual(5, Host.Commands.PendingCount);
             Assert.IsNotNull(Host.Commands.BossSpawnedThisRun, "BossSpawnedThisRun wired to the spawner");
             Assert.IsFalse(Host.BossSpawnedThisRun);
         }
