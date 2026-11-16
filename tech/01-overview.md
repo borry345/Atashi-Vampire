@@ -97,8 +97,8 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U11 | **부분 확인(10회차 실측: `MovePosition` 반영 시점만 — `autoSyncTransforms`와 무관하게 `Simulate` 뒤에만 반영, `rb.position` 직접 대입은 U32. 콜라이더 활성화 직후 `OverlapCircle` 반영은 미확인 → 웨이브 3 IMP-COLLISION EM 테스트로 확인. 11회차 정정)** — `Rigidbody2D.position`을 바꾸거나 콜라이더를 켠 직후 `Physics2D.OverlapCircle`에 반영된다(`autoSyncTransforms`·`SyncTransforms` 영향). **(17회차) 확인됨** — 콜라이더 활성화 직후 `OverlapCircle` 반영을 IMP-COLLISION 테스트로 확인(남은 부분 해소) | `Physics2D` 타깃 공급자 |
 | U12 | 이름 없는 레이어 인덱스(8~17)에 `Physics2D.IgnoreLayerCollision`을 코드로 설정할 수 있다. **(17회차) 확인됨** — 인덱스로 설정 유효, 55쌍 중 9채널만 충돌(IMP-COLLISION PlayMode, `PhysicsSettingsApplier`) | 레이어 충돌 매트릭스를 코드로 설정 |
 | U13 | Windows 플레이어에서 `Application.streamingAssetsPath` + `File.ReadAllText`가 동기로 동작하고, 빌드 폴더 `<Name>_Data/StreamingAssets/`를 편집할 수 있다 | F11 로더, F13 |
-| U14 | `ProfilerMarker`는 비개발 빌드에서 호출째 제거되고, `ProfilerRecorder`는 Development Build에서 마커의 프레임 합계를 읽으며, `Begin`/`End`를 다른 스크립트에서 짝지어도 된다 | 시스템 ms 수집 |
-| U15 | `ProfilerRecorder`로 "GC Allocated In Frame" 카운터를 읽을 수 있다 | F10 항목 3 |
+| U14 | `ProfilerMarker`는 비개발 빌드에서 호출째 제거되고, `ProfilerRecorder`는 Development Build에서 마커의 프레임 합계를 읽으며, `Begin`/`End`를 다른 스크립트에서 짝지어도 된다. **(24회차) 확인됨** — 웨이브 5b 측정(에디터 Play, 2026-11-16)에서 R16 마커 프레임 합계를 읽음(06 6.2 U14) | 시스템 ms 수집 |
+| U15 | `ProfilerRecorder`로 "GC Allocated In Frame" 카운터를 읽을 수 있다. **(24회차) 부분 확인** — 에디터 Play에서 읽음, 빌드 미확인(06 6.2 U15) | F10 항목 3 |
 | U16 | Windows 플레이어에서 `Environment.GetCommandLineArgs()`에 `--dev`가 그대로 들어온다 | Q40 활성화 |
 | U17 | Input System 패키지가 활성이고 업데이트 모드가 Dynamic이라 `wasPressedThisFrame`이 `Update`에서 유효하다 | 입력 수집 |
 | U18 | (2회차 수정) 한글 TTF로 만든 TextMeshPro Dynamic Font Asset이 uGUI에서, 같은 TTF의 `Font`가 IMGUI(`GUIStyle.font`)에서 한글을 렌더링한다. **(18회차) 부분 확인** — TMP **Static** Font Asset(5b)의 uGUI 한글 렌더링은 사용자 Play로 확인. IMGUI `Font`는 미생성·미확인(미확정 유지) | 모든 UI |
@@ -121,7 +121,7 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U35 | (2회차) `Screen.mainWindowDisplayInfo.workArea`가 Windows 플레이어에서 작업 영역(작업 표시줄 제외)을 물리 픽셀로 돌려주고, `Screen.SetResolution(w, h, Windowed)`의 w·h는 창 테두리를 뺀 클라이언트 크기다. (10회차: 빌드 측정 대기) **(12회차) 확인됨** — 빌드에서 `workArea` 2560x1392(2560x1440 모니터, 배율 100%, 작업 표시줄 48px → 물리 픽셀), `SetResolution(1280,720,Windowed)` 뒤 `Screen.width/height` 1280x720 | 창 크기 자동 선택 |
 | U36 | (2회차) Player Settings "Allow Fullscreen Switch" 끔이 Windows 플레이어의 Alt+Enter 전환을 막는다. (10회차: 빌드 측정 대기) **(12회차) 확인됨** — 빌드에서 Alt+Enter 뒤 `fullScreenMode` 변화 없음(Player.log에 변경 로그 없음) | F8 Alt+Enter 끔 |
 | U37 | (2회차) 창 모드 플레이어에서 포커스를 잃으면 `OnApplicationFocus(false)`가 오고, `Application.runInBackground`를 런타임에 켜면 포커스가 없어도 프레임이 계속 돈다 | 포커스 상실 자동 일시정지, 측정 중 백그라운드 실행 |
-| U38 | (2회차) `ProfilerRecorder`로 Memory 카테고리의 "Total Used Memory"·"Total Reserved Memory"를 Development Build에서 읽을 수 있다(릴리스 빌드에서의 가용성 포함) | F10 항목 6 |
+| U38 | (2회차) `ProfilerRecorder`로 Memory 카테고리의 "Total Used Memory"·"Total Reserved Memory"를 Development Build에서 읽을 수 있다(릴리스 빌드에서의 가용성 포함). **(24회차) 부분 확인** — 에디터 Play에서 "Total Used Memory"를 읽음, 빌드 미확인(06 6.2 U38) | F10 항목 6 |
 | U39 | (2회차) `QualitySettings.vSyncCount = 0`, `Application.targetFrameRate = -1`을 런타임에 설정하면 창 모드 플레이어가 그대로 따르고, `UnityEngine.Scripting.GarbageCollector.isIncremental`로 점진적 GC 여부를 읽을 수 있다 | 측정 환경 고정·기록 |
 | U40 | (2회차) `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]`는 첫 씬 오브젝트의 `Awake` 뒤, `Start` 전에 호출되고, asmdef `defineConstraints`로 제외된 어셈블리는 빌드에서 통째로 빠진다 | 개발자 모드 자가 부착, 코드 제거 비교 빌드 |
 | U41 | (2회차) Mono에서 `File.ReadAllText(path, new UTF8Encoding(false, false))`가 잘못된 바이트를 예외 없이 U+FFFD로 바꾸고 UTF-8 BOM은 제거한다 | JSON 인코딩 경고 |
