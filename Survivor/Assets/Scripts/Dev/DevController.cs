@@ -29,6 +29,10 @@ namespace Survivor.Dev
         private readonly DevCommandLog _commandLog = new DevCommandLog();
         private int _runNumber;
         private long _lastChestSequence;
+        private CollisionEventLog _pendingCollisionLog;
+        private CollisionEventLog _collisionLog;
+        private ulong _collisionLogSeed;
+        private StrategySelection _collisionLogSelection;
 
         /// Binds to host (null throws ArgumentNullException); flow (null allowed only for hosts without a screen flow) gates
         /// the run-state checks. Subscribes to RunEnded to reset the time scale.
@@ -61,6 +65,25 @@ namespace Survivor.Dev
 
         /// Table spawns state dev last queued in this run (true at every run reset); may lead the real switch by one step.
         public bool SpawnsEnabled { get; private set; } = true;
+
+        /// True while the "collision log (next run)" option is on (NextRunCollisionDecorator installed); the measurement guard
+        /// refuses while it is on (5.15.2).
+        public bool CollisionLogEnabled { get; private set; }
+
+        /// Collision log of the current run (null when the run started without the option).
+        public CollisionEventLog CurrentCollisionLog => _collisionLog;
+
+        /// Path of the latest file dev mode wrote (collision log, dump or measurement; "" before the first).
+        public string LastFilePath { get; private set; } = string.Empty;
+
+        /// Folder for collision logs, dumps and measurements; null = Application.persistentDataPath (tests inject a temp folder).
+        internal string OutputRoot { get; set; }
+
+        /// Data folder hot reload reads; null = Application.streamingAssetsPath.
+        internal string DataRoot { get; set; }
+
+        /// Output folder in use (OutputRoot or Application.persistentDataPath).
+        public string OutputFolder => string.IsNullOrEmpty(OutputRoot) ? Application.persistentDataPath : OutputRoot;
 
         /// Strategy selection the current run started with (target: see CurrentTarget).
         public StrategySelection RunSelection => _runSelection;
@@ -595,6 +618,79 @@ namespace Survivor.Dev
             Done("ResetZoom", "Zoom " + GameRules.CameraOrthographicSize.ToString("0.##", CultureInfo.InvariantCulture) + ".");
         }
 
+        /// Collision log for the next runs on or off: on installs a NextRunCollisionDecorator that wraps each new run's strategy
+        /// in a LoggingCollisionStrategy with a fresh CollisionEventLog; off removes it. The current run is not affected.
+        public void SetCollisionLog(bool on)
+        {
+            CollisionLogEnabled = on;
+            _host.NextRunCollisionDecorator = on ? WrapWithLog : (Func<ICollisionStrategy, ICollisionStrategy>)null;
+            Done("CollisionLog", "Collision log " + OnOff(on) + " (next run).");
+        }
+
+        /// Writes the current run's collision log to collision_<seed>_<strategy>_<mode>.csv in OutputFolder. Refused when the
+        /// run has no log or the write fails.
+        public bool TryExportCollisionLog()
+        {
+            if (_collisionLog == null)
+            {
+                return Refuse("CollisionLogExport", "This run has no collision log (turn the log on, then start a new run).");
+            }
+
+            try
+            {
+                LastFilePath = _collisionLog.Export(OutputFolder, _collisionLogSeed, _collisionLogSelection.Collision,
+                    _collisionLogSelection.EngineDetectionMode);
+            }
+            catch (Exception e)
+            {
+                return Refuse("CollisionLogExport", "Collision log not written: " + e.Message);
+            }
+
+            return Done("CollisionLogExport", _collisionLog.Events.Count.ToString(CultureInfo.InvariantCulture) + " event(s) -> "
+                + LastFilePath);
+        }
+
+        /// Hot reload (HotReloadService over DataRoot): queues SwapData when the files are playable. Needs a run in progress,
+        /// because a run reset clears the command queue.
+        public bool TryHotReload()
+        {
+            if (!IsRunActive)
+            {
+                return Refuse("HotReload", "Hot reload needs a run in progress.");
+            }
+
+            string root = string.IsNullOrEmpty(DataRoot) ? Application.streamingAssetsPath : DataRoot;
+            bool ok = new HotReloadService(root, _host.Commands).TryReload(out string message);
+            return ok ? Done("HotReload", message) : Refuse("HotReload", message);
+        }
+
+        /// Writes the loaded data and the last validation report to dump_<timestamp>.txt in OutputFolder.
+        public bool TryDumpData()
+        {
+            try
+            {
+                LastFilePath = new DataDumpWriter(OutputFolder).Write(_host.Data.Current, _host.Data.LastReport, DateTime.UtcNow);
+            }
+            catch (Exception e)
+            {
+                return Refuse("DumpData", "Dump not written: " + e.Message);
+            }
+
+            return Done("DumpData", "Dump -> " + LastFilePath);
+        }
+
+        // Command-log line for a measurement step (Done when ok, Refuse otherwise); returns ok.
+        internal bool Note(string command, string message, bool ok)
+        {
+            return ok ? Done(command, message) : Refuse(command, message);
+        }
+
+        // Remembers a file the measurement wrote, for the overlay's "last file" line.
+        internal void NoteFile(string path)
+        {
+            LastFilePath = path ?? string.Empty;
+        }
+
         /// Copies the status panel values from the host (read only); actualSpeed comes from the overlay's one-second window.
         public DevStatusInput BuildStatusInput(float actualSpeed)
         {
@@ -623,11 +719,22 @@ namespace Survivor.Dev
             _runSelection = _host.NextRunSelection;
             _currentTarget = _runSelection.Target;
             _runSeedFixed = _host.FixedSeed.HasValue;
+            _collisionLog = _pendingCollisionLog;
+            _pendingCollisionLog = null;
+            _collisionLogSeed = _host.Session.Rng.MasterSeed;
+            _collisionLogSelection = _runSelection;
             if (_pendingDespawnDistance.HasValue && IsRunActive)
             {
                 _host.Commands.Enqueue(PendingCommand.SetDespawnDistance(_pendingDespawnDistance.Value));
                 _pendingDespawnDistance = null;
             }
+        }
+
+        // NextRunCollisionDecorator: called by StrategyFactory.Create at a run start; the log becomes current at OnRunReset.
+        private ICollisionStrategy WrapWithLog(ICollisionStrategy inner)
+        {
+            _pendingCollisionLog = new CollisionEventLog();
+            return new LoggingCollisionStrategy(inner, _pendingCollisionLog);
         }
 
         private void OnRunEnded(RunOutcome outcome)

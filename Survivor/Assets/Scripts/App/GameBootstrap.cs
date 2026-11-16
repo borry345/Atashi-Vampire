@@ -117,6 +117,7 @@ namespace Survivor.App
         public int ActiveGemCount => _pickupRegistry.ActiveGemCount;   // Live experience gems (dev status, CSV).
         public int LiveMonsterCount => _registry.Count;                // Live monsters, boss included (dev status, CSV).
         public ChestResultLog ChestResults => _applier.ChestResults;   // Latest chest results (dev command log).
+        public int LoadoutChangeCount => _applier.ChangeCount;        // Weapon/passive change counter (dev measurement check).
 
         /// Flow controller (screen state).
         public GameFlowController Flow => _flow;

@@ -57,5 +57,6 @@ namespace Survivor.App
         int ActiveGemCount { get; }    // Live experience gems (PickupRegistry.ActiveGemCount).
         int LiveMonsterCount { get; }  // Live monsters, boss included (MonsterRegistry.Count).
         ChestResultLog ChestResults { get; }  // Latest chest results (PlayerProgressionApplier.ChestResults; dev command log).
+        int LoadoutChangeCount { get; }  // PlayerProgressionApplier.ChangeCount (measurement loadout-change check, 5.15.2).
     }
 }
