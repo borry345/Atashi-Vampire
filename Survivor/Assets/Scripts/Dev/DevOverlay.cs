@@ -28,7 +28,7 @@ namespace Survivor.Dev
         internal const int ConsoleWindowId = 0x5D40;
 
         private const int SampleCapacity = 512;
-        private static readonly string[] Tabs = { "Run", "Player", "Enemies", "Time", "Strategy", "Visual", "Data (5b)" };
+        private static readonly string[] Tabs = { "Run", "Player", "Enemies", "Time", "Strategy", "Visual", "Data" };
 
         private readonly List<string> _lines = new List<string>(32);
         private readonly float[] _sampleSeconds = new float[SampleCapacity];
@@ -64,6 +64,11 @@ namespace Survivor.Dev
         private readonly string[] _passiveIds = { "P1", "P2", "P3" };
         private readonly string[] _passiveLevels = { "0", "0", "0" };
         private float _zoomDraft = float.NaN;
+        private MeasurementSession _measurement;
+        private int _presetIndex;
+        private string _measureNText = string.Empty;
+        private string _durationText = "3600";
+        private string[] _presetLabels;
 
         /// Whether the command log console window is open (the "Log" toggle; test hook). A component field, so hiding and
         /// reopening the overlay keeps it; the log keeps recording while the console is closed (5.15.5, TAC-F19-21).
@@ -101,6 +106,12 @@ namespace Survivor.Dev
             _visualizer = visualizer;
             _font = CreateOverlayFont(() => Font.CreateDynamicFontFromOSFont(FontName, FontSize));
             DevLog.Info("Overlay font: " + (_font != null ? FontName : "engine default") + ".");
+        }
+
+        // Binds the measurement session the Data tab starts (DevModeRoot, after Initialize).
+        internal void BindMeasurement(MeasurementSession measurement)
+        {
+            _measurement = measurement;
         }
 
         // Font factory guard: any failure falls back to the default font (null) without an error (SPEC F19 65).
@@ -490,7 +501,7 @@ namespace Survivor.Dev
 
             GUI.enabled = true;
             GUILayout.EndHorizontal();
-            GUILayout.Label("N-step auto stop: (5b)");
+            GUILayout.Label("N-step auto stop: measurement only (Data tab).");
         }
 
         private void DrawStrategyTab()
@@ -613,14 +624,89 @@ namespace Survivor.Dev
             }
         }
 
-        private static void DrawDataTab()
+        private void DrawDataTab()
         {
-            GUI.enabled = false;
-            GUILayout.Button("Hot reload JSON (5b)");
-            GUILayout.Button("Dump data (5b)");
-            GUILayout.Button("Collision log (5b)");
-            GUILayout.Button("Measurement (5b)");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Hot reload JSON"))
+            {
+                _controller.TryHotReload();
+            }
+
+            if (GUILayout.Button("Dump data"))
+            {
+                _controller.TryDumpData();
+            }
+
+            GUILayout.EndHorizontal();
+            bool logOn = _controller.CollisionLogEnabled;
+            if (GUILayout.Toggle(logOn, "Collision log (next run)") != logOn)
+            {
+                _controller.SetCollisionLog(!logOn);
+            }
+
+            GUI.enabled = _controller.CurrentCollisionLog != null;
+            if (GUILayout.Button("Export collision log (this run)"))
+            {
+                _controller.TryExportCollisionLog();
+            }
+
             GUI.enabled = true;
+            GUILayout.Label("Last file: " + (string.IsNullOrEmpty(_controller.LastFilePath) ? "-" : _controller.LastFilePath));
+            DrawMeasurement();
+        }
+
+        // Preset grid, N (A0 / A / C only), durationSteps, Start, and the session status line (5.15.2 step 1).
+        private void DrawMeasurement()
+        {
+            GUILayout.Label("Measurement (starts from Title / Result / Paused; hides the overlay):");
+            if (_measurement == null)
+            {
+                GUILayout.Label("Measurement unavailable.");
+                return;
+            }
+
+            if (_presetLabels == null)
+            {
+                _presetLabels = new string[MeasurementPresets.All.Count];
+                for (int i = 0; i < _presetLabels.Length; i++)
+                {
+                    _presetLabels[i] = MeasurementPresets.All[i].Label;
+                }
+            }
+
+            int index = GUILayout.SelectionGrid(_presetIndex, _presetLabels, 6);
+            MeasurementPreset preset = MeasurementPresets.All[index];
+            if (index != _presetIndex || _measureNText.Length == 0)
+            {
+                _presetIndex = index;
+                _measureNText = preset.DefaultN.ToString(CultureInfo.InvariantCulture);
+            }
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(preset.NEditable ? "N" : "N (fixed)", GUILayout.Width(60f));
+            GUI.enabled = preset.NEditable;
+            _measureNText = GUILayout.TextField(preset.NEditable ? _measureNText : preset.DefaultN.ToString(CultureInfo.InvariantCulture),
+                GUILayout.Width(70f));
+            GUI.enabled = true;
+            GUILayout.Label("durationSteps", GUILayout.Width(100f));
+            _durationText = GUILayout.TextField(_durationText, GUILayout.Width(80f));
+            GUILayout.EndHorizontal();
+            int n = ParseInt(_measureNText);
+            GUILayout.Label(preset.Label + " " + preset.Selection.Pool + "/" + preset.Selection.Target + "/" + preset.Selection.Tick + "/"
+                + preset.Selection.Collision + ", D " + MeasurementPresets.DespawnDistanceFor(preset.ResolveN(n)).ToString("0.##", CultureInfo.InvariantCulture)
+                + ", " + preset.WeaponLoadoutText);
+            GUI.enabled = !_measurement.IsRunning;
+            if (GUILayout.Button("Start measurement"))
+            {
+                long duration = long.TryParse(_durationText, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed) ? parsed : -1;
+                _measurement.TryBegin(preset, n, duration);
+            }
+
+            GUI.enabled = true;
+            if (!string.IsNullOrEmpty(_measurement.StatusText))
+            {
+                GUILayout.Label(_measurement.StatusText);
+            }
         }
 
         private static string DescribePolicy(ISpawnPolicy policy)
