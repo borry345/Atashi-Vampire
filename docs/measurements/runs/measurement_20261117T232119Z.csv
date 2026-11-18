@@ -1,0 +1,46 @@
+﻿schema,survivor-measurement-1
+timestampUtc,2026-11-17T23:21:19Z
+label,A6
+group,A
+buildType,Development
+unityVersion,6000.3.28f1
+cpu,Intel(R) Core(TM) i7-14700
+gpu,NVIDIA GeForce RTX 5060 Ti
+ramMB,32446
+os,Windows 11  (10.0.26300)
+vSyncCount,0
+targetFrameRate,-1
+scriptingBackend,Mono
+incrementalGC,true
+pool,CustomPool
+target,SpatialHash
+tick,CentralTick
+collision,SelfSquaredDistance
+ccdMode,Discrete
+monsterCountN,1100
+monsterCapDisabled,true
+despawnDistance,74.62406
+despawnFormula,45*sqrt(N/400)
+seed,4242
+hpMultipliers,1.0;1.5;2.2;3.0
+cellSize,2
+stepSeconds,0.016666667
+durationSteps,3600
+warmupSteps,300
+nReachedStep,1
+playerInvulnerable,true
+weaponLoadout,W1:5;W2:5;W3:5;W4:5
+chestDropChance,0
+spawnStopHoldN,true
+levelUpEnabled,false
+autoPathRadius,6
+autoPathSpeed,4
+timeScale,1
+overlayHidden,true
+visualizersOff,true
+collisionLogOff,true
+valid,true
+invalidReason,
+
+frames,steps,slowmoFrames,avgFps,onePercentLowFps,worstFrameMs,gcAllocPerFrameBytes,monsterCountLimit,monsterCountAvg,monsterCountMax,step_msPerStep,step_msPerFrame,pool_msPerStep,pool_msPerFrame,targeting_msPerStep,targeting_msPerFrame,spatialIndex_msPerStep,spatialIndex_msPerFrame,tickMonsters_msPerStep,tickMonsters_msPerFrame,tickProjectiles_msPerStep,tickProjectiles_msPerFrame,collision_msPerStep,collision_msPerFrame,memTotalUsedMB_avg,memTotalUsedMB_max,memTotalReservedMB_avg,memTotalReservedMB_max,activeGems_avg,activeGems_max
+6179,3600,0,102.94538250393973,52.198491422354913,37.309397011995316,50642.958245670823,해당 없음,1100,1100,5.3419329166666687,3.1123091924259603,0.10645449999999972,0.062022366078653336,0.00071777777777777768,0.00041819064573555588,0.133963638888889,0.078049700598802452,0.2109852500000001,0.12292391972811141,0.0036164999999999735,0.002107039974105827,0.42606147222222146,0.24823131574688417,1662.159659799933,1733.7407369613647,2276.9219602957419,2283.0598831176758,1431.6433079786373,3040

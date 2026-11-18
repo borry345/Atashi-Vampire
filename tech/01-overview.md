@@ -122,7 +122,7 @@ FixedUpdate 1회 = 스텝 최대 1회 (SimulationClock.TryBeginStep이 참일 �
 | U36 | (2회차) Player Settings "Allow Fullscreen Switch" 끔이 Windows 플레이어의 Alt+Enter 전환을 막는다. (10회차: 빌드 측정 대기) **(12회차) 확인됨** — 빌드에서 Alt+Enter 뒤 `fullScreenMode` 변화 없음(Player.log에 변경 로그 없음) | F8 Alt+Enter 끔 |
 | U37 | (2회차) 창 모드 플레이어에서 포커스를 잃으면 `OnApplicationFocus(false)`가 오고, `Application.runInBackground`를 런타임에 켜면 포커스가 없어도 프레임이 계속 돈다 | 포커스 상실 자동 일시정지, 측정 중 백그라운드 실행 |
 | U38 | (2회차) `ProfilerRecorder`로 Memory 카테고리의 "Total Used Memory"·"Total Reserved Memory"를 Development Build에서 읽을 수 있다(릴리스 빌드에서의 가용성 포함). **(24회차) 부분 확인** — 에디터 Play에서 "Total Used Memory"를 읽음, 빌드 미확인(06 6.2 U38) | F10 항목 6 |
-| U39 | (2회차) `QualitySettings.vSyncCount = 0`, `Application.targetFrameRate = -1`을 런타임에 설정하면 창 모드 플레이어가 그대로 따르고, `UnityEngine.Scripting.GarbageCollector.isIncremental`로 점진적 GC 여부를 읽을 수 있다 | 측정 환경 고정·기록 |
+| U39 | (2회차) `QualitySettings.vSyncCount = 0`, `Application.targetFrameRate = -1`을 런타임에 설정하면 창 모드 플레이어가 그대로 따르고, `UnityEngine.Scripting.GarbageCollector.isIncremental`로 점진적 GC 여부를 읽을 수 있다. **(25회차) 부분 확인** — 에디터 Play 측정에서 프레임이 주사율에 묶이지 않음(avgFps 최대 614.6), 빌드 창 모드·`isIncremental` 미확인(06 6.2 U39) | 측정 환경 고정·기록 |
 | U40 | (2회차) `[RuntimeInitializeOnLoadMethod(AfterSceneLoad)]`는 첫 씬 오브젝트의 `Awake` 뒤, `Start` 전에 호출되고, asmdef `defineConstraints`로 제외된 어셈블리는 빌드에서 통째로 빠진다 | 개발자 모드 자가 부착, 코드 제거 비교 빌드 |
 | U41 | (2회차) Mono에서 `File.ReadAllText(path, new UTF8Encoding(false, false))`가 잘못된 바이트를 예외 없이 U+FFFD로 바꾸고 UTF-8 BOM은 제거한다 | JSON 인코딩 경고 |
 | U42 | (2회차) Input System 패키지 사용 시 uGUI `EventSystem`에 `InputSystemUIInputModule`을 붙이면 방향키·Enter 메뉴 탐색과 클릭이 동작한다. 같은 프레임의 UI 클릭 콜백과 `MonoBehaviour.Update` 사이의 순서는 보장되지 않는다고 가정한다 | 메뉴 키보드·마우스 조작, 레벨업 중복 입력 처리 |

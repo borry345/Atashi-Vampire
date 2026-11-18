@@ -41,9 +41,13 @@ Unity 2D 뱀파이어 서바이버라이크. 풀링·타깃 탐색·Update 집�
 
 ### 다이어그램 1. 인터페이스와 구현 클래스
 
-인터페이스 17개와 그 구현 클래스 47개다. 멤버는 그리지 않았다. `Data`·`UI`·`Editor` 어셈블리에는 인터페이스 구현이 없어 그림에 나오지 않는다. 점선 화살표는 "구현한다"이다.
+인터페이스 17개와 그 구현 클래스 47개다. 멤버는 그리지 않았다. 한 그림에 담기엔 커서 세 그림으로 나눴다(인터페이스 5+9+3 = 17개, 구현 15+27+5 = 47개, 실현선 15+34+5 = 54개). 한 인터페이스는 한 그림에만 나온다. `Data`·`UI`·`Editor` 어셈블리에는 인터페이스 구현이 없어 그림에 나오지 않는다. 점선 화살표는 "구현한다"이다.
 
 코드 기준 커밋 93b089e
+
+#### 1-① 전략 네 축과 템플릿 데코레이터
+
+풀·타깃·틱·충돌 네 축의 인터페이스와 구현, 그리고 엔티티 템플릿 데코레이터다. 인터페이스 5개 / 구현 15개.
 
 ```mermaid
 classDiagram
@@ -53,14 +57,74 @@ classDiagram
         class IPoolStrategy
         class ITargetProvider
         class ITickStrategy
-        class IUpdatable
         class ICollisionStrategy
-        class IInputSource
-        class ISpawnPolicy
+        class IEntityTemplateDecorator
+    }
+
+    namespace Simulation {
+        class TargetProviderSlot
+    }
+
+    namespace Strategies {
+        class CustomPoolStrategy
+        class InstantiatePoolStrategy
+        class UnityObjectPoolStrategy
+        class BruteForceTargetProvider
+        class SpatialHashTargetProvider
+        class Physics2DTargetProvider
+        class CentralTickStrategy
+        class SelfTickStrategy
+        class SelfCollisionStrategy
+        class EngineCollisionStrategy
+        class PoolTemplateDecorator
+        class CollisionTemplateDecorator
+        class SelfTickTemplateDecorator
+    }
+
+    namespace Dev {
+        class LoggingCollisionStrategy
+    }
+
+    <<interface>> IPoolStrategy
+    <<interface>> ITargetProvider
+    <<interface>> ITickStrategy
+    <<interface>> ICollisionStrategy
+    <<interface>> IEntityTemplateDecorator
+
+    CustomPoolStrategy ..|> IPoolStrategy
+    InstantiatePoolStrategy ..|> IPoolStrategy
+    UnityObjectPoolStrategy ..|> IPoolStrategy
+
+    BruteForceTargetProvider ..|> ITargetProvider
+    SpatialHashTargetProvider ..|> ITargetProvider
+    Physics2DTargetProvider ..|> ITargetProvider
+    TargetProviderSlot ..|> ITargetProvider
+
+    CentralTickStrategy ..|> ITickStrategy
+    SelfTickStrategy ..|> ITickStrategy
+
+    SelfCollisionStrategy ..|> ICollisionStrategy
+    EngineCollisionStrategy ..|> ICollisionStrategy
+    LoggingCollisionStrategy ..|> ICollisionStrategy
+
+    PoolTemplateDecorator ..|> IEntityTemplateDecorator
+    CollisionTemplateDecorator ..|> IEntityTemplateDecorator
+    SelfTickTemplateDecorator ..|> IEntityTemplateDecorator
+```
+
+#### 1-② 시뮬레이션 루프·엔티티
+
+스텝 단계 처리기, 갱신 대상, 명령 버퍼와 명령 처리기, 충돌 이벤트 처리기, 피해 인터페이스와 그 구현이다. 물리 바디 등록 인터페이스(`IPhysicsBodyRegistry`)는 `PhysicsBodySynchronizer`가 `IStepPhaseHandler`도 함께 구현하므로 한 그림에 두려고 여기에 넣었다. 인터페이스 9개 / 구현 27개.
+
+```mermaid
+classDiagram
+    direction LR
+
+    namespace Core {
+        class IUpdatable
         class ISimulationCommands
         class IStepPhaseHandler
         class IStepClockReader
-        class IEntityTemplateDecorator
         class IPhysicsBodyRegistry
         class IDamageable
         class IContactDamageSource
@@ -69,13 +133,10 @@ classDiagram
     namespace Simulation {
         class ISimulationCommandHandler
         class ICollisionEventHandler
-        class TargetProviderSlot
         class Monster
         class PlayerProjectile
         class EnemyProjectile
         class EnemyHazardZone
-        class KeyboardInputSource
-        class TableSpawnPolicy
         class SimulationCommandBuffer
         class SimulationClock
         class EntityDespawnCommandHandler
@@ -100,88 +161,32 @@ classDiagram
     }
 
     namespace Strategies {
-        class CustomPoolStrategy
-        class InstantiatePoolStrategy
-        class UnityObjectPoolStrategy
-        class BruteForceTargetProvider
-        class SpatialHashTargetProvider
-        class Physics2DTargetProvider
-        class CentralTickStrategy
-        class SelfTickStrategy
-        class SelfCollisionStrategy
-        class EngineCollisionStrategy
-        class PoolTemplateDecorator
-        class CollisionTemplateDecorator
-        class SelfTickTemplateDecorator
         class PhysicsBodySynchronizer
         class MonsterSpatialIndex
     }
 
-    namespace App {
-        class IDevModeHost
-        class GameBootstrap
-    }
-
-    namespace Dev {
-        class AutoPathInputSource
-        class DevSpawnPolicy
-        class LoggingCollisionStrategy
-    }
-
-    <<interface>> IPoolStrategy
-    <<interface>> ITargetProvider
-    <<interface>> ITickStrategy
     <<interface>> IUpdatable
-    <<interface>> ICollisionStrategy
-    <<interface>> IInputSource
-    <<interface>> ISpawnPolicy
     <<interface>> ISimulationCommands
     <<interface>> IStepPhaseHandler
     <<interface>> IStepClockReader
-    <<interface>> IEntityTemplateDecorator
     <<interface>> IPhysicsBodyRegistry
     <<interface>> IDamageable
     <<interface>> IContactDamageSource
     <<interface>> ISimulationCommandHandler
     <<interface>> ICollisionEventHandler
-    <<interface>> IDevModeHost
-
-    CustomPoolStrategy ..|> IPoolStrategy
-    InstantiatePoolStrategy ..|> IPoolStrategy
-    UnityObjectPoolStrategy ..|> IPoolStrategy
-
-    BruteForceTargetProvider ..|> ITargetProvider
-    SpatialHashTargetProvider ..|> ITargetProvider
-    Physics2DTargetProvider ..|> ITargetProvider
-    TargetProviderSlot ..|> ITargetProvider
-
-    CentralTickStrategy ..|> ITickStrategy
-    SelfTickStrategy ..|> ITickStrategy
 
     Monster ..|> IUpdatable
     PlayerProjectile ..|> IUpdatable
     EnemyProjectile ..|> IUpdatable
 
-    SelfCollisionStrategy ..|> ICollisionStrategy
-    EngineCollisionStrategy ..|> ICollisionStrategy
-    LoggingCollisionStrategy ..|> ICollisionStrategy
-
-    KeyboardInputSource ..|> IInputSource
-    AutoPathInputSource ..|> IInputSource
-
-    TableSpawnPolicy ..|> ISpawnPolicy
-    DevSpawnPolicy ..|> ISpawnPolicy
-
     SimulationCommandBuffer ..|> ISimulationCommands
-    SimulationClock ..|> IStepClockReader
 
-    PoolTemplateDecorator ..|> IEntityTemplateDecorator
-    CollisionTemplateDecorator ..|> IEntityTemplateDecorator
-    SelfTickTemplateDecorator ..|> IEntityTemplateDecorator
+    SimulationClock ..|> IStepClockReader
 
     PhysicsBodySynchronizer ..|> IPhysicsBodyRegistry
 
     Monster ..|> IDamageable
+
     Monster ..|> IContactDamageSource
     EnemyProjectile ..|> IContactDamageSource
     EnemyHazardZone ..|> IContactDamageSource
@@ -194,8 +199,6 @@ classDiagram
     PlayerHitHandler ..|> ICollisionEventHandler
     PlayerDamageReceiver ..|> ICollisionEventHandler
     PickupSystem ..|> ICollisionEventHandler
-
-    GameBootstrap ..|> IDevModeHost
 
     PendingCommandQueue ..|> IStepPhaseHandler
     PlayerMovement ..|> IStepPhaseHandler
@@ -214,6 +217,47 @@ classDiagram
     MonsterSeparation ..|> IStepPhaseHandler
     PhysicsBodySynchronizer ..|> IStepPhaseHandler
     MonsterSpatialIndex ..|> IStepPhaseHandler
+```
+
+#### 1-③ 입력·스폰·앱
+
+입력원, 스폰 정책, 개발자 모드 호스트와 그 구현이다. 인터페이스 3개 / 구현 5개.
+
+```mermaid
+classDiagram
+    direction LR
+
+    namespace Core {
+        class IInputSource
+        class ISpawnPolicy
+    }
+
+    namespace Simulation {
+        class KeyboardInputSource
+        class TableSpawnPolicy
+    }
+
+    namespace App {
+        class IDevModeHost
+        class GameBootstrap
+    }
+
+    namespace Dev {
+        class AutoPathInputSource
+        class DevSpawnPolicy
+    }
+
+    <<interface>> IInputSource
+    <<interface>> ISpawnPolicy
+    <<interface>> IDevModeHost
+
+    KeyboardInputSource ..|> IInputSource
+    AutoPathInputSource ..|> IInputSource
+
+    TableSpawnPolicy ..|> ISpawnPolicy
+    DevSpawnPolicy ..|> ISpawnPolicy
+
+    GameBootstrap ..|> IDevModeHost
 ```
 
 `Core`의 인터페이스는 14개, `Simulation`의 것은 `ISimulationCommandHandler`·`ICollisionEventHandler` 2개, `App`의 것은 `IDevModeHost` 1개다. 네 가지 전략 축(풀, 타깃, 틱, 충돌)은 각각 `IPoolStrategy`, `ITargetProvider`, `ITickStrategy`, `ICollisionStrategy`이고, 구현은 `Strategies`에 있다. `TargetProviderSlot`은 현재 타깃 공급자에게 위임하는 슬롯이고, `LoggingCollisionStrategy`는 충돌 전략을 감싸는 `Dev`의 데코레이터다.
@@ -349,6 +393,18 @@ flowchart TD
 
 메인 창의 "Log" 버튼은 최근 명령·상자 결과 로그를 별도 창으로 여닫는다.
 
+### 측정 계획 (A0 스윕 → N\* → A·B·C)
+
+측정은 세 묶음으로 나뉘고 각각 다른 질문에 답한다.
+
+- **A 묶음(A1~A6)**: 내 설계 변경을 하나씩 켰을 때의 효과(A2 풀링, A3 타깃 공간 해시, A4 중앙 틱, A5 자체 충돌)와 전부 켠 A6로 보는 상호작용. A1이 전부 끈 기준이다.
+- **B 묶음(B1~B8)**: 타깃 탐색의 전수 순회 대 공간 해시를 적 수 50/100/200/400에서 비교한 N별 효과.
+- **C 묶음(C1~C2)**: 내 구현 대 엔진 제공. C1은 Unity 내장 풀, C2는 `Physics2D` 쿼리 타깃이다.
+
+먼저 A0 스윕으로 기준 조합의 한계 N\*를 찾는다. N을 올려 가며 돌려 `avgFps`가 55 미만이 처음 나온 N을 N\*로 하고, 그 값은 CSV의 `monsterCountLimit` 열에 남는다. A·C 묶음은 이 N\*를 N으로 입력하고, B 묶음의 N은 프리셋 값으로 고정이다. 같은 라벨이 여러 행이면 마지막 유효 행을 쓴다. 결과 요약은 `docs/measurements/README.md`에 있다.
+
+실측(에디터, 2026-11-16 ~ 11-18)에서 N\*는 1400이었다(1200은 66.7 FPS로 미도달, 1400은 37.1 FPS). 다만 A·C 비교는 N 1200에서 했다. 1400에서는 기준 조합이 이미 37 FPS로 한계 아래라 변별력이 낮고, 1200은 기준 60.3 FPS로 경계 직전이기 때문이다.
+
 ### 측정 절차
 
 1. Dev Mode On Play를 켜고 Play한다(빌드는 `--dev`). 타이틀(또는 ESC 일시정지)에서 F1을 눌러 오버레이를 연다.
@@ -380,6 +436,15 @@ flowchart TD
 - **핫 리로드**: 판 진행 중에 `Survivor/Assets/StreamingAssets/Data/*.json`을 저장한 뒤 Data 탭 `Hot reload JSON`을 누른다. 다음 스폰부터 반영되고, 이미 보유한 무기 정의는 그대로다.
 - **덤프**: Data 탭 `Dump data`는 로드된 모든 정의와 검증 보고서를 `dump_<timestamp>.txt`로 쓴다.
 
+**E1·E2 본 실행 절차**: 세 판을 같은 조건으로 돌린다.
+
+1. 공통 설정: Run 탭에서 Seed를 입력하고 `Fix seed`를 누른다(표시가 random에서 숫자로 바뀐다). Level-up을 끄고 Auto path를 켠다. Player 탭에서 무적을 켠다. Enemies 탭에서 Hold N을 200으로 하고 No table spawns를 켠 뒤 `Apply (next run)`를 누른다. Strategy 탭에서 타깃을 SpatialHash로 하고, Data 탭에서 Collision log를 켠다.
+2. 판 ①은 충돌 전략 Self, 판 ②는 Engine에 `Engine CCD (Continuous)` 토글 끔(Discrete), 판 ③은 같은 토글 켬(Continuous)이다(Strategy 탭, 충돌 전략은 다음 판부터 적용). 각 판을 60초가량 돌린 뒤 ESC를 누르고 `Export collision log (this run)`로 내보낸다.
+3. **확인 항목**: 세 파일명의 시드 숫자가 같아야 한다. 다르면 시드가 고정되지 않은 것이라 비교할 수 없다.
+4. 비교는 step 3600 이하의 (스텝, 채널, A, B, 종류) 집합으로 한다. E1은 ①과 ②, E2는 ②와 ③이다.
+
+결과(2026-11-18, 시드 4242): 세 로그의 step 3600 이하 이벤트 집합이 2,499건으로 완전히 일치했다(차집합 0). 로그는 `docs/measurements/collision/`에 있다.
+
 ## 문서 지도
 
 | 위치 | 무엇인가 |
@@ -388,4 +453,5 @@ flowchart TD
 | `tech/` | 기술 설계. 인터페이스·어셈블리(5.0), 단계·게이트(5.3), 개발자 모드(5.15) 등 구현 계약 |
 | `DECISIONS.md` | 결정의 현재 상태와 이유, 버린 대안. 주제별 절로 정리되어 있다 |
 | `docs/devlog.md` | 트러블슈팅, 검토했으나 채택하지 않은 대안, 측정 기록, 테스터 피드백 |
+| `docs/measurements/` | 측정 결과 데이터(2026-11-16 ~ 11-18). 요약 표(`README.md`), 유효 측정 전체(`summary.csv`), devlog 표에 쓴 행(`final-rows.csv`), 측정 원본(`runs/`), E1·E2 충돌 로그(`collision/`) |
 | `docs/records/` | 웨이브 2 시점에 구현자가 남긴 기능별 기록 초안(풀·타깃·틱·데이터·트러블슈팅). devlog의 재료 |
