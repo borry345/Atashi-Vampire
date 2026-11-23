@@ -69,3 +69,15 @@ MonoBehaviour:
     Sprite: {fileID: 0}
     Color: {r: 0.9490196, g: 0.83137256, b: 0.23921569, a: 1}
     PrefabOverride: {fileID: 0}
+  - Key: icon.p1
+    Sprite: {fileID: 0}
+    Color: {r: 0.24533153, g: 1, b: 0, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: icon.p2
+    Sprite: {fileID: 0}
+    Color: {r: 0.92933345, g: 1, b: 0, a: 1}
+    PrefabOverride: {fileID: 0}
+  - Key: icon.p3
+    Sprite: {fileID: 0}
+    Color: {r: 1, g: 0.46619305, b: 0, a: 1}
+    PrefabOverride: {fileID: 0}
