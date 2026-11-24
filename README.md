@@ -5,7 +5,7 @@ Unity 2D 뱀파이어 서바이버라이크. 풀링·타깃 탐색·Update 집�
 <!-- GIF: 사용자가 넣는다 (시연 GIF 1개, F13) -->
 
 - 시연 영상(1~2분): <!-- TODO(사용자): YouTube 링크(공개) -->
-- 빌드 다운로드(Windows zip): <!-- TODO(사용자): GitHub Releases 링크 -->
+- 빌드 다운로드(Windows zip): [Releases v0.1.0](https://github.com/borry345/Atashi-Vampire/releases/tag/v0.1.0) — 1차 MVP 기술 검증 빌드(밸런싱 전)
 - 기준 버전: Unity 6000.3.28f1 (Universal 2D). 이 문서의 코드 설명은 커밋 `93b089e` 기준이다.
 
 ## 실행 방법
