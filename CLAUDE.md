@@ -5,7 +5,7 @@
 
 ## 필수 선행 읽기 (순서대로)
 
-1. `HANDOFF.md` — 항상 가장 먼저 읽는다. 세션이 바뀌면 끊기는 하네스 레벨 정보.
+1. `HANDOFF.md` — 항상 가장 먼저 읽는다. §1은 **이 프로젝트의 세션 인수인계**(설치본 전용, PM 세션을 마칠 때마다 갱신), §2·§3은 세션이 바뀌면 끊기는 하네스 레벨 정보.
 2. `ORCHESTRATION.md` — 항상 읽는다 (팀 구조, 권한 경계, 정책).
 3. `CODING_GUIDE.md` — 항상 읽는다 (코드 스타일 규칙).
 
@@ -13,7 +13,7 @@
 
 | 카테고리 | 원본 위치 | 비고 |
 |---|---|---|
-| 기억과 연속성 | `HANDOFF.md`(부트스트랩 전용) + `DECISIONS.md`(결정의 현재 상태·이유, 주제별·갱신형) + `RUN_LOG.md`(실행 일지: 디스패치·비용·실패·사고, append-only) | 세션 시작 시 HANDOFF.md로 진입, 결정은 DECISIONS.md 색인에서, 최근 이력은 RUN_LOG.md 최신 항목부터 읽는다(전체를 읽지 않는다). 2026-10-27 분리 |
+| 기억과 연속성 | `HANDOFF.md`(§1 프로젝트 인수인계 요약 — 상세는 `RUN_LOG.md` 최신 "세션 인수인계" 항목; §2·§3 하네스 부트스트랩) + `DECISIONS.md`(결정의 현재 상태·이유, 주제별·갱신형) + `RUN_LOG.md`(실행 일지: 디스패치·비용·실패·사고, append-only) | 세션 시작 시 HANDOFF.md로 진입, 결정은 DECISIONS.md 색인에서, 최근 이력은 RUN_LOG.md 최신 항목부터 읽는다(전체를 읽지 않는다). 2026-10-27 분리 |
 | 변경 통제 | `.claude/settings.json`(permissions.ask) + `ORCHESTRATION.md` "체크포인트/의미있는 커밋 이원화" | `git commit/tag/push/reset`, `npm install` 등은 프롬프트가 아니라 실제 승인 게이트로 강제됨 |
 | 고위험 행동 차단 | `.claude/settings.json`(permissions.ask/allow) | 도구 권한 레벨의 기술적 강제 — 소프트 제약이 아님 |
 | 개발 작업 안전 | `ORCHESTRATION.md` "구현 에이전트 디스패치 원칙" | 파일 소유권, 스크래치 디렉터리 격리, 3-strikes 재시도 상한 |
